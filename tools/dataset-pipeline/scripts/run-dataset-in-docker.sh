@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+channel="${1:-daily}"
+publish="${2:-false}"
+image="${GTNH_DATASET_DOCKER_IMAGE:-gtnh-factory-flow-dataset:java17}"
+memory="${GTNH_EXPORT_MAX_MEMORY:-8G}"
+timeout_seconds="${GTNH_EXPORT_TIMEOUT_SECONDS:-3600}"
+
+docker build -t "$image" -f tools/dataset-pipeline/docker/Dockerfile .
+
+mkdir -p .pipeline public/datasets/gtnh
+
+docker run --rm \
+  --name "gtnh-dataset-${channel}" \
+  --shm-size=2g \
+  -e "CHANNEL=${channel}" \
+  -e "GITHUB_TOKEN=${GITHUB_TOKEN:-}" \
+  -v "$PWD:/workspace" \
+  -w /workspace \
+  "$image" \
+  bash -lc 'node tools/dataset-pipeline/scripts/detect-gtnh-versions.mjs'
+
+mapfile -t versions < <(
+  node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('.pipeline/detected-versions.json','utf8')); for (const v of data.detected) console.log([v.channel,v.id,v.gtnhVersion,v.sourceKind,v.sourceRef,v.sourceUrl ?? ''].map(x => String(x).replaceAll('\t',' ')).join('\t'))"
+)
+
+if [[ "${#versions[@]}" -eq 0 ]]; then
+  echo "No GTNH versions detected for channel ${channel}." >&2
+  exit 1
+fi
+
+for line in "${versions[@]}"; do
+  IFS=$'\t' read -r version_channel version_id version_label source_kind source_ref source_url <<<"$line"
+  echo "Running ${version_id} in Docker with GTNH_EXPORT_MAX_MEMORY=${memory}."
+  docker run --rm \
+    --name "gtnh-export-${version_id}" \
+    --shm-size=2g \
+    -e "GITHUB_TOKEN=${GITHUB_TOKEN:-}" \
+    -e "GTNH_CHANNEL=${version_channel}" \
+    -e "GTNH_VERSION_ID=${version_id}" \
+    -e "GTNH_VERSION_LABEL=${version_label}" \
+    -e "GTNH_SOURCE_KIND=${source_kind}" \
+    -e "GTNH_SOURCE_REF=${source_ref}" \
+    -e "GTNH_SOURCE_URL=${source_url}" \
+    -e "GTNH_EXPORT_MAX_MEMORY=${memory}" \
+    -e "GTNH_EXPORT_TIMEOUT_SECONDS=${timeout_seconds}" \
+    -e "GTNH_EXPORT_PACK_KIND=client" \
+    -e "GTNH_RENDER_STACK_ICONS=true" \
+    -v "$PWD:/workspace" \
+    -w /workspace \
+    "$image" \
+    bash -lc 'npm install && node tools/dataset-pipeline/scripts/generate-dataset.mjs'
+done
+
+node tools/dataset-pipeline/scripts/rebuild-manifest.mjs
+
+if [[ "$publish" == "true" ]]; then
+  git add public/datasets/gtnh
+  if git diff --cached --quiet -- public/datasets/gtnh; then
+    echo "No dataset changes to commit."
+  else
+    git commit -m "Update GTNH datasets"
+    git push
+  fi
+fi

@@ -60,7 +60,7 @@ node tools/dataset-pipeline/scripts/patch-recex-autorun.mjs "$recex_work"
 chmod +x "$recex_work/gradlew"
 (cd "$recex_work" && ./gradlew --no-daemon build -x spotlessJavaCheck)
 recex_jar="$(find "$recex_work/build/libs" -maxdepth 1 -type f -name 'RecEx-*.jar' ! -name '*sources*' ! -name '*dev*' | sort | tail -n 1)"
-find "$instance_root/mods" -maxdepth 1 -type f \( -iname '*recex*.jar' -o -iname '*recipe*export*.jar' \) -delete
+find "$instance_root/mods" -type f \( -iname '*recex*.jar' -o -iname '*recipe*export*.jar' \) -print -delete
 cp "$recex_jar" "$instance_root/mods/"
 
 cat > "$instance_root/eula.txt" <<'EOF'

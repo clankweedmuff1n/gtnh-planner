@@ -42,6 +42,7 @@ source = source.replace(
     public void init(FMLInitializationEvent e) {
         proxy.init(e);
         if (Boolean.getBoolean("recex.autorun") && FMLCommonHandler.instance().getSide().isClient()) {
+            log.info("RecEx autorun registering mod event handler.");
             FMLCommonHandler.instance().bus().register(this);
         }
     }
@@ -69,7 +70,11 @@ source = source.replace(
         runAutorunExport("client-tick");
     }
 
-    private void runAutorunExport(String trigger) {
+    public static void requestAutorunExport(String trigger) {
+        runAutorunExport(trigger);
+    }
+
+    private static void runAutorunExport(String trigger) {
         if (!Boolean.getBoolean("recex.autorun")) {
             return;
         }
@@ -106,6 +111,68 @@ source = source.replace(
 );
 
 await fs.writeFile(modPath, source);
+
+const clientProxyPath = path.join(
+  repoDir,
+  "src/main/java/com/bigbass/recex/proxy/ClientProxy.java",
+);
+let clientProxySource = await fs.readFile(clientProxyPath, "utf8");
+clientProxySource = clientProxySource.replace(
+  "import com.bigbass.recex.KeyBindings;",
+  [
+    "import com.bigbass.recex.KeyBindings;",
+    "import com.bigbass.recex.autorun.ClientAutorunExportHandler;",
+  ].join("\n"),
+);
+clientProxySource = clientProxySource.replace(
+  "        KeyBindings.getInstance();\n",
+  [
+    "        KeyBindings.getInstance();",
+    "        if (Boolean.getBoolean(\"recex.autorun\")) {",
+    "            FMLCommonHandler.instance().bus().register(new ClientAutorunExportHandler());",
+    "        }",
+  ].join("\n") + "\n",
+);
+await fs.writeFile(clientProxyPath, clientProxySource);
+
+const autorunPackageDir = path.join(repoDir, "src/main/java/com/bigbass/recex/autorun");
+await fs.mkdir(autorunPackageDir, { recursive: true });
+await fs.writeFile(
+  path.join(autorunPackageDir, "ClientAutorunExportHandler.java"),
+  `package com.bigbass.recex.autorun;
+
+import com.bigbass.recex.RecipeExporterMod;
+
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
+import net.minecraft.client.Minecraft;
+
+public final class ClientAutorunExportHandler {
+
+    private int ticks;
+
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+
+        ticks++;
+        if (ticks < Integer.getInteger("recex.autorunDelayTicks", 80)) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft == null || minecraft.getTextureManager() == null || minecraft.fontRenderer == null) {
+            return;
+        }
+
+        RecipeExporterMod.log.info("RecEx autorun client tick handler is ready after " + ticks + " ticks.");
+        RecipeExporterMod.requestAutorunExport("client-proxy-tick");
+    }
+}
+`,
+);
 
 const exporterPath = path.join(
   repoDir,

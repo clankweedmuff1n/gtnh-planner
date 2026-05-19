@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createEmptyProject } from "@/examples";
-import type { DatasetManifest, RecipeDataset } from "@/lib/datasets";
+import { enrichDatasetRecipes, type DatasetManifest, type RecipeDataset } from "@/lib/datasets";
 import { calculateThroughput } from "@/lib/solver";
 import { getResourceKey, primaryOutput, resourceLabel } from "@/lib/model/resources";
 import type {
@@ -101,14 +101,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
     }));
   },
   setDataset: (dataset) => {
+    const enrichedDataset = enrichDatasetRecipes(dataset);
     set((state) => ({
-      dataset,
-      selectedDatasetVersionId: dataset.datasetVersionId,
+      dataset: enrichedDataset,
+      selectedDatasetVersionId: enrichedDataset.datasetVersionId,
       selectedRecipeId:
         state.selectedRecipeId &&
-        dataset.recipes.some((recipe) => recipe.id === state.selectedRecipeId)
+        enrichedDataset.recipes.some((recipe) => recipe.id === state.selectedRecipeId)
           ? state.selectedRecipeId
-          : dataset.recipes[0]?.id,
+          : enrichedDataset.recipes[0]?.id,
       datasetError: undefined,
       isDatasetLoading: false,
     }));

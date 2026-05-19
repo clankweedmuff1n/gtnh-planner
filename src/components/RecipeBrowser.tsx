@@ -6,7 +6,7 @@ import { mergeDatasetAndProjectRecipes } from "@/lib/datasets";
 import { primaryOutput } from "@/lib/model";
 import { useFactoryStore } from "@/store/factory-store";
 import type { Recipe } from "@/lib/model/types";
-import { NeiRecipeCanvas } from "./nei/NeiRecipeCanvas";
+import { NeiRecipeWindow } from "./nei/NeiRecipeWindow";
 
 export function RecipeBrowser() {
   const dataset = useFactoryStore((state) => state.dataset);
@@ -163,7 +163,7 @@ function RecipeResultCard({
         </button>
       </div>
       <div className="mt-2 overflow-x-auto pb-1">
-        <NeiRecipeCanvas recipe={recipe} scale={1.25} className="mx-auto" />
+        <NeiRecipeWindow recipe={recipe} scale={1.25} compact className="mx-auto" />
       </div>
       {primary ? (
         <p className="mt-2 truncate text-[11px] text-neutral-400">

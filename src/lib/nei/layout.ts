@@ -219,6 +219,11 @@ export function getNeiRecipeLayout(recipe: Recipe): NeiRecipeLayout {
 }
 
 function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLayoutDefinition {
+  const exportedGrid = exportedGridLayout(recipe);
+  if (exportedGrid) {
+    return exportedGrid;
+  }
+
   const exact = RECIPE_MAP_LAYOUTS[recipeMap];
   if (exact) {
     return exact;
@@ -279,6 +284,82 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
   return {
     id: "default",
   };
+}
+
+function exportedGridLayout(recipe: Recipe): RecipeMapLayoutDefinition | undefined {
+  const nei = recipe.nei;
+  if (
+    !nei?.itemInputGrid &&
+    !nei?.itemOutputGrid &&
+    !nei?.fluidInputGrid &&
+    !nei?.fluidOutputGrid
+  ) {
+    return undefined;
+  }
+
+  const itemInputWidth = nei.itemInputGrid?.width ?? 0;
+  const itemInputHeight = nei.itemInputGrid?.height ?? 0;
+  const itemOutputWidth = nei.itemOutputGrid?.width ?? 0;
+  const itemOutputHeight = nei.itemOutputGrid?.height ?? 0;
+  const fluidInputWidth = nei.fluidInputGrid?.width ?? 0;
+  const fluidInputHeight = nei.fluidInputGrid?.height ?? 0;
+  const fluidOutputWidth = nei.fluidOutputGrid?.width ?? 0;
+  const fluidOutputHeight = nei.fluidOutputGrid?.height ?? 0;
+  const inputItemRows = Math.max(itemInputHeight, itemOutputHeight);
+  const outputItemRows = inputItemRows;
+
+  return {
+    id: "exported-nei-grid",
+    maxItemInputs: itemInputWidth * itemInputHeight,
+    maxItemOutputs: itemOutputWidth * itemOutputHeight,
+    maxFluidInputs: fluidInputWidth * fluidInputHeight,
+    maxFluidOutputs: fluidOutputWidth * fluidOutputHeight,
+    logo: { x: 80, y: 62 },
+    canvas: largeCanvas(
+      itemInputWidth * itemInputHeight,
+      itemOutputWidth * itemOutputHeight,
+      fluidInputWidth * fluidInputHeight,
+      fluidOutputWidth * fluidOutputHeight,
+    ),
+    itemInputPositions: (count) =>
+      fixedOrGrowingGrid(count, 16, 8, Math.max(itemInputWidth, 1), itemInputHeight),
+    itemOutputPositions: (count) =>
+      fixedOrGrowingGrid(count, 106, 8, Math.max(itemOutputWidth, 1), itemOutputHeight),
+    fluidInputPositions: (count) =>
+      fixedOrGrowingGrid(
+        count,
+        16,
+        8 + inputItemRows * SLOT_SIZE,
+        Math.max(fluidInputWidth, 1),
+        fluidInputHeight,
+      ),
+    fluidOutputPositions: (count) =>
+      fixedOrGrowingGrid(
+        count,
+        106,
+        8 + outputItemRows * SLOT_SIZE,
+        Math.max(fluidOutputWidth, 1),
+        fluidOutputHeight,
+      ),
+    progressBars: [{ ...DEFAULT_PROGRESS_BARS[0], texture: "arrow_multiple" }],
+  };
+}
+
+function fixedOrGrowingGrid(
+  count: number,
+  xOrigin: number,
+  yOrigin: number,
+  width: number,
+  declaredHeight: number,
+) {
+  const rowsNeeded = count > 0 ? Math.ceil(count / Math.max(width, 1)) : 0;
+  return gridPositions(
+    count,
+    xOrigin,
+    yOrigin,
+    Math.max(width, 1),
+    Math.max(declaredHeight, rowsNeeded),
+  );
 }
 
 function defaultItemInputPositions(count: number) {

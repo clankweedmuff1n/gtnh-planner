@@ -3,7 +3,7 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { FactoryNode, NodeThroughputResult, Recipe } from "@/lib/model/types";
 import { formatRate } from "@/lib/model";
-import { NeiRecipeCanvas } from "@/components/nei/NeiRecipeCanvas";
+import { NeiRecipeWindow } from "@/components/nei/NeiRecipeWindow";
 import { makeResourceHandleId } from "./resource-handles";
 
 export interface RecipeNodeData extends Record<string, unknown> {
@@ -24,32 +24,16 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   return (
     <div
       className={[
-        "w-[360px] border-2 border-[#f4f4f4] bg-[#c6c6c6] font-mono text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]",
+        "w-[368px] border-2 border-[#f4f4f4] bg-[#c6c6c6] font-mono text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]",
         selected ? "ring-2 ring-cyan-300" : "",
         color.ring,
       ].join(" ")}
     >
       <div className="px-2 pb-2 pt-1">
-        <div className="grid grid-cols-[22px_minmax(0,1fr)_22px] items-center">
-          <div className="h-7 border-2 border-[#252525] bg-[#8f8f8f] text-center text-[16px] leading-5 text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] [text-shadow:1px_1px_0_#000]">
-            &lt;
-          </div>
-          <div className="h-7 truncate border-2 border-[#555] bg-[#9b9b9b] px-2 text-center text-[17px] leading-[24px] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a] [text-shadow:2px_2px_0_#3f3f3f]">
-            {recipe.machineType}
-          </div>
-          <div className="h-7 border-2 border-[#252525] bg-[#8f8f8f] text-center text-[16px] leading-5 text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] [text-shadow:1px_1px_0_#000]">
-            &gt;
-          </div>
-        </div>
-
-        <div className="h-6 truncate border-x-2 border-b-2 border-[#555] bg-[#a7a7a7] px-2 text-center text-[14px] leading-5 text-white shadow-[inset_2px_0_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a] [text-shadow:1px_1px_0_#3f3f3f]">
-          {recipe.name}
-        </div>
-
-        <NeiRecipeCanvas
+        <div className="truncate pb-1 text-[12px] font-bold">{recipe.name}</div>
+        <NeiRecipeWindow
           recipe={recipe}
           scale={2}
-          className="mt-1"
           renderHandle={(slot) => {
             const isInput = slot.side === "input";
             return (

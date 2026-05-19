@@ -44,6 +44,7 @@ cd ${shellQuote(instanceRoot)}
 exec java \\
   -Xms4G \\
   -Xmx${shellQuote(javaMemory)} \\
+  -Djava.system.class.loader=com.gtnewhorizons.retrofuturabootstrap.RfbSystemClassLoader \\
   -Djava.library.path=${shellQuote(nativesDir)} \\
   -Dorg.lwjgl.librarypath=${shellQuote(nativesDir)} \\
   -cp ${shellQuote(classpath)} \\

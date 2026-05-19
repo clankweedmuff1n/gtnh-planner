@@ -1,4 +1,4 @@
-FROM node:22-bookworm
+FROM eclipse-temurin:25-jdk-jammy
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -7,6 +7,7 @@ RUN apt-get update \
     ca-certificates \
     curl \
     git \
+    gnupg \
     libasound2 \
     libegl1 \
     libgl1 \
@@ -22,14 +23,12 @@ RUN apt-get update \
     libxtst6 \
     libxxf86vm1 \
     mesa-utils \
-    openjdk-17-jdk \
     unzip \
     xauth \
     xvfb \
+  && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+  && apt-get install -y --no-install-recommends nodejs \
   && rm -rf /var/lib/apt/lists/*
-
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 WORKDIR /workspace
 CMD ["bash"]

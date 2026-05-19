@@ -18,11 +18,13 @@ const assetsDir = path.join(runtimeDir, "assets");
 const librariesDir = path.join(runtimeDir, "libraries");
 const versionsDir = path.join(runtimeDir, "versions", minecraftVersion);
 const nativesDir = path.join(runtimeDir, "natives");
+const xdgDataDir = path.join(runtimeDir, "xdg-data");
 
 await fs.mkdir(runtimeDir, { recursive: true });
 await fs.mkdir(librariesDir, { recursive: true });
 await fs.mkdir(versionsDir, { recursive: true });
 await fs.mkdir(nativesDir, { recursive: true });
+await fs.mkdir(xdgDataDir, { recursive: true });
 
 const versionInfo = await minecraftVersionInfo(minecraftVersion);
 await downloadFile(
@@ -35,12 +37,15 @@ await downloadKnownForgeLibraries();
 await downloadAssets(versionInfo);
 
 const classpath = await buildClasspath();
+const mainClass = await selectMainClass(classpath);
 const launchScript = path.join(runtimeDir, "launch-gtnh-client.sh");
 await fs.writeFile(
   launchScript,
   `#!/usr/bin/env bash
 set -euo pipefail
 cd ${shellQuote(instanceRoot)}
+mkdir -p ${shellQuote(xdgDataDir)}
+export XDG_DATA_HOME=${shellQuote(xdgDataDir)}
 exec java \\
   -Xms4G \\
   -Xmx${shellQuote(javaMemory)} \\
@@ -84,7 +89,7 @@ exec java \\
   -Djava.library.path=${shellQuote(nativesDir)} \\
   -Dorg.lwjgl.librarypath=${shellQuote(nativesDir)} \\
   -cp ${shellQuote(classpath)} \\
-  com.gtnewhorizons.retrofuturabootstrap.MainStartOnFirstThread \\
+  ${mainClass} \\
   --username GTNHFactoryFlow \\
   --version ${shellQuote(minecraftVersion + "-Forge")} \\
   --gameDir ${shellQuote(instanceRoot)} \\
@@ -258,6 +263,40 @@ async function buildClasspath() {
   }
 
   return uniqueJars.join(":");
+}
+
+async function selectMainClass(classpath) {
+  const candidates = [
+    "com.gtnewhorizons.retrofuturabootstrap.MainStartOnFirstThread",
+    "com.gtnewhorizons.retrofuturabootstrap.Main",
+  ];
+
+  for (const candidate of candidates) {
+    if (await classpathContainsClass(classpath, candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error("Could not find a RetroFuturaBootstrap main class in the GTNH classpath.");
+}
+
+async function classpathContainsClass(classpath, className) {
+  const classFile = `${className.replace(/\./g, "/")}.class`;
+  for (const jarPath of classpath.split(":")) {
+    if (!jarPath.endsWith(".jar") || !existsSync(jarPath)) {
+      continue;
+    }
+
+    const result = spawnSync("unzip", ["-l", jarPath, classFile], {
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+    });
+    if (result.status === 0 && result.stdout.includes(classFile)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function findJars(root) {

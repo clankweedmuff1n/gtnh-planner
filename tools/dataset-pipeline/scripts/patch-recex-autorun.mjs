@@ -325,16 +325,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.imageio.ImageIO;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.client.renderer.entity.RenderItem;
-import net.minecraft.client.shader.Framebuffer;
-import net.minecraft.item.ItemBlock;
+import net.minecraft.client.renderer.texture.TextureMap;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.IIcon;
+import net.minecraft.util.ResourceLocation;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL12;
 
 import com.bigbass.recex.RecipeExporterMod;
 
@@ -344,12 +342,11 @@ public final class ClientItemStackIconRenderer {
     private static final int MAX_RENDER_FAILURES = Integer.getInteger("recex.maxIconRenderFailures", 200);
     private static final Map<String, String> CACHE = new ConcurrentHashMap<String, String>();
     private static final AtomicInteger RENDER_FAILURES = new AtomicInteger(0);
-    private static final RenderItem RENDER_ITEM = new RenderItem();
 
     private ClientItemStackIconRenderer() {}
 
     public static String captureIcon(ItemStack stack) {
-        if (stack == null || stack.getItem() == null || stack.stackSize <= 0 || stack.getItem() instanceof ItemBlock) {
+        if (stack == null || stack.getItem() == null || stack.stackSize <= 0) {
             return null;
         }
 
@@ -390,73 +387,87 @@ public final class ClientItemStackIconRenderer {
     }
 
     private static void renderToPng(ItemStack stack, File outFile) throws Exception {
+        BufferedImage image = renderFromLoadedTextureAtlas(stack);
+        if (image == null) {
+            throw new IllegalStateException("No loaded atlas icon is available for " + stack);
+        }
+
+        ImageIO.write(image, "png", outFile);
+    }
+
+    private static BufferedImage renderFromLoadedTextureAtlas(ItemStack stack) throws Exception {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc == null || mc.getTextureManager() == null) {
             throw new IllegalStateException("Minecraft client is not ready.");
         }
 
-        Framebuffer framebuffer = new Framebuffer(ICON_SIZE, ICON_SIZE, true);
-        ByteBuffer buffer;
-        boolean projectionPushed = false;
-        boolean modelViewPushed = false;
+        Item item = stack.getItem();
+        int passes = item.requiresMultipleRenderPasses() ? Math.max(1, item.getRenderPasses(stack.getItemDamage())) : 1;
+        BufferedImage output = new BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
+        boolean renderedAnyPass = false;
 
-        try {
-            framebuffer.bindFramebuffer(true);
-
-            GL11.glViewport(0, 0, ICON_SIZE, ICON_SIZE);
-            GL11.glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
-            GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
-
-            GL11.glMatrixMode(GL11.GL_PROJECTION);
-            GL11.glPushMatrix();
-            projectionPushed = true;
-            GL11.glLoadIdentity();
-            GL11.glOrtho(0.0D, ICON_SIZE, ICON_SIZE, 0.0D, 1000.0D, 3000.0D);
-
-            GL11.glMatrixMode(GL11.GL_MODELVIEW);
-            GL11.glPushMatrix();
-            modelViewPushed = true;
-            GL11.glLoadIdentity();
-            GL11.glTranslatef(0.0F, 0.0F, -2000.0F);
-
-            RenderHelper.enableGUIStandardItemLighting();
-            GL11.glEnable(GL12.GL_RESCALE_NORMAL);
-            FontRenderer fontRenderer = stack.getItem().getFontRenderer(stack);
-            if (fontRenderer == null) {
-                fontRenderer = mc.fontRenderer;
+        for (int pass = 0; pass < passes; pass++) {
+            IIcon icon = iconForPass(stack, pass);
+            if (icon == null) {
+                continue;
             }
-            RENDER_ITEM.renderItemIntoGUI(fontRenderer, mc.getTextureManager(), stack, (ICON_SIZE - 16) / 2, (ICON_SIZE - 16) / 2);
-            RenderHelper.disableStandardItemLighting();
 
-            GL11.glMatrixMode(GL11.GL_MODELVIEW);
-            GL11.glPopMatrix();
-            modelViewPushed = false;
-            GL11.glMatrixMode(GL11.GL_PROJECTION);
-            GL11.glPopMatrix();
-            projectionPushed = false;
-            GL11.glMatrixMode(GL11.GL_MODELVIEW);
+            ResourceLocation atlas = item.getSpriteNumber() == 0
+                ? TextureMap.locationBlocksTexture
+                : TextureMap.locationItemsTexture;
+            BufferedImage atlasImage = readBoundAtlas(mc, atlas);
+            if (atlasImage == null) {
+                continue;
+            }
 
-            buffer = BufferUtils.createByteBuffer(ICON_SIZE * ICON_SIZE * 4);
-            GL11.glReadPixels(0, 0, ICON_SIZE, ICON_SIZE, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
-        } finally {
-            RenderHelper.disableStandardItemLighting();
-            if (modelViewPushed) {
-                GL11.glMatrixMode(GL11.GL_MODELVIEW);
-                GL11.glPopMatrix();
-            }
-            if (projectionPushed) {
-                GL11.glMatrixMode(GL11.GL_PROJECTION);
-                GL11.glPopMatrix();
-            }
-            GL11.glMatrixMode(GL11.GL_MODELVIEW);
-            framebuffer.unbindFramebuffer();
-            framebuffer.deleteFramebuffer();
+            int color = item.getColorFromItemStack(stack, pass);
+            drawIconPass(output, atlasImage, icon, color);
+            renderedAnyPass = true;
         }
 
-        BufferedImage image = new BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
-        for (int y = 0; y < ICON_SIZE; y++) {
-            for (int x = 0; x < ICON_SIZE; x++) {
-                int index = (x + (ICON_SIZE - 1 - y) * ICON_SIZE) * 4;
+        return renderedAnyPass ? output : null;
+    }
+
+    private static IIcon iconForPass(ItemStack stack, int pass) {
+        Item item = stack.getItem();
+        IIcon icon = null;
+        try {
+            icon = item.getIcon(stack, pass);
+        } catch (Throwable ignored) {
+            icon = null;
+        }
+        if (icon == null) {
+            try {
+                icon = item.getIconFromDamageForRenderPass(stack.getItemDamage(), pass);
+            } catch (Throwable ignored) {
+                icon = null;
+            }
+        }
+        if (icon == null && pass == 0) {
+            try {
+                icon = item.getIconIndex(stack);
+            } catch (Throwable ignored) {
+                icon = null;
+            }
+        }
+        return icon;
+    }
+
+    private static BufferedImage readBoundAtlas(Minecraft mc, ResourceLocation atlas) {
+        mc.getTextureManager().bindTexture(atlas);
+        int width = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_WIDTH);
+        int height = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_HEIGHT);
+        if (width <= 0 || height <= 0 || width > 16384 || height > 16384) {
+            return null;
+        }
+
+        ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * 4);
+        GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int index = (x + (height - 1 - y) * width) * 4;
                 int r = buffer.get(index) & 255;
                 int g = buffer.get(index + 1) & 255;
                 int b = buffer.get(index + 2) & 255;
@@ -464,8 +475,60 @@ public final class ClientItemStackIconRenderer {
                 image.setRGB(x, y, (a << 24) | (r << 16) | (g << 8) | b);
             }
         }
+        return image;
+    }
 
-        ImageIO.write(image, "png", outFile);
+    private static void drawIconPass(BufferedImage output, BufferedImage atlas, IIcon icon, int color) {
+        int tintR = (color >> 16) & 255;
+        int tintG = (color >> 8) & 255;
+        int tintB = color & 255;
+        int minX = clamp((int)Math.floor(icon.getMinU() * atlas.getWidth()), 0, atlas.getWidth() - 1);
+        int maxX = clamp((int)Math.ceil(icon.getMaxU() * atlas.getWidth()), minX + 1, atlas.getWidth());
+        int minY = clamp((int)Math.floor(icon.getMinV() * atlas.getHeight()), 0, atlas.getHeight() - 1);
+        int maxY = clamp((int)Math.ceil(icon.getMaxV() * atlas.getHeight()), minY + 1, atlas.getHeight());
+
+        for (int y = 0; y < ICON_SIZE; y++) {
+            int sourceY = minY + Math.min(maxY - minY - 1, (y * (maxY - minY)) / ICON_SIZE);
+            for (int x = 0; x < ICON_SIZE; x++) {
+                int sourceX = minX + Math.min(maxX - minX - 1, (x * (maxX - minX)) / ICON_SIZE);
+                int source = atlas.getRGB(sourceX, sourceY);
+                int a = (source >>> 24) & 255;
+                if (a == 0) {
+                    continue;
+                }
+
+                int r = (((source >> 16) & 255) * tintR) / 255;
+                int g = (((source >> 8) & 255) * tintG) / 255;
+                int b = ((source & 255) * tintB) / 255;
+                int tinted = (a << 24) | (r << 16) | (g << 8) | b;
+                output.setRGB(x, y, alphaComposite(tinted, output.getRGB(x, y)));
+            }
+        }
+    }
+
+    private static int alphaComposite(int source, int destination) {
+        int sa = (source >>> 24) & 255;
+        int da = (destination >>> 24) & 255;
+        int outA = sa + ((da * (255 - sa)) / 255);
+        if (outA == 0) {
+            return 0;
+        }
+
+        int sr = (source >> 16) & 255;
+        int sg = (source >> 8) & 255;
+        int sb = source & 255;
+        int dr = (destination >> 16) & 255;
+        int dg = (destination >> 8) & 255;
+        int db = destination & 255;
+        int outR = (sr * sa + dr * da * (255 - sa) / 255) / outA;
+        int outG = (sg * sa + dg * da * (255 - sa) / 255) / outA;
+        int outB = (sb * sa + db * da * (255 - sa) / 255) / outA;
+
+        return (outA << 24) | (outR << 16) | (outG << 8) | outB;
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static File iconDir() {

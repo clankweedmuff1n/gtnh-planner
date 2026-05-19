@@ -29,6 +29,7 @@ await downloadFile(
 );
 await downloadLibraries(versionInfo);
 await downloadMultiMcPatchLibraries();
+await downloadKnownForgeLibraries();
 await downloadAssets(versionInfo);
 
 const classpath = await buildClasspath();
@@ -166,6 +167,26 @@ async function downloadMultiMcPatchLibraries() {
       }
     }
   }
+}
+
+async function downloadKnownForgeLibraries() {
+  await downloadMavenArtifact("net.minecraft:launchwrapper:1.12", [
+    "https://libraries.minecraft.net",
+    "https://repo1.maven.org/maven2",
+  ]);
+}
+
+async function downloadMavenArtifact(coordinates, repositories) {
+  const maven = mavenArtifact(coordinates);
+  if (!maven) {
+    throw new Error(`Invalid Maven coordinates: ${coordinates}`);
+  }
+
+  const target = path.join(librariesDir, ...maven.path.split("/"));
+  await downloadFirst(
+    repositories.map((repo) => `${repo.replace(/\/+$/, "")}/${maven.path}`),
+    target,
+  );
 }
 
 async function findPatchRoot(startDir) {

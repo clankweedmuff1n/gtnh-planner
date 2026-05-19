@@ -9,13 +9,22 @@ set -euo pipefail
 : "${GTNH_DATASET_CHANNEL:?GTNH_DATASET_CHANNEL is required}"
 
 export GTNH_EXPORT_PACK_KIND="${GTNH_EXPORT_PACK_KIND:-server}"
-export GTNH_EXPORT_TIMEOUT_SECONDS="${GTNH_EXPORT_TIMEOUT_SECONDS:-7200}"
-export GTNH_EXPORT_MAX_MEMORY="${GTNH_EXPORT_MAX_MEMORY:-8G}"
+export GTNH_EXPORT_TIMEOUT_SECONDS="${GTNH_EXPORT_TIMEOUT_SECONDS:-2700}"
+export GTNH_EXPORT_MAX_MEMORY="${GTNH_EXPORT_MAX_MEMORY:-12G}"
 
 mkdir -p "$GTNH_DATASET_OUT_DIR" "$GTNH_RAW_EXPORT_DIR" "$GTNH_INSTANCE_DIR"
 
 pack_archive="$GTNH_RAW_EXPORT_DIR/gtnh-pack.zip"
 recex_work="$GTNH_RAW_EXPORT_DIR/recex-autostart"
+runner_log="$GTNH_RAW_EXPORT_DIR/export-runner.log"
+server_log="$GTNH_RAW_EXPORT_DIR/gtnh-server.log"
+
+exec > >(tee -a "$runner_log") 2>&1
+
+echo "GTNH export runner started at $(date -u --iso-8601=seconds)"
+echo "Dataset: $GTNH_DATASET_VERSION_ID ($GTNH_DATASET_CHANNEL $GTNH_DATASET_VERSION_LABEL)"
+echo "Memory: $GTNH_EXPORT_MAX_MEMORY"
+echo "Timeout: ${GTNH_EXPORT_TIMEOUT_SECONDS}s"
 
 node tools/dataset-pipeline/scripts/download-gtnh-pack.mjs "$pack_archive"
 
@@ -63,10 +72,11 @@ fi
 
 chmod +x "$start_script"
 start_script="$(realpath "$start_script")"
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Drecex.autorun=true -Xmx${GTNH_EXPORT_MAX_MEMORY}"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Drecex.autorun=true"
+export _JAVA_OPTIONS="${_JAVA_OPTIONS:-} -Xms4G -Xmx${GTNH_EXPORT_MAX_MEMORY}"
 
 set +e
-timeout "$GTNH_EXPORT_TIMEOUT_SECONDS" bash -lc "cd '$instance_root' && bash '$start_script'"
+timeout "$GTNH_EXPORT_TIMEOUT_SECONDS" bash -lc "cd '$instance_root' && bash '$start_script'" 2>&1 | tee "$server_log"
 exit_code=$?
 set -e
 

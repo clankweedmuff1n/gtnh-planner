@@ -153,6 +153,7 @@ async function downloadMultiMcPatchLibraries() {
       const urls = [
         library.downloads?.artifact?.url,
         library.url ? `${library.url.replace(/\/+$/, "")}/${maven.path}` : undefined,
+        `https://nexus.gtnewhorizons.com/repository/public/${maven.path}`,
         `https://maven.minecraftforge.net/${maven.path}`,
         `https://libraries.minecraft.net/${maven.path}`,
         `https://repo1.maven.org/maven2/${maven.path}`,

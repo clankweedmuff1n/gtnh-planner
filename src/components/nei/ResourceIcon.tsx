@@ -12,6 +12,7 @@ interface ResourceIconProps {
   size?: "sm" | "md" | "lg";
   showAmount?: boolean;
   showName?: boolean;
+  bare?: boolean;
   className?: string;
 }
 
@@ -32,6 +33,7 @@ export function ResourceIcon({
   size = "md",
   showAmount = true,
   showName = false,
+  bare = false,
   className = "",
 }: ResourceIconProps) {
   const title = resource?.tooltip?.join("\n") ?? resource?.displayName ?? resource?.id;
@@ -40,10 +42,12 @@ export function ResourceIcon({
     <div
       title={title}
       className={[
-        "relative flex shrink-0 items-center justify-center overflow-hidden border border-[#373737] bg-[#8d8d8d]",
-        "shadow-[inset_2px_2px_0_#cfcfcf,inset_-2px_-2px_0_#4d4d4d]",
+        "relative flex shrink-0 items-center justify-center overflow-hidden",
+        bare
+          ? ""
+          : "border border-[#373737] bg-[#8d8d8d] shadow-[inset_2px_2px_0_#cfcfcf,inset_-2px_-2px_0_#4d4d4d]",
         sizeClasses[size],
-        resource
+        resource || bare
           ? ""
           : "bg-[#3a3a3a] opacity-100 shadow-[inset_1px_1px_0_#5d5d5d,inset_-1px_-1px_0_#1f1f1f]",
         className,
@@ -55,7 +59,7 @@ export function ResourceIcon({
           alt={resource.displayName ?? resource.id}
           width={imageSizes[size]}
           height={imageSizes[size]}
-          className="object-contain"
+          className="max-h-[78%] max-w-[78%] object-contain"
           style={{ imageRendering: "pixelated" }}
           unoptimized
         />

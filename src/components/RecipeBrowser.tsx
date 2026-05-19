@@ -6,7 +6,7 @@ import { mergeDatasetAndProjectRecipes } from "@/lib/datasets";
 import { primaryOutput } from "@/lib/model";
 import { useFactoryStore } from "@/store/factory-store";
 import type { Recipe } from "@/lib/model/types";
-import { ResourceIcon } from "./nei/ResourceIcon";
+import { NeiRecipeCanvas } from "./nei/NeiRecipeCanvas";
 
 export function RecipeBrowser() {
   const dataset = useFactoryStore((state) => state.dataset);
@@ -132,8 +132,6 @@ function RecipeResultCard({
   onAdd: () => void;
 }) {
   const primary = primaryOutput(recipe);
-  const previewInputs = recipe.inputs.slice(0, 4);
-  const previewOutputs = recipe.outputs.slice(0, 4);
 
   return (
     <article
@@ -164,17 +162,8 @@ function RecipeResultCard({
           <PlusCircle className="h-4 w-4" />
         </button>
       </div>
-      <div className="mt-2 grid grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] items-center gap-2">
-        <IconStrip
-          resources={previewInputs}
-          overflow={recipe.inputs.length - previewInputs.length}
-        />
-        <div className="text-center text-xs font-black text-neutral-500">-&gt;</div>
-        <IconStrip
-          resources={previewOutputs}
-          overflow={recipe.outputs.length - previewOutputs.length}
-          align="end"
-        />
+      <div className="mt-2 overflow-x-auto pb-1">
+        <NeiRecipeCanvas recipe={recipe} scale={1.25} className="mx-auto" />
       </div>
       {primary ? (
         <p className="mt-2 truncate text-[11px] text-neutral-400">
@@ -182,33 +171,6 @@ function RecipeResultCard({
         </p>
       ) : null}
     </article>
-  );
-}
-
-function IconStrip({
-  resources,
-  overflow,
-  align = "start",
-}: {
-  resources: Recipe["inputs"];
-  overflow: number;
-  align?: "start" | "end";
-}) {
-  return (
-    <div className={["flex min-w-0 gap-1", align === "end" ? "justify-end" : ""].join(" ")}>
-      {resources.map((resource, index) => (
-        <ResourceIcon
-          key={`${resource.kind}-${resource.id}-${index}`}
-          resource={resource}
-          size="sm"
-        />
-      ))}
-      {overflow > 0 ? (
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[3px] border border-neutral-700 bg-[#1b1d21] text-[11px] font-bold text-neutral-300">
-          +{overflow}
-        </div>
-      ) : null}
-    </div>
   );
 }
 

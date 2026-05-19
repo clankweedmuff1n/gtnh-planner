@@ -17,9 +17,27 @@ export interface NeiPositionedSlot {
   kind: ResourceKind;
   resource: ResourceAmount;
   resourceIndex: number;
+  slotIndex: number;
   x: number;
   y: number;
 }
+
+export interface NeiSlotFrame {
+  side: NeiSlotSide;
+  kind: ResourceKind;
+  resource?: ResourceAmount;
+  resourceIndex?: number;
+  slotIndex: number;
+  x: number;
+  y: number;
+}
+
+export type NeiProgressTexture =
+  | "arrow"
+  | "arrow_multiple"
+  | "assemblyline_1"
+  | "assemblyline_2"
+  | "assemblyline_3";
 
 export interface NeiProgressBar {
   x: number;
@@ -27,12 +45,14 @@ export interface NeiProgressBar {
   width: number;
   height: number;
   direction: "right" | "up" | "circular";
+  texture: NeiProgressTexture;
 }
 
 export interface NeiRecipeLayout {
   id: string;
   canvas: NeiSize;
   slotSize: number;
+  frames: NeiSlotFrame[];
   slots: NeiPositionedSlot[];
   progressBars: NeiProgressBar[];
   logo: NeiPoint;
@@ -65,7 +85,7 @@ type RequiredRecipeMapLayoutDefinition = Required<
 const SLOT_SIZE = 18;
 const DEFAULT_CANVAS: NeiSize = { width: 170, height: 82 };
 const DEFAULT_PROGRESS_BARS: NeiProgressBar[] = [
-  { x: 78, y: 24, width: 20, height: 18, direction: "right" },
+  { x: 78, y: 24, width: 20, height: 18, direction: "right", texture: "arrow" },
 ];
 
 const LARGE_NEI_MAPS = new Set([
@@ -106,6 +126,7 @@ const RECIPE_MAP_LAYOUTS: Record<string, RecipeMapLayoutDefinition> = {
     itemOutputPositions: (count) => gridPositions(count, 106, 6, 2),
     fluidInputPositions: (count) => gridPositions(count, 7, 41, Math.max(count, 1), 1),
     fluidOutputPositions: (count) => gridPositions(count, 142, 6, 1, Math.max(count, 1)),
+    progressBars: [{ ...DEFAULT_PROGRESS_BARS[0], texture: "arrow_multiple" }],
   },
   "Distillation Tower": {
     id: "distillation-tower",
@@ -122,6 +143,7 @@ const RECIPE_MAP_LAYOUTS: Record<string, RecipeMapLayoutDefinition> = {
       }
       return results;
     },
+    progressBars: [{ ...DEFAULT_PROGRESS_BARS[0], texture: "arrow_multiple" }],
   },
   "Zhuhai - Fishing Port": {
     id: "zhuhai-fishing-port",
@@ -143,51 +165,53 @@ export function getNeiRecipeLayout(recipe: Recipe): NeiRecipeLayout {
   const itemOutputs = withResourceIndexes(recipe.outputs, "item");
   const fluidOutputs = withResourceIndexes(recipe.outputs, "fluid");
 
-  const slots: NeiPositionedSlot[] = [
-    ...positionSlots(
+  const frames: NeiSlotFrame[] = [
+    ...positionFrames(
       itemInputs,
       "input",
       "item",
       (definition.itemInputPositions ?? defaultItemInputPositions)(
-        itemInputs.length,
+        Math.max(itemInputs.length, requiredDefinition.maxItemInputs),
         requiredDefinition,
       ),
     ),
-    ...positionSlots(
+    ...positionFrames(
       fluidInputs,
       "input",
       "fluid",
       (definition.fluidInputPositions ?? defaultFluidInputPositions)(
-        fluidInputs.length,
+        Math.max(fluidInputs.length, requiredDefinition.maxFluidInputs),
         requiredDefinition,
       ),
     ),
-    ...positionSlots(
+    ...positionFrames(
       itemOutputs,
       "output",
       "item",
       (definition.itemOutputPositions ?? defaultItemOutputPositions)(
-        itemOutputs.length,
+        Math.max(itemOutputs.length, requiredDefinition.maxItemOutputs),
         requiredDefinition,
       ),
     ),
-    ...positionSlots(
+    ...positionFrames(
       fluidOutputs,
       "output",
       "fluid",
       (definition.fluidOutputPositions ?? defaultFluidOutputPositions)(
-        fluidOutputs.length,
+        Math.max(fluidOutputs.length, requiredDefinition.maxFluidOutputs),
         requiredDefinition,
       ),
     ),
   ];
+  const slots = frames.filter((frame): frame is NeiPositionedSlot => Boolean(frame.resource));
 
-  const canvas = growCanvas(definition.canvas ?? DEFAULT_CANVAS, slots);
+  const canvas = growCanvas(definition.canvas ?? DEFAULT_CANVAS, frames);
 
   return {
     id: definition.id,
     canvas,
     slotSize: SLOT_SIZE,
+    frames,
     slots,
     progressBars: definition.progressBars ?? DEFAULT_PROGRESS_BARS,
     logo: definition.logo ?? { x: 152, y: 63 },
@@ -211,9 +235,9 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
       itemOutputPositions: (count) => (count > 0 ? [{ x: 142, y: 8 }] : []),
       fluidInputPositions: (count) => gridPositions(count, 106, 8, 1),
       progressBars: [
-        { x: 88, y: 8, width: 17, height: 72, direction: "right" },
-        { x: 124, y: 8, width: 18, height: 72, direction: "right" },
-        { x: 146, y: 26, width: 10, height: 18, direction: "up" },
+        { x: 88, y: 8, width: 17, height: 72, direction: "right", texture: "assemblyline_1" },
+        { x: 124, y: 8, width: 18, height: 72, direction: "right", texture: "assemblyline_2" },
+        { x: 146, y: 26, width: 10, height: 18, direction: "up", texture: "assemblyline_3" },
       ],
     };
   }
@@ -248,6 +272,7 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
       itemOutputPositions: largeItemOutputPositions,
       fluidInputPositions: largeFluidInputPositions,
       fluidOutputPositions: largeFluidOutputPositions,
+      progressBars: [{ ...DEFAULT_PROGRESS_BARS[0], texture: "arrow_multiple" }],
     };
   }
 
@@ -383,19 +408,20 @@ function withResourceIndexes(resources: ResourceAmount[], kind: ResourceKind) {
     .filter((entry) => entry.resource.kind === kind);
 }
 
-function positionSlots(
+function positionFrames(
   resources: Array<{ resource: ResourceAmount; resourceIndex: number }>,
   side: NeiSlotSide,
   kind: ResourceKind,
   positions: NeiPoint[],
-): NeiPositionedSlot[] {
-  return resources.map(({ resource, resourceIndex }, index) => ({
+): NeiSlotFrame[] {
+  return positions.map((position, index) => ({
     side,
     kind,
-    resource,
-    resourceIndex,
-    x: positions[index]?.x ?? 16 + (index % 3) * SLOT_SIZE,
-    y: positions[index]?.y ?? 6 + Math.floor(index / 3) * SLOT_SIZE,
+    resource: resources[index]?.resource,
+    resourceIndex: resources[index]?.resourceIndex,
+    slotIndex: index,
+    x: position.x,
+    y: position.y,
   }));
 }
 
@@ -411,8 +437,8 @@ function withRequiredMaxes(
   };
 }
 
-function growCanvas(canvas: NeiSize, slots: NeiPositionedSlot[]): NeiSize {
-  const maxSlotBottom = Math.max(0, ...slots.map((slot) => slot.y + SLOT_SIZE + 2));
+function growCanvas(canvas: NeiSize, frames: NeiSlotFrame[]): NeiSize {
+  const maxSlotBottom = Math.max(0, ...frames.map((frame) => frame.y + SLOT_SIZE + 2));
   return {
     width: Math.max(canvas.width, 170),
     height: Math.max(canvas.height, maxSlotBottom + 2),

@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 import type { Recipe } from "@/lib/model/types";
-import { getNeiRecipeLayout, type NeiPositionedSlot } from "@/lib/nei/layout";
+import {
+  getNeiRecipeLayout,
+  type NeiPositionedSlot,
+  type NeiProgressTexture,
+  type NeiSlotFrame,
+} from "@/lib/nei/layout";
 import { ResourceIcon } from "./ResourceIcon";
 
 interface NeiRecipeCanvasProps {
@@ -25,90 +30,116 @@ export function NeiRecipeCanvas({
 
   return (
     <div
-      className={[
-        "relative overflow-hidden border-2 border-[#a2a2a2] bg-[#d0d0d0]",
-        "shadow-[inset_2px_2px_0_#efefef,inset_-2px_-2px_0_#9a9a9a]",
-        className,
-      ].join(" ")}
-      style={{ width, height }}
+      className={["relative overflow-hidden border border-transparent", className].join(" ")}
+      style={{
+        width,
+        height,
+        backgroundImage: "url('/nei/gregtech/gui/background/nei_single_recipe.png')",
+        backgroundSize: "100% 100%",
+        imageRendering: "pixelated",
+      }}
     >
       {layout.progressBars.map((bar, index) => (
-        <ProgressGlyph key={`${bar.x}-${bar.y}-${index}`} bar={bar} scale={scale} />
+        <ProgressTexture key={`${bar.x}-${bar.y}-${index}`} bar={bar} scale={scale} />
       ))}
 
-      {layout.slots.map((slot) => (
+      {layout.frames.map((frame) => (
         <div
-          key={`${slot.side}-${slot.kind}-${slot.resource.id}-${slot.resourceIndex}`}
+          key={`${frame.side}-${frame.kind}-${frame.slotIndex}`}
           className="nodrag absolute"
           style={{
-            left: slot.x * scale,
-            top: slot.y * scale,
+            left: frame.x * scale,
+            top: frame.y * scale,
             width: slotSize,
             height: slotSize,
           }}
         >
-          {renderHandle?.(slot)}
-          <ResourceIcon
-            resource={slot.resource}
-            size="md"
-            showName={false}
-            className="!h-full !w-full"
-          />
+          <NeiSlotFrameView frame={frame} renderHandle={renderHandle} />
         </div>
       ))}
 
       <div
-        className="absolute rounded-full border-[6px] border-yellow-300 border-b-transparent"
+        className="absolute"
         style={{
           left: layout.logo.x * scale,
           top: layout.logo.y * scale,
           width: 17 * scale,
           height: 17 * scale,
+          backgroundImage: "url('/nei/gregtech/gui/picture/gt_logo_17x17_transparent.png')",
+          backgroundSize: "100% 100%",
+          imageRendering: "pixelated",
         }}
       />
     </div>
   );
 }
 
-function ProgressGlyph({
-  bar,
-  scale,
+function NeiSlotFrameView({
+  frame,
+  renderHandle,
 }: {
-  bar: { x: number; y: number; width: number; height: number; direction: string };
-  scale: number;
+  frame: NeiSlotFrame;
+  renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
 }) {
-  const width = bar.width * scale;
-  const height = bar.height * scale;
-
-  if (bar.direction === "up") {
-    return (
-      <div
-        className="absolute grid place-items-center font-mono font-black leading-none text-[#efefef] [text-shadow:2px_0_0_#8f8f8f,0_2px_0_#8f8f8f]"
-        style={{
-          left: bar.x * scale,
-          top: bar.y * scale,
-          width,
-          height,
-          fontSize: Math.max(16, 14 * scale),
-        }}
-      >
-        ^
-      </div>
-    );
-  }
+  const slot = frame.resource ? (frame as NeiPositionedSlot) : undefined;
 
   return (
     <div
-      className="absolute grid place-items-center font-mono font-black leading-none text-[#efefef] [text-shadow:2px_0_0_#8f8f8f,0_2px_0_#8f8f8f]"
+      className="relative h-full w-full"
       style={{
-        left: (bar.x - 4) * scale,
-        top: (bar.y - 2) * scale,
-        width: width + 8 * scale,
-        height: height + 4 * scale,
-        fontSize: Math.max(22, 18 * scale),
+        backgroundImage: `url('${getSlotTexture(frame)}')`,
+        backgroundSize: "100% 100%",
+        imageRendering: "pixelated",
       }}
     >
-      =&gt;
+      {slot ? renderHandle?.(slot) : null}
+      {slot ? (
+        <ResourceIcon
+          resource={slot.resource}
+          size="md"
+          showName={false}
+          className="!h-full !w-full"
+          bare
+        />
+      ) : null}
     </div>
   );
+}
+
+function ProgressTexture({
+  bar,
+  scale,
+}: {
+  bar: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    direction: string;
+    texture: NeiProgressTexture;
+  };
+  scale: number;
+}) {
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: bar.x * scale,
+        top: bar.y * scale,
+        width: bar.width * scale,
+        height: bar.height * scale,
+        backgroundImage: `url('${getProgressTexture(bar.texture)}')`,
+        backgroundSize: "100% 100%",
+        imageRendering: "pixelated",
+      }}
+    />
+  );
+}
+
+function getSlotTexture(frame: NeiSlotFrame) {
+  return `/nei/modularui/gui/slot/${frame.kind}.png`;
+}
+
+function getProgressTexture(texture: NeiProgressTexture) {
+  return `/nei/gregtech/gui/progressbar/${texture}.png`;
 }

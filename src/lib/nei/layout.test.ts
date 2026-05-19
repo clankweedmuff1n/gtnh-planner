@@ -44,6 +44,8 @@ describe("NEI layout", () => {
 
     expect(layout.id).toBe("large-nei");
     expect(layout.logo).toEqual({ x: 80, y: 62 });
+    expect(layout.frames).toHaveLength(24);
+    expect(layout.frames.filter((frame) => !frame.resource)).toHaveLength(20);
     expect(layout.slots.map((slot) => [slot.kind, slot.side, slot.x, slot.y])).toEqual([
       ["item", "input", 16, 8],
       ["item", "input", 34, 8],

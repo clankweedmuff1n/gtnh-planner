@@ -18,6 +18,8 @@ source = source.replace(
     "import cpw.mods.fml.common.FMLCommonHandler;",
     "import cpw.mods.fml.common.event.FMLLoadCompleteEvent;",
     "import cpw.mods.fml.common.event.FMLServerStartedEvent;",
+    "import cpw.mods.fml.common.eventhandler.SubscribeEvent;",
+    "import cpw.mods.fml.common.gameevent.TickEvent;",
     "",
     "import java.util.concurrent.atomic.AtomicBoolean;",
   ].join("\n"),
@@ -34,7 +36,15 @@ source = source.replace(
 
 source = source.replace(
   /(\s+@Mod\.EventHandler\s+public void init\(FMLInitializationEvent e\) \{\s+proxy\.init\(e\);\s+\}\s*)\}/,
-  `$1
+  `
+
+    @Mod.EventHandler
+    public void init(FMLInitializationEvent e) {
+        proxy.init(e);
+        if (Boolean.getBoolean("recex.autorun") && FMLCommonHandler.instance().getSide().isClient()) {
+            FMLCommonHandler.instance().bus().register(this);
+        }
+    }
 
     @Mod.EventHandler
     public void serverStarted(FMLServerStartedEvent e) {
@@ -48,6 +58,15 @@ source = source.replace(
         }
 
         runAutorunExport("client-load-complete");
+    }
+
+    @SubscribeEvent
+    public void clientTick(TickEvent.ClientTickEvent e) {
+        if (e.phase != TickEvent.Phase.END || !FMLCommonHandler.instance().getSide().isClient()) {
+            return;
+        }
+
+        runAutorunExport("client-tick");
     }
 
     private void runAutorunExport(String trigger) {

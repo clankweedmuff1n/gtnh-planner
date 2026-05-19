@@ -258,11 +258,29 @@ async function buildClasspath() {
   ];
 
   const uniqueJars = [...new Set(jars.filter((jar) => existsSync(jar)))];
-  if (!uniqueJars.some((jar) => jar.toLowerCase().includes("launchwrapper"))) {
+  const filteredJars = preferMinecraftGuava(uniqueJars);
+  if (!filteredJars.some((jar) => jar.toLowerCase().includes("launchwrapper"))) {
     throw new Error("Could not find launchwrapper in GTNH/Minecraft libraries.");
   }
 
-  return uniqueJars.join(":");
+  return filteredJars.join(":");
+}
+
+function preferMinecraftGuava(jars) {
+  const hasGuava17 = jars.some((jar) =>
+    jar.replace(/\\/g, "/").includes("/com/google/guava/guava/17.0/guava-17.0.jar"),
+  );
+  if (!hasGuava17) {
+    return jars;
+  }
+
+  return jars.filter((jar) => {
+    const normalized = jar.replace(/\\/g, "/");
+    if (!normalized.includes("/com/google/guava/guava/")) {
+      return true;
+    }
+    return normalized.includes("/com/google/guava/guava/17.0/guava-17.0.jar");
+  });
 }
 
 async function selectMainClass(classpath) {

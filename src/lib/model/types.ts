@@ -1,0 +1,225 @@
+export const PROJECT_SCHEMA_VERSION = 1;
+export const TICKS_PER_SECOND = 20;
+
+export type ItemId = string;
+export type FluidId = string;
+export type ResourceId = ItemId | FluidId;
+export type ResourceKind = "item" | "fluid";
+export type ResourceKey = `${ResourceKind}:${string}`;
+
+export type MachineTier =
+  | "ULV"
+  | "LV"
+  | "MV"
+  | "HV"
+  | "EV"
+  | "IV"
+  | "LuV"
+  | "ZPM"
+  | "UV"
+  | "UHV"
+  | "UEV"
+  | "UIV"
+  | "UXV"
+  | "OpV"
+  | "MAX"
+  | "DEMO";
+
+export interface ResourceAmount {
+  kind: ResourceKind;
+  id: ResourceId;
+  amount: number;
+  displayName?: string;
+  iconPath?: string;
+  modId?: string;
+  tooltip?: string[];
+  neiSlot?: {
+    x: number;
+    y: number;
+  };
+}
+
+export interface RecipeInput extends ResourceAmount {
+  optional?: boolean;
+}
+
+export interface RecipeOutput extends ResourceAmount {
+  chance?: number;
+  byproduct?: boolean;
+}
+
+export interface MachineProfile {
+  machineType: string;
+  minimumTier: MachineTier | string;
+  maxParallel?: number;
+  eutLimit?: number;
+  notes?: string;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  machineType: string;
+  minimumTier: MachineTier | string;
+  durationTicks: number;
+  eut: number;
+  inputs: RecipeInput[];
+  outputs: RecipeOutput[];
+  programmedCircuit?: string;
+  notes?: string;
+  machineProfile?: MachineProfile;
+  isDemo?: boolean;
+  source?: {
+    datasetVersionId?: string;
+    recipeMap?: string;
+    exporter?: "nesql" | "recex" | "nerd" | "unknown";
+    rawRecipeId?: string;
+  };
+  nei?: {
+    iconPath?: string;
+    itemInputGrid?: { width: number; height: number };
+    itemOutputGrid?: { width: number; height: number };
+    fluidInputGrid?: { width: number; height: number };
+    fluidOutputGrid?: { width: number; height: number };
+    additionalInfo?: string[];
+    requiresCleanroom?: boolean;
+    requiresLowGravity?: boolean;
+  };
+}
+
+export interface TargetRate {
+  kind: ResourceKind;
+  resourceId: ResourceId;
+  amountPerSecond: number;
+  displayName?: string;
+}
+
+export interface FactoryNode {
+  id: string;
+  recipeId: string;
+  machineCount: number;
+  parallel: number;
+  overclockTier: MachineTier | string;
+  targetOutput?: TargetRate;
+  enabled: boolean;
+  position: {
+    x: number;
+    y: number;
+  };
+}
+
+export interface FactoryEdge {
+  id: string;
+  source: string;
+  target: string;
+  resourceKind: ResourceKind;
+  resourceId: ResourceId;
+  label?: string;
+  ratePerSecond?: number;
+}
+
+export interface FuelProfile {
+  id: string;
+  name: string;
+  fuelFluidId: FluidId;
+  euPerLiter?: number;
+  euPerBucket?: number;
+  isDemo?: boolean;
+  notes?: string;
+}
+
+export interface FactoryProject {
+  schemaVersion: typeof PROJECT_SCHEMA_VERSION;
+  id: string;
+  name: string;
+  targetRate?: TargetRate;
+  recipes: Recipe[];
+  nodes: FactoryNode[];
+  edges: FactoryEdge[];
+  fuelProfiles: FuelProfile[];
+  selectedFuelProfileId?: string;
+  notes?: string;
+  metadata?: {
+    isDemo?: boolean;
+    source?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+}
+
+export interface ResourceFlow {
+  key: ResourceKey;
+  kind: ResourceKind;
+  resourceId: ResourceId;
+  displayName?: string;
+  amountPerSecond: number;
+}
+
+export interface EdgeThroughput {
+  edgeId: string;
+  resource: ResourceFlow;
+  demandPerSecond: number;
+  transferredPerSecond: number;
+  isLimited: boolean;
+}
+
+export interface NodeThroughputResult {
+  nodeId: string;
+  recipeId: string;
+  recipeName: string;
+  enabled: boolean;
+  operationRatePerSecond: number;
+  inputs: Record<ResourceKey, ResourceFlow>;
+  outputs: Record<ResourceKey, ResourceFlow>;
+  euT: number;
+  requiredRatePerSecond: number;
+  maxRatePerSecond: number;
+  utilization: number;
+  theoreticalMachinesRequired: number;
+  limitingResource?: ResourceFlow;
+  status: "disabled" | "balanced" | "underutilized" | "bottleneck" | "missing-recipe";
+  warnings: string[];
+}
+
+export interface ResourceBalance {
+  key: ResourceKey;
+  kind: ResourceKind;
+  resourceId: ResourceId;
+  displayName?: string;
+  producedPerSecond: number;
+  consumedPerSecond: number;
+  netPerSecond: number;
+  surplusPerSecond: number;
+  deficitPerSecond: number;
+}
+
+export interface BottleneckReport {
+  id: string;
+  kind: "resource-deficit" | "node-capacity" | "missing-recipe";
+  severity: "warning" | "critical";
+  message: string;
+  nodeId?: string;
+  resource?: ResourceFlow;
+  requiredPerSecond?: number;
+  capacityPerSecond?: number;
+}
+
+export interface FuelEstimate {
+  fuelProfile: FuelProfile;
+  totalEuPerSecond: number;
+  fuelPerSecond: number;
+  unit: "L/s" | "buckets/s";
+}
+
+export interface ThroughputResult {
+  nodes: Record<string, NodeThroughputResult>;
+  resources: Record<ResourceKey, ResourceBalance>;
+  edges: Record<string, EdgeThroughput>;
+  totalEuT: number;
+  totalEuPerSecond: number;
+  fuelEstimate?: FuelEstimate;
+  bottlenecks: BottleneckReport[];
+  externalInputs: ResourceBalance[];
+  unconsumedOutputs: ResourceBalance[];
+  generatedAt: string;
+}

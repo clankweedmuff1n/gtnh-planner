@@ -1,0 +1,70 @@
+import { parseDatasetManifestJson, parseRecipeDatasetJson } from "../import-export";
+import type { DatasetManifest, DatasetVersion, RecipeDataset } from "./types";
+
+export const DEFAULT_DATASET_MANIFEST_URL =
+  process.env.NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL ?? "/datasets/gtnh/datasets.manifest.json";
+
+export async function fetchDatasetManifest(
+  manifestUrl = DEFAULT_DATASET_MANIFEST_URL,
+): Promise<DatasetManifest> {
+  const response = await fetch(withCacheBust(manifestUrl), {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not load dataset manifest (${response.status}).`);
+  }
+
+  return parseDatasetManifestJson(await response.text());
+}
+
+export async function fetchRecipeDatasetVersion(
+  manifestUrl: string,
+  version: DatasetVersion,
+): Promise<RecipeDataset> {
+  const datasetUrl = resolveDatasetUrl(manifestUrl, version.recipeDatasetPath);
+  const response = await fetch(withCacheBust(datasetUrl), {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not load dataset ${version.id} (${response.status}).`);
+  }
+
+  const dataset = parseRecipeDatasetJson(await response.text());
+
+  if (dataset.datasetVersionId !== version.id) {
+    throw new Error(
+      `Dataset id mismatch: manifest expected ${version.id}, file contains ${dataset.datasetVersionId}.`,
+    );
+  }
+
+  return dataset;
+}
+
+export function pickDefaultDatasetVersion(manifest: DatasetManifest): DatasetVersion | undefined {
+  const preferredId = manifest.latestStableVersion ?? manifest.latestDailyVersion;
+  if (preferredId) {
+    return manifest.versions.find((version) => version.id === preferredId);
+  }
+
+  return manifest.versions[0];
+}
+
+export function resolveDatasetUrl(manifestUrl: string, datasetPath: string): string {
+  if (/^https?:\/\//i.test(datasetPath) || datasetPath.startsWith("/")) {
+    return datasetPath;
+  }
+
+  return new URL(datasetPath, new URL(manifestUrl, window.location.origin)).toString();
+}
+
+function withCacheBust(url: string): string {
+  const resolvedUrl = new URL(url, window.location.origin);
+  resolvedUrl.searchParams.set("t", String(Date.now()));
+  return resolvedUrl.toString();
+}

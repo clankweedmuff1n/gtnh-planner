@@ -1,0 +1,132 @@
+name: GTNH dataset pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Dataset channel to process"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - both
+          - stable
+          - daily
+      publish:
+        description: "Commit generated datasets to this repository"
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    - cron: "35 5 * * *"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: gtnh-dataset-pipeline
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Detect GTNH versions
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+      has_versions: ${{ steps.detect.outputs.has_versions }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - id: detect
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ inputs.channel || 'both' }}
+        run: node tools/dataset-pipeline/scripts/detect-gtnh-versions.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: detected-gtnh-versions
+          path: .pipeline/detected-versions.json
+
+  build:
+    name: Build ${{ matrix.channel }} dataset
+    needs: detect
+    if: needs.detect.outputs.has_versions == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: detected-gtnh-versions
+          path: .pipeline
+
+      - name: Generate normalized dataset
+        env:
+          GTNH_CHANNEL: ${{ matrix.channel }}
+          GTNH_VERSION_ID: ${{ matrix.id }}
+          GTNH_VERSION_LABEL: ${{ matrix.gtnhVersion }}
+          GTNH_SOURCE_KIND: ${{ matrix.sourceKind }}
+          GTNH_SOURCE_REF: ${{ matrix.sourceRef }}
+          GTNH_EXPORT_COMMAND: ${{ secrets.GTNH_EXPORT_COMMAND }}
+        run: node tools/dataset-pipeline/scripts/generate-dataset.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gtnh-dataset-${{ matrix.id }}
+          path: |
+            public/datasets/gtnh/${{ matrix.id }}/
+            .pipeline/${{ matrix.id }}.pipeline.json
+
+  publish:
+    name: Publish generated datasets
+    needs: build
+    if: ${{ always() && (github.event_name == 'schedule' || inputs.publish == true) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gtnh-dataset-*
+          merge-multiple: true
+          path: public/datasets/gtnh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Rebuild dataset manifest
+        run: node tools/dataset-pipeline/scripts/rebuild-manifest.mjs
+
+      - name: Commit dataset updates
+        run: |
+          if git diff --quiet -- public/datasets/gtnh; then
+            echo "No dataset changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/datasets/gtnh
+          git commit -m "Update GTNH datasets"
+          git push

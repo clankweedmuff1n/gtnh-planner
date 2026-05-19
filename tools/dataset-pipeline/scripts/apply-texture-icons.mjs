@@ -27,8 +27,9 @@ console.log("Indexing real GTNH texture assets from mod jars.");
 const textureIndex = await buildTextureIndex(instanceRoot);
 console.log(`Indexed ${textureIndex.byPath.size} texture PNGs from ${textureIndex.jarCount} jars.`);
 
-await fs.rm(textureOutDir, { recursive: true, force: true });
 await fs.mkdir(textureOutDir, { recursive: true });
+await fs.rm(path.join(textureOutDir, "item"), { recursive: true, force: true });
+await fs.rm(path.join(textureOutDir, "fluid"), { recursive: true, force: true });
 
 const resourcesByKey = new Map();
 for (const resource of dataset.resources ?? []) {
@@ -46,8 +47,14 @@ for (const recipe of dataset.recipes ?? []) {
 const iconsByKey = new Map();
 let matched = 0;
 let missing = 0;
+let preservedRendered = 0;
 
 for (const [key, resource] of resourcesByKey) {
+  if (resource.iconPath) {
+    preservedRendered += 1;
+    continue;
+  }
+
   const match = findTexture(resource, textureIndex);
   if (!match) {
     missing += 1;
@@ -79,15 +86,18 @@ await fs.writeFile(
       source: "minecraft-asset-pngs",
       matchedResources: matched,
       missingResources: missing,
+      preservedRenderedIcons: preservedRendered,
       notes:
-        "Only real PNG files extracted from the GTNH instance/mod jars are used. Missing icons are intentionally left blank; no generated or guessed item art is published.",
+        "Only real PNG files extracted from the GTNH instance/mod jars or rendered by the GTNH client from real ItemStacks are used. Missing icons are intentionally left blank; no generated or guessed item art is published.",
     },
     null,
     2,
   )}\n`,
 );
 
-console.log(`Applied ${matched} real texture icons. ${missing} resources remain iconless.`);
+console.log(
+  `Applied ${matched} real texture icons and preserved ${preservedRendered} rendered stack icons. ${missing} resources remain iconless.`,
+);
 
 async function buildTextureIndex(root) {
   const jars = (await findFiles(path.join(root, "mods"), ".jar")).sort();
@@ -220,6 +230,10 @@ async function extractTexture(resource, texture, textureOutDir, publicTextureBas
 }
 
 function applyIcon(resource, iconsByKey) {
+  if (resource.iconPath) {
+    return;
+  }
+
   const iconPath = iconsByKey.get(resourceKey(resource));
   if (iconPath) {
     resource.iconPath = iconPath;

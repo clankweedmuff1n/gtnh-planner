@@ -12,6 +12,9 @@ if (!inputPath || !outputPath) {
 const datasetVersionId = requiredEnv("GTNH_DATASET_VERSION_ID");
 const gtnhVersion = requiredEnv("GTNH_DATASET_VERSION_LABEL");
 const generatedAt = new Date().toISOString();
+const outDir = path.dirname(outputPath);
+const renderedIconDir = process.env.GTNH_RENDERED_ICON_DIR;
+const renderedIconFiles = await stageRenderedIcons(renderedIconDir, outDir);
 const raw = JSON.parse(await fs.readFile(inputPath, "utf8"));
 const gregtechSource = raw.sources?.find((source) => source.type === "gregtech");
 
@@ -46,11 +49,20 @@ for (const machine of gregtechSource.machines) {
     }
 
     for (const resource of [...inputs, ...outputs]) {
-      resources.set(`${resource.kind}:${resource.id}`, {
-        id: resource.id,
-        kind: resource.kind,
-        displayName: resource.displayName ?? resource.id,
-      });
+      const key = `${resource.kind}:${resource.id}`;
+      const existingResource = resources.get(key);
+      if (existingResource) {
+        if (!existingResource.iconPath && resource.iconPath) {
+          existingResource.iconPath = resource.iconPath;
+        }
+      } else {
+        resources.set(key, {
+          id: resource.id,
+          kind: resource.kind,
+          displayName: resource.displayName ?? resource.id,
+          iconPath: resource.iconPath,
+        });
+      }
     }
 
     const primaryOutput = outputs[0];
@@ -109,12 +121,14 @@ function itemAmount(item) {
   }
 
   const id = item.m === undefined || item.m === 0 ? item.id : `${item.id}@${item.m}`;
+  const iconPath = renderedIconPath(item.ic);
   return {
     kind: "item",
     id,
     amount: item.a,
     displayName: text(item.lN, id),
     tooltip: item.nbt ? [`NBT: ${item.nbt}`] : undefined,
+    iconPath,
   };
 }
 
@@ -161,4 +175,46 @@ function requiredEnv(name) {
     throw new Error(`Missing required environment variable ${name}.`);
   }
   return value;
+}
+
+async function stageRenderedIcons(sourceDir, datasetOutDir) {
+  const files = new Set();
+  if (!sourceDir) {
+    return files;
+  }
+
+  try {
+    const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+    const outputDir = path.join(datasetOutDir, "textures", "rendered");
+    await fs.mkdir(outputDir, { recursive: true });
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".png")) {
+        continue;
+      }
+
+      const fileName = path.basename(entry.name);
+      await fs.copyFile(path.join(sourceDir, fileName), path.join(outputDir, fileName));
+      files.add(fileName);
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  return files;
+}
+
+function renderedIconPath(fileName) {
+  if (!fileName) {
+    return undefined;
+  }
+
+  const safeFileName = path.basename(String(fileName));
+  if (!renderedIconFiles.has(safeFileName)) {
+    return undefined;
+  }
+
+  return `/datasets/gtnh/${datasetVersionId}/textures/rendered/${safeFileName}`;
 }

@@ -16,7 +16,19 @@ source = source.replace(
     "import com.bigbass.recex.recipes.RecipeExporter;",
     "",
     "import cpw.mods.fml.common.FMLCommonHandler;",
+    "import cpw.mods.fml.common.event.FMLLoadCompleteEvent;",
     "import cpw.mods.fml.common.event.FMLServerStartedEvent;",
+    "",
+    "import java.util.concurrent.atomic.AtomicBoolean;",
+  ].join("\n"),
+);
+
+source = source.replace(
+  "    public static RecipeExporterMod instance;\n",
+  [
+    "    public static RecipeExporterMod instance;",
+    "    private static final AtomicBoolean autorunStarted = new AtomicBoolean(false);",
+    "",
   ].join("\n"),
 );
 
@@ -26,13 +38,30 @@ source = source.replace(
 
     @Mod.EventHandler
     public void serverStarted(FMLServerStartedEvent e) {
+        runAutorunExport("server-started");
+    }
+
+    @Mod.EventHandler
+    public void loadComplete(FMLLoadCompleteEvent e) {
+        if (!FMLCommonHandler.instance().getSide().isClient()) {
+            return;
+        }
+
+        runAutorunExport("client-load-complete");
+    }
+
+    private void runAutorunExport(String trigger) {
         if (!Boolean.getBoolean("recex.autorun")) {
             return;
         }
 
-        Thread thread = new Thread(() -> {
+        if (!autorunStarted.compareAndSet(false, true)) {
+            return;
+        }
+
+        Runnable task = () -> {
             try {
-                log.info("RecEx autorun export started.");
+                log.info("RecEx autorun export started from " + trigger + ".");
                 RecipeExporter.getInst().run();
                 log.info("RecEx autorun export finished.");
             } catch (Throwable t) {
@@ -42,7 +71,14 @@ source = source.replace(
             }
 
             FMLCommonHandler.instance().exitJava(0, false);
-        });
+        };
+
+        if (Boolean.getBoolean("recex.renderIcons") && FMLCommonHandler.instance().getSide().isClient()) {
+            task.run();
+            return;
+        }
+
+        Thread thread = new Thread(task);
         thread.setDaemon(false);
         thread.setName("recex-autorun-export");
         thread.start();
@@ -67,3 +103,258 @@ exporterSource = exporterSource.replace(
 );
 
 await fs.writeFile(exporterPath, exporterSource);
+
+const itemPath = path.join(
+  repoDir,
+  "src/main/java/com/bigbass/recex/recipes/ingredients/Item.java",
+);
+let itemSource = await fs.readFile(itemPath, "utf8");
+itemSource = itemSource.replace(
+  "    /** nbt tag */\n    public String nbt;\n",
+  [
+    "    /** nbt tag */",
+    "    public String nbt;",
+    "",
+    "    /** rendered item stack icon filename */",
+    "    public String ic;",
+    "",
+  ].join("\n"),
+);
+await fs.writeFile(itemPath, itemSource);
+
+const recipeUtilPath = path.join(
+  repoDir,
+  "src/main/java/com/bigbass/recex/recipes/gregtech/RecipeUtil.java",
+);
+let recipeUtilSource = await fs.readFile(recipeUtilPath, "utf8");
+recipeUtilSource = recipeUtilSource.replace(
+  "import com.bigbass.recex.recipes.ingredients.Fluid;",
+  [
+    "import com.bigbass.recex.icons.ItemStackIconExporter;",
+    "import com.bigbass.recex.recipes.ingredients.Fluid;",
+  ].join("\n"),
+);
+recipeUtilSource = recipeUtilSource.replaceAll(
+  "\n        return item;\n    }\n\n    public static Item format",
+  "\n        item.ic = ItemStackIconExporter.captureIcon(stack);\n        return item;\n    }\n\n    public static Item format",
+);
+recipeUtilSource = recipeUtilSource.replace(
+  "\n        return item;\n    }\n\n    /**\n     * Might return null!",
+  "\n        item.ic = ItemStackIconExporter.captureIcon(stack);\n        return item;\n    }\n\n    /**\n     * Might return null!",
+);
+await fs.writeFile(recipeUtilPath, recipeUtilSource);
+
+const iconPackageDir = path.join(repoDir, "src/main/java/com/bigbass/recex/icons");
+await fs.mkdir(iconPackageDir, { recursive: true });
+await fs.writeFile(
+  path.join(iconPackageDir, "ItemStackIconExporter.java"),
+  `package com.bigbass.recex.icons;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+import net.minecraft.item.ItemStack;
+
+import com.bigbass.recex.RecipeExporterMod;
+
+public final class ItemStackIconExporter {
+
+    private static boolean warned;
+
+    private ItemStackIconExporter() {}
+
+    public static String captureIcon(ItemStack stack) {
+        if (stack == null || !Boolean.getBoolean("recex.renderIcons")) {
+            return null;
+        }
+
+        try {
+            Class<?> renderer = Class.forName("com.bigbass.recex.icons.ClientItemStackIconRenderer");
+            Method method = renderer.getMethod("captureIcon", ItemStack.class);
+            Object value = method.invoke(null, stack);
+            return value instanceof String ? (String) value : null;
+        } catch (InvocationTargetException e) {
+            warnOnce(e.getCause());
+        } catch (Throwable t) {
+            warnOnce(t);
+        }
+
+        return null;
+    }
+
+    private static void warnOnce(Throwable t) {
+        if (warned) {
+            return;
+        }
+
+        warned = true;
+        RecipeExporterMod.log.warn("RecEx rendered stack icons are unavailable; continuing without rendered icons.", t);
+    }
+}
+`,
+);
+
+await fs.writeFile(
+  path.join(iconPackageDir, "ClientItemStackIconRenderer.java"),
+  `package com.bigbass.recex.icons;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.nio.ByteBuffer;
+import java.security.MessageDigest;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.imageio.ImageIO;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.entity.RenderItem;
+import net.minecraft.client.shader.Framebuffer;
+import net.minecraft.item.ItemStack;
+
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
+
+import com.bigbass.recex.RecipeExporterMod;
+
+public final class ClientItemStackIconRenderer {
+
+    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 32);
+    private static final Map<String, String> CACHE = new ConcurrentHashMap<String, String>();
+    private static final RenderItem RENDER_ITEM = new RenderItem();
+
+    private ClientItemStackIconRenderer() {}
+
+    public static String captureIcon(ItemStack stack) {
+        if (stack == null || stack.getItem() == null) {
+            return null;
+        }
+
+        try {
+            String key = stackKey(stack);
+            String cached = CACHE.get(key);
+            if (cached != null) {
+                return cached;
+            }
+
+            File outDir = iconDir();
+            if (!outDir.exists() && !outDir.mkdirs()) {
+                return null;
+            }
+
+            String filename = safeName(stack) + "-" + sha1(key).substring(0, 12) + ".png";
+            File outFile = new File(outDir, filename);
+            if (!outFile.isFile()) {
+                renderToPng(stack, outFile);
+            }
+
+            CACHE.put(key, filename);
+            return filename;
+        } catch (Throwable t) {
+            RecipeExporterMod.log.warn("Failed to render icon for " + stack, t);
+            return null;
+        }
+    }
+
+    private static void renderToPng(ItemStack stack, File outFile) throws Exception {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.getTextureManager() == null) {
+            throw new IllegalStateException("Minecraft client is not ready.");
+        }
+
+        Framebuffer framebuffer = new Framebuffer(ICON_SIZE, ICON_SIZE, true);
+        framebuffer.bindFramebuffer(true);
+
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        GL11.glViewport(0, 0, ICON_SIZE, ICON_SIZE);
+        GL11.glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
+        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glPushMatrix();
+        GL11.glLoadIdentity();
+        GL11.glOrtho(0.0D, ICON_SIZE, ICON_SIZE, 0.0D, 1000.0D, 3000.0D);
+
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glPushMatrix();
+        GL11.glLoadIdentity();
+        GL11.glTranslatef(0.0F, 0.0F, -2000.0F);
+
+        RenderHelper.enableGUIStandardItemLighting();
+        GL11.glEnable(GL12.GL_RESCALE_NORMAL);
+        FontRenderer fontRenderer = stack.getItem().getFontRenderer(stack);
+        if (fontRenderer == null) {
+            fontRenderer = mc.fontRenderer;
+        }
+        RENDER_ITEM.renderItemIntoGUI(fontRenderer, mc.getTextureManager(), stack, (ICON_SIZE - 16) / 2, (ICON_SIZE - 16) / 2);
+        RenderHelper.disableStandardItemLighting();
+
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glPopMatrix();
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glPopMatrix();
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+
+        ByteBuffer buffer = BufferUtils.createByteBuffer(ICON_SIZE * ICON_SIZE * 4);
+        GL11.glReadPixels(0, 0, ICON_SIZE, ICON_SIZE, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
+
+        GL11.glPopAttrib();
+        framebuffer.unbindFramebuffer();
+        framebuffer.deleteFramebuffer();
+
+        BufferedImage image = new BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < ICON_SIZE; y++) {
+            for (int x = 0; x < ICON_SIZE; x++) {
+                int index = (x + (ICON_SIZE - 1 - y) * ICON_SIZE) * 4;
+                int r = buffer.get(index) & 255;
+                int g = buffer.get(index + 1) & 255;
+                int b = buffer.get(index + 2) & 255;
+                int a = buffer.get(index + 3) & 255;
+                image.setRGB(x, y, (a << 24) | (r << 16) | (g << 8) | b);
+            }
+        }
+
+        ImageIO.write(image, "png", outFile);
+    }
+
+    private static File iconDir() {
+        String configured = System.getProperty("recex.iconDir");
+        if (configured != null && configured.trim().length() > 0) {
+            return new File(configured);
+        }
+        return new File(Minecraft.getMinecraft().mcDataDir, "RecEx-Rendered-Icons");
+    }
+
+    private static String stackKey(ItemStack stack) {
+        String nbt = stack.hasTagCompound() ? stack.getTagCompound().toString() : "";
+        return String.valueOf(net.minecraft.item.Item.itemRegistry.getNameForObject(stack.getItem()))
+            + "@" + stack.getItemDamage()
+            + "#" + nbt;
+    }
+
+    private static String safeName(ItemStack stack) {
+        String raw;
+        try {
+            raw = String.valueOf(stack.getDisplayName());
+        } catch (Throwable t) {
+            raw = String.valueOf(net.minecraft.item.Item.itemRegistry.getNameForObject(stack.getItem()));
+        }
+        String safe = raw.toLowerCase().replaceAll("[^a-z0-9._-]+", "_").replaceAll("^_+|_+$", "");
+        return safe.length() > 0 ? safe.substring(0, Math.min(safe.length(), 60)) : "item";
+    }
+
+    private static String sha1(String value) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-1");
+        byte[] bytes = digest.digest(value.getBytes("UTF-8"));
+        StringBuilder builder = new StringBuilder();
+        for (byte b : bytes) {
+            builder.append(String.format("%02x", b & 255));
+        }
+        return builder.toString();
+    }
+}
+`,
+);

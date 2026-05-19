@@ -40,9 +40,12 @@ artifacts.
    - Scan `assets/<modid>/textures/items`, `blocks`, and `fluids` inside the selected
      GTNH mods.
    - Copy only matched PNGs into `/public/datasets/gtnh/<version>/textures/`.
-   - Never generate substitute icons. If a GregTech metaitem needs client-side dynamic
-     rendering and no exact PNG exists, leave the icon blank until an item-stack render
-     exporter is added.
+   - Render item-stack icons in a headless GTNH client when the exporter runs with
+     `GTNH_RENDER_STACK_ICONS=true`. These PNGs are written under
+     `/public/datasets/gtnh/<version>/textures/rendered/` and take priority over static
+     jar texture matches.
+   - Never generate substitute icons. If a stack cannot be rendered by the real client
+     and no exact PNG exists, leave the icon blank.
 
 6. Compress and hash
    - Write `recipes.json` and optional compressed variants.
@@ -81,14 +84,17 @@ targets, then calls the exporter runner.
 
 The default runner is `tools/dataset-pipeline/scripts/run-gtnh-recex-export.sh`. It:
 
-- Downloads the official selected GTNH build.
+- Downloads the official selected GTNH client build by default.
 - Downloads/builds RecEx from the upstream repository.
-- Patches RecEx to auto-run the existing exporter entry point in CI.
-- Launches the pack headlessly.
+- Patches RecEx to auto-run the existing exporter entry point in CI and to render real
+  `ItemStack` icons from the Minecraft client renderer.
+- Prepares a Forge 1.7.10 client launch from the GTNH Prism/MultiMC instance metadata,
+  Minecraft launcher metadata, and Xvfb when no display is available.
+- Launches the pack headlessly as a client unless `GTNH_EXPORT_PACK_KIND=server` is set.
 - Uses the real runtime recipe registry from the GTNH build/exporter.
 - Normalize raw output into the internal `RecipeDataset` shape.
-- Extracts real matching texture PNGs from the selected GTNH mods and stores them next
-  to the dataset.
+- Stores rendered client stack icons first, then extracts real matching texture PNGs
+  from the selected GTNH mods for resources that still do not have an icon.
 - Write `$GTNH_DATASET_OUT_DIR/recipes.json`.
 
 `GTNH_CLIENT_EXPORT_COMMAND` can still override this default with another private runner,

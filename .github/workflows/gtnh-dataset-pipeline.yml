@@ -87,7 +87,7 @@ jobs:
           path: .pipeline
 
       - name: Generate normalized dataset
-        timeout-minutes: 45
+        timeout-minutes: 60
         env:
           GTNH_CHANNEL: ${{ matrix.channel }}
           GTNH_VERSION_ID: ${{ matrix.id }}
@@ -97,6 +97,8 @@ jobs:
           GTNH_SOURCE_URL: ${{ matrix.sourceUrl }}
           GTNH_CLIENT_EXPORT_COMMAND: ${{ secrets.GTNH_CLIENT_EXPORT_COMMAND }}
           GTNH_EXPORT_MAX_MEMORY: "12G"
+          GTNH_EXPORT_PACK_KIND: "client"
+          GTNH_RENDER_STACK_ICONS: "true"
           GITHUB_TOKEN: ${{ github.token }}
         run: node tools/dataset-pipeline/scripts/generate-dataset.mjs
 
@@ -107,6 +109,7 @@ jobs:
           path: |
             .pipeline/raw-export/${{ matrix.id }}/*.log
             .pipeline/raw-export/${{ matrix.id }}/recex-export.json
+            .pipeline/raw-export/${{ matrix.id }}/rendered-icons/*.png
             .pipeline/${{ matrix.id }}.pipeline.json
 
       - name: Stage dataset artifact

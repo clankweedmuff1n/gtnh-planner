@@ -8,16 +8,19 @@ set -euo pipefail
 : "${GTNH_DATASET_VERSION_LABEL:?GTNH_DATASET_VERSION_LABEL is required}"
 : "${GTNH_DATASET_CHANNEL:?GTNH_DATASET_CHANNEL is required}"
 
-export GTNH_EXPORT_PACK_KIND="${GTNH_EXPORT_PACK_KIND:-server}"
+export GTNH_EXPORT_PACK_KIND="${GTNH_EXPORT_PACK_KIND:-client}"
 export GTNH_EXPORT_TIMEOUT_SECONDS="${GTNH_EXPORT_TIMEOUT_SECONDS:-2700}"
 export GTNH_EXPORT_MAX_MEMORY="${GTNH_EXPORT_MAX_MEMORY:-12G}"
+export GTNH_RENDER_STACK_ICONS="${GTNH_RENDER_STACK_ICONS:-true}"
 
 mkdir -p "$GTNH_DATASET_OUT_DIR" "$GTNH_RAW_EXPORT_DIR" "$GTNH_INSTANCE_DIR"
 
 pack_archive="$GTNH_RAW_EXPORT_DIR/gtnh-pack.zip"
 recex_work="$GTNH_RAW_EXPORT_DIR/recex-autostart"
 runner_log="$GTNH_RAW_EXPORT_DIR/export-runner.log"
-server_log="$GTNH_RAW_EXPORT_DIR/gtnh-server.log"
+runtime_log="$GTNH_RAW_EXPORT_DIR/gtnh-runtime.log"
+rendered_icon_dir="$GTNH_RAW_EXPORT_DIR/rendered-icons"
+export GTNH_RENDERED_ICON_DIR="$rendered_icon_dir"
 
 exec > >(tee -a "$runner_log") 2>&1
 
@@ -25,6 +28,8 @@ echo "GTNH export runner started at $(date -u --iso-8601=seconds)"
 echo "Dataset: $GTNH_DATASET_VERSION_ID ($GTNH_DATASET_CHANNEL $GTNH_DATASET_VERSION_LABEL)"
 echo "Memory: $GTNH_EXPORT_MAX_MEMORY"
 echo "Timeout: ${GTNH_EXPORT_TIMEOUT_SECONDS}s"
+echo "Pack kind: $GTNH_EXPORT_PACK_KIND"
+echo "Rendered stack icons: $GTNH_RENDER_STACK_ICONS"
 
 node tools/dataset-pipeline/scripts/download-gtnh-pack.mjs "$pack_archive"
 
@@ -60,26 +65,42 @@ cp "$recex_jar" "$instance_root/mods/"
 cat > "$instance_root/eula.txt" <<'EOF'
 eula=true
 EOF
+mkdir -p "$rendered_icon_dir"
 
 if [[ -f "$instance_root/server.properties" ]]; then
   sed -i 's/^online-mode=.*/online-mode=false/' "$instance_root/server.properties"
 fi
 
-start_script="$(find "$instance_root" -maxdepth 2 -type f \( -iname '*start*server*.sh' -o -iname 'startserver*.sh' -o -iname 'ServerStart*.sh' \) | sort | head -n 1)"
-
-if [[ -z "$start_script" ]]; then
-  echo "No GTNH server start script found in $instance_root" >&2
-  exit 1
-fi
-
-chmod +x "$start_script"
-start_script="$(realpath "$start_script")"
 export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Drecex.autorun=true"
+if [[ "$GTNH_RENDER_STACK_ICONS" == "true" ]]; then
+  export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Drecex.renderIcons=true -Drecex.iconDir=$rendered_icon_dir -Djava.awt.headless=false"
+fi
 export _JAVA_OPTIONS="${_JAVA_OPTIONS:-} -Xms4G -Xmx${GTNH_EXPORT_MAX_MEMORY}"
 
-setsid bash -lc "cd '$instance_root' && bash '$start_script'" >"$server_log" 2>&1 &
-server_pid=$!
-tail -n +1 -f "$server_log" &
+if [[ "$GTNH_EXPORT_PACK_KIND" == "client" ]]; then
+  client_runtime_dir="$GTNH_INSTANCE_DIR/client-runtime"
+  launch_script="$(node tools/dataset-pipeline/scripts/prepare-forge-client-launch.mjs "$instance_root" "$client_runtime_dir")"
+  if command -v xvfb-run >/dev/null 2>&1 && [[ -z "${DISPLAY:-}" ]]; then
+    runtime_command="xvfb-run -a bash '$launch_script'"
+  else
+    runtime_command="bash '$launch_script'"
+  fi
+else
+  start_script="$(find "$instance_root" -maxdepth 2 -type f \( -iname '*start*server*.sh' -o -iname 'startserver*.sh' -o -iname 'ServerStart*.sh' \) | sort | head -n 1)"
+
+  if [[ -z "$start_script" ]]; then
+    echo "No GTNH server start script found in $instance_root" >&2
+    exit 1
+  fi
+
+  chmod +x "$start_script"
+  start_script="$(realpath "$start_script")"
+  runtime_command="bash '$start_script'"
+fi
+
+setsid bash -lc "cd '$instance_root' && $runtime_command" >"$runtime_log" 2>&1 &
+runtime_pid=$!
+tail -n +1 -f "$runtime_log" &
 tail_pid=$!
 
 raw_recex_json=""
@@ -97,20 +118,22 @@ while (( SECONDS < deadline )); do
     fi
   fi
 
-  if ! kill -0 "$server_pid" 2>/dev/null; then
-    wait "$server_pid"
-    server_exit=$?
-    echo "GTNH server process exited with code $server_exit before producing a RecEx export." >&2
-    exit "$server_exit"
+  if ! kill -0 "$runtime_pid" 2>/dev/null; then
+    set +e
+    wait "$runtime_pid"
+    runtime_exit=$?
+    set -e
+    echo "GTNH runtime process exited with code $runtime_exit before producing a RecEx export." >&2
+    exit "$runtime_exit"
   fi
 
   sleep 5
 done
 
 kill "$tail_pid" 2>/dev/null || true
-kill -TERM "-$server_pid" 2>/dev/null || true
+kill -TERM "-$runtime_pid" 2>/dev/null || true
 sleep 5
-kill -KILL "-$server_pid" 2>/dev/null || true
+kill -KILL "-$runtime_pid" 2>/dev/null || true
 
 if [[ -z "$raw_recex_json" ]]; then
   echo "RecEx did not produce a JSON export under $instance_root/RecEx-Records" >&2

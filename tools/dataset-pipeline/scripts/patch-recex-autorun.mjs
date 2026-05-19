@@ -328,6 +328,7 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
 import net.minecraft.client.shader.Framebuffer;
+import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 
 import org.lwjgl.BufferUtils;
@@ -345,7 +346,7 @@ public final class ClientItemStackIconRenderer {
     private ClientItemStackIconRenderer() {}
 
     public static String captureIcon(ItemStack stack) {
-        if (stack == null || stack.getItem() == null) {
+        if (stack == null || stack.getItem() == null || stack.stackSize <= 0 || stack.getItem() instanceof ItemBlock) {
             return null;
         }
 
@@ -370,7 +371,7 @@ public final class ClientItemStackIconRenderer {
             CACHE.put(key, filename);
             return filename;
         } catch (Throwable t) {
-            RecipeExporterMod.log.warn("Failed to render icon for " + stack, t);
+            RecipeExporterMod.log.warn("Failed to render icon for " + stack + ": " + t.toString());
             return null;
         }
     }

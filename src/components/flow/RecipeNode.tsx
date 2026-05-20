@@ -32,10 +32,10 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
       ].join(" ")}
     >
       <div className="px-2 pb-2 pt-1">
-        <div className="truncate pb-1 text-[12px] font-bold">{recipe.name}</div>
         <NeiRecipeWindow
           recipe={recipe}
           scale={2}
+          compact
           onSlotClick={(slot, mode) =>
             browseResource(
               {

@@ -87,15 +87,13 @@ export function FactoryPlannerApp() {
         }
 
         setDatasetManifest(manifest, DEFAULT_DATASET_MANIFEST_URL);
-        const defaultVersion = pickDefaultDatasetVersion(manifest);
-
-        if (!defaultVersion) {
+        if (!pickDefaultDatasetVersion(manifest)) {
           setDatasetLoading(false);
           setNotice("Dataset manifest loaded, but it contains no GTNH versions yet.");
           return;
         }
 
-        await loadDatasetVersion(defaultVersion.id);
+        setDatasetLoading(false);
       } catch (error) {
         if (cancelled) {
           return;

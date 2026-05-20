@@ -217,8 +217,8 @@ export function RecipeBrowser() {
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           {recipes.length === 0 ? (
             <div className="rounded border border-dashed border-neutral-600 p-4 text-sm text-neutral-300">
-              The selected GTNH version is loaded automatically, but its real recipe export is not
-              published yet. No manual recipe entry is available.
+              Recipes are not loaded yet. Use Load recipes in the top bar when you need the NEI
+              browser.
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2">

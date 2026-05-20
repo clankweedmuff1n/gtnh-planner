@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, Download, FileJson, Trash2, Upload } from "lucide-react";
+import { Calculator, Database, Download, FileJson, Trash2, Upload } from "lucide-react";
 import { useRef } from "react";
 import {
   cloneImportedProject,
@@ -20,6 +20,7 @@ export function TopBar({ onLoadDatasetVersion, onNotice }: TopBarProps) {
   const manifest = useFactoryStore((state) => state.datasetManifest);
   const selectedDatasetVersionId = useFactoryStore((state) => state.selectedDatasetVersionId);
   const isDatasetLoading = useFactoryStore((state) => state.isDatasetLoading);
+  const dataset = useFactoryStore((state) => state.dataset);
   const setProject = useFactoryStore((state) => state.setProject);
   const cleanBoard = useFactoryStore((state) => state.cleanBoard);
   const recalculate = useFactoryStore((state) => state.recalculate);
@@ -81,6 +82,16 @@ export function TopBar({ onLoadDatasetVersion, onNotice }: TopBarProps) {
 
       <div className="flex flex-wrap gap-2">
         <ToolbarButton
+          icon={Database}
+          label={dataset ? "Reload recipes" : "Load recipes"}
+          disabled={isDatasetLoading || !selectedDatasetVersionId}
+          onClick={() => {
+            if (selectedDatasetVersionId) {
+              onLoadDatasetVersion(selectedDatasetVersionId);
+            }
+          }}
+        />
+        <ToolbarButton
           icon={Calculator}
           label="Calculate"
           onClick={() => {
@@ -132,17 +143,20 @@ export function TopBar({ onLoadDatasetVersion, onNotice }: TopBarProps) {
 function ToolbarButton({
   icon: Icon,
   label,
+  disabled = false,
   onClick,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className="inline-flex h-9 items-center gap-2 rounded border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
+      className="inline-flex h-9 items-center gap-2 rounded border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400"
     >
       <Icon className="h-4 w-4" />
       {label}

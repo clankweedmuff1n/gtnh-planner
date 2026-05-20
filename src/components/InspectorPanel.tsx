@@ -1,12 +1,11 @@
 "use client";
 
-import { PlusCircle, Power, Trash2, X } from "lucide-react";
+import { Power, Trash2, X } from "lucide-react";
 import { useMemo } from "react";
 import { mergeDatasetAndProjectRecipes } from "@/lib/datasets";
 import { formatRate, formatResourceRate, makeResourceKey, primaryOutput } from "@/lib/model";
 import type { ResourceKind, TargetRate } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
-import { NeiRecipeCard } from "./NeiRecipeCard";
 
 export function InspectorPanel() {
   const project = useFactoryStore((state) => state.project);
@@ -14,10 +13,8 @@ export function InspectorPanel() {
   const projectRecipes = useFactoryStore((state) => state.project.recipes);
   const result = useFactoryStore((state) => state.lastResult);
   const selectedNodeId = useFactoryStore((state) => state.selectedNodeId);
-  const selectedRecipeId = useFactoryStore((state) => state.selectedRecipeId);
   const updateNode = useFactoryStore((state) => state.updateNode);
   const deleteNode = useFactoryStore((state) => state.deleteNode);
-  const addNodeForRecipe = useFactoryStore((state) => state.addNodeForRecipe);
   const selectFuelProfile = useFactoryStore((state) => state.selectFuelProfile);
   const datasetRecipes = dataset?.recipes;
 
@@ -27,39 +24,15 @@ export function InspectorPanel() {
   );
 
   const selectedNode = project.nodes.find((node) => node.id === selectedNodeId);
-  const selectedRecipe =
-    recipes.find((recipe) => recipe.id === selectedNode?.recipeId) ??
-    recipes.find((recipe) => recipe.id === selectedRecipeId);
+  const selectedRecipe = selectedNode
+    ? recipes.find((recipe) => recipe.id === selectedNode.recipeId)
+    : undefined;
   const nodeResult = selectedNode ? result.nodes[selectedNode.id] : undefined;
 
-  if (!selectedRecipe) {
+  if (!selectedNode || !selectedRecipe) {
     return (
       <aside className="flex h-full min-h-[360px] flex-col bg-white">
         <SummaryPanel onSelectFuel={selectFuelProfile} />
-      </aside>
-    );
-  }
-
-  if (!selectedNode) {
-    return (
-      <aside className="flex h-full min-h-[360px] flex-col bg-white">
-        <div className="border-b border-neutral-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-neutral-950">NEI recipe</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            {dataset ? "Read-only GTNH dataset recipe" : "Recipe from imported plan"}
-          </p>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <NeiRecipeCard recipe={selectedRecipe} />
-          <button
-            type="button"
-            onClick={() => addNodeForRecipe(selectedRecipe.id)}
-            className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700"
-          >
-            <PlusCircle className="h-4 w-4" />
-            Add to flowchart
-          </button>
-        </div>
       </aside>
     );
   }
@@ -227,8 +200,6 @@ export function InspectorPanel() {
               </label>
             </div>
           </div>
-
-          <NeiRecipeCard recipe={selectedRecipe} />
         </section>
       </div>
     </aside>

@@ -9,6 +9,7 @@ import type {
   FactoryEdge,
   FactoryNode,
   FactoryProject,
+  FactoryStorage,
   Recipe,
   ResourceAmount,
   ResourceKind,
@@ -32,6 +33,7 @@ interface FactoryStore {
   recipeBrowserMode: RecipeBrowserMode;
   recipeResourceHistory: RecipeBrowserResource[];
   pendingResourceConnection?: PendingResourceConnection;
+  hoveredStorageResourceKey?: string;
   selectedNodeId?: string;
   selectedRecipeId?: string;
   lastResult: ThroughputResult;
@@ -49,6 +51,7 @@ interface FactoryStore {
   cleanBoard: () => void;
   selectResourceConnectionSlot: (slot: PendingResourceConnection) => void;
   cancelResourceConnection: () => void;
+  setHoveredStorageResourceKey: (key?: string) => void;
   recalculate: () => void;
   selectNode: (nodeId?: string) => void;
   selectRecipe: (recipeId?: string) => void;
@@ -62,6 +65,9 @@ interface FactoryStore {
   ) => void;
   updateNode: (nodeId: string, patch: Partial<FactoryNode>) => void;
   deleteNode: (nodeId: string) => void;
+  addResourceStorage: (resource: Pick<ResourceAmount, "kind" | "id" | "displayName" | "iconPath">) => void;
+  deleteStorage: (storageId: string) => void;
+  setStoragePosition: (storageId: string, position: FactoryStorage["position"]) => void;
   setNodePosition: (nodeId: string, position: FactoryNode["position"]) => void;
   connectNodes: (
     sourceNodeId: string,
@@ -112,6 +118,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   recipeBrowserMode: "recipes",
   recipeResourceHistory: [],
   pendingResourceConnection: undefined,
+  hoveredStorageResourceKey: undefined,
   selectedNodeId: undefined,
   selectedRecipeId: undefined,
   lastResult: calculateThroughput(initialProject),
@@ -202,6 +209,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ...state.project,
         recipes: [],
         nodes: [],
+        storages: [],
         edges: [],
         targetRate: undefined,
       });
@@ -273,6 +281,9 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   cancelResourceConnection: () => {
     set({ pendingResourceConnection: undefined });
+  },
+  setHoveredStorageResourceKey: (key) => {
+    set({ hoveredStorageResourceKey: key });
   },
   recalculate: () => {
     const { project } = get();
@@ -410,6 +421,73 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       };
     });
   },
+  addResourceStorage: (resource) => {
+    set((state) => {
+      const existing = (state.project.storages ?? []).find(
+        (storage) => storage.kind === resource.kind && storage.resourceId === resource.id,
+      );
+      if (existing) {
+        return { selectedNodeId: undefined };
+      }
+
+      const storage: FactoryStorage = {
+        id: createId("storage"),
+        kind: resource.kind,
+        resourceId: resource.id,
+        displayName: resource.displayName,
+        iconPath: resource.iconPath,
+        position: {
+          x: 180 + (state.project.storages?.length ?? 0) * 80,
+          y: 180 + (state.project.storages?.length ?? 0) * 60,
+        },
+      };
+      const project = touchProject({
+        ...state.project,
+        storages: [...(state.project.storages ?? []), storage],
+      });
+
+      return {
+        project,
+        selectedNodeId: undefined,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
+  deleteStorage: (storageId) => {
+    set((state) => {
+      const project = touchProject({
+        ...state.project,
+        storages: (state.project.storages ?? []).filter((storage) => storage.id !== storageId),
+        edges: state.project.edges.filter(
+          (edge) => edge.source !== storageId && edge.target !== storageId,
+        ),
+      });
+
+      return {
+        project,
+        pendingResourceConnection:
+          state.pendingResourceConnection?.nodeId === storageId
+            ? undefined
+            : state.pendingResourceConnection,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
+  setStoragePosition: (storageId, position) => {
+    set((state) => {
+      const project = touchProject({
+        ...state.project,
+        storages: (state.project.storages ?? []).map((storage) =>
+          storage.id === storageId ? { ...storage, position } : storage,
+        ),
+      });
+
+      return {
+        project,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
   setNodePosition: (nodeId, position) => {
     get().updateNode(nodeId, { position });
   },
@@ -543,8 +621,62 @@ function buildEdgeBetweenNodes(
 ): FactoryEdge | undefined {
   const sourceNode = project.nodes.find((node) => node.id === sourceNodeId);
   const targetNode = project.nodes.find((node) => node.id === targetNodeId);
+  const sourceStorage = (project.storages ?? []).find((storage) => storage.id === sourceNodeId);
+  const targetStorage = (project.storages ?? []).find((storage) => storage.id === targetNodeId);
   const sourceRecipe = project.recipes.find((recipe) => recipe.id === sourceNode?.recipeId);
   const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
+
+  if ((!sourceNode && !sourceStorage) || (!targetNode && !targetStorage)) {
+    return undefined;
+  }
+
+  if (sourceStorage && targetRecipe && selectedResource) {
+    const matchedInput = targetRecipe.inputs.find(
+      (input) =>
+        input.kind === sourceStorage.kind &&
+        input.id === sourceStorage.resourceId &&
+        input.kind === selectedResource.kind &&
+        input.id === selectedResource.id,
+    );
+    if (!matchedInput) {
+      return undefined;
+    }
+
+    return {
+      id: createId("edge"),
+      source: sourceStorage.id,
+      target: targetNodeId,
+      sourceHandle: selectedResource.sourceHandle,
+      targetHandle: selectedResource.targetHandle,
+      resourceKind: sourceStorage.kind,
+      resourceId: sourceStorage.resourceId,
+      label: resourceLabel(matchedInput),
+    };
+  }
+
+  if (sourceRecipe && targetStorage && selectedResource) {
+    const matchedOutput = sourceRecipe.outputs.find(
+      (output) =>
+        output.kind === targetStorage.kind &&
+        output.id === targetStorage.resourceId &&
+        output.kind === selectedResource.kind &&
+        output.id === selectedResource.id,
+    );
+    if (!matchedOutput) {
+      return undefined;
+    }
+
+    return {
+      id: createId("edge"),
+      source: sourceNodeId,
+      target: targetStorage.id,
+      sourceHandle: selectedResource.sourceHandle,
+      targetHandle: selectedResource.targetHandle,
+      resourceKind: targetStorage.kind,
+      resourceId: targetStorage.resourceId,
+      label: resourceLabel(matchedOutput),
+    };
+  }
 
   if (!sourceNode || !targetNode || !sourceRecipe || !targetRecipe) {
     return undefined;

@@ -10,6 +10,7 @@ export function createEmptyProject(): FactoryProject {
     name: "GTNH Factory Flow",
     recipes: [],
     nodes: [],
+    storages: [],
     edges: [],
     fuelProfiles: demoFuelProfiles,
     selectedFuelProfileId: "demo-biodiesel",

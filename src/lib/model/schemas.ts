@@ -101,6 +101,19 @@ export const factoryNodeSchema = z.object({
   }),
 });
 
+export const factoryStorageSchema = z.object({
+  id: z.string().min(1),
+  kind: resourceKindSchema,
+  resourceId: z.string().min(1),
+  displayName: z.string().optional(),
+  iconPath: z.string().optional(),
+  capacity: z.number().positive().optional(),
+  position: z.object({
+    x: z.number(),
+    y: z.number(),
+  }),
+});
+
 export const factoryEdgeSchema = z.object({
   id: z.string().min(1),
   source: z.string().min(1),
@@ -135,6 +148,7 @@ export const factoryProjectSchema = z.object({
   targetRate: targetRateSchema.optional(),
   recipes: z.array(recipeSchema),
   nodes: z.array(factoryNodeSchema),
+  storages: z.array(factoryStorageSchema).optional().default([]),
   edges: z.array(factoryEdgeSchema),
   fuelProfiles: z.array(fuelProfileSchema),
   selectedFuelProfileId: z.string().optional(),

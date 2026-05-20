@@ -115,6 +115,19 @@ export interface FactoryNode {
   };
 }
 
+export interface FactoryStorage {
+  id: string;
+  kind: ResourceKind;
+  resourceId: ResourceId;
+  displayName?: string;
+  iconPath?: string;
+  capacity?: number;
+  position: {
+    x: number;
+    y: number;
+  };
+}
+
 export interface FactoryEdge {
   id: string;
   source: string;
@@ -144,6 +157,7 @@ export interface FactoryProject {
   targetRate?: TargetRate;
   recipes: Recipe[];
   nodes: FactoryNode[];
+  storages?: FactoryStorage[];
   edges: FactoryEdge[];
   fuelProfiles: FuelProfile[];
   selectedFuelProfileId?: string;
@@ -190,6 +204,19 @@ export interface NodeThroughputResult {
   warnings: string[];
 }
 
+export interface StorageThroughputResult {
+  storageId: string;
+  kind: ResourceKind;
+  resourceId: ResourceId;
+  displayName?: string;
+  storedAmount: number;
+  capacity: number;
+  producedPerSecond: number;
+  consumedPerSecond: number;
+  netPerSecond: number;
+  status: "filling" | "draining" | "balanced" | "empty";
+}
+
 export interface ResourceBalance {
   key: ResourceKey;
   kind: ResourceKind;
@@ -222,6 +249,7 @@ export interface FuelEstimate {
 
 export interface ThroughputResult {
   nodes: Record<string, NodeThroughputResult>;
+  storages: Record<string, StorageThroughputResult>;
   resources: Record<ResourceKey, ResourceBalance>;
   edges: Record<string, EdgeThroughput>;
   totalEuT: number;

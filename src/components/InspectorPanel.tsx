@@ -6,6 +6,7 @@ import { mergeDatasetAndProjectRecipes } from "@/lib/datasets";
 import { formatRate, formatResourceRate, makeResourceKey, primaryOutput } from "@/lib/model";
 import type { ResourceKind, TargetRate } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
+import { ResourceIcon } from "./nei/ResourceIcon";
 
 export function InspectorPanel() {
   const project = useFactoryStore((state) => state.project);
@@ -155,6 +156,8 @@ export function InspectorPanel() {
               </label>
             </div>
           </div>
+
+          <StorageSummary />
 
           <div className="rounded border border-neutral-200 bg-neutral-50 p-3">
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -323,8 +326,58 @@ function SummaryPanel({ onSelectFuel }: { onSelectFuel: (fuelProfileId: string) 
           empty="No surplus outputs."
           items={result.unconsumedOutputs}
         />
+        <StorageSummary className="mt-4" />
       </div>
     </>
+  );
+}
+
+function StorageSummary({ className = "" }: { className?: string }) {
+  const project = useFactoryStore((state) => state.project);
+  const result = useFactoryStore((state) => state.lastResult);
+  const storages = project.storages ?? [];
+
+  return (
+    <section className={[className, "rounded border border-neutral-200 bg-white p-3"].join(" ")}>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Storages</h3>
+      {storages.length === 0 ? (
+        <p className="mt-2 text-sm text-neutral-500">No tanks or drawers.</p>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {storages.map((storage) => {
+            const storageResult = result.storages[storage.id];
+            const unit = storage.kind === "fluid" ? "L/s" : "/s";
+            return (
+              <div
+                key={storage.id}
+                className="grid grid-cols-[34px_minmax(0,1fr)] gap-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs"
+              >
+                <ResourceIcon
+                  resource={{ ...storage, id: storage.resourceId, amount: 1 }}
+                  size="sm"
+                  showAmount={false}
+                  bare
+                  className="!h-8 !w-8"
+                />
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-neutral-900">
+                    {storage.displayName ?? storage.resourceId}
+                  </div>
+                  <div className="mt-0.5 grid grid-cols-3 gap-1 text-[11px] text-neutral-600">
+                    <span>+{formatRate(storageResult?.producedPerSecond ?? 0, 2)}{unit}</span>
+                    <span>-{formatRate(storageResult?.consumedPerSecond ?? 0, 2)}{unit}</span>
+                    <span>
+                      {(storageResult?.netPerSecond ?? 0) >= 0 ? "+" : ""}
+                      {formatRate(storageResult?.netPerSecond ?? 0, 2)}{unit}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -13,6 +13,7 @@ import {
   type Edge,
   type EdgeProps,
   type EdgeTypes,
+  type Node,
   type NodeTypes,
 } from "@xyflow/react";
 import { useEffect, useMemo } from "react";
@@ -22,9 +23,11 @@ import { useFactoryStore } from "@/store/factory-store";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
 import { RecipeNode, type RecipeFlowNode } from "./RecipeNode";
 import { parseResourceHandleId } from "./resource-handles";
+import { StorageNode, type StorageFlowNode } from "./StorageNode";
 
 const nodeTypes = {
   recipeNode: RecipeNode,
+  storageNode: StorageNode,
 } satisfies NodeTypes;
 
 const edgeTypes = {
@@ -47,14 +50,15 @@ export function FactoryFlow() {
   const result = useFactoryStore((state) => state.lastResult);
   const selectNode = useFactoryStore((state) => state.selectNode);
   const setNodePosition = useFactoryStore((state) => state.setNodePosition);
+  const setStoragePosition = useFactoryStore((state) => state.setStoragePosition);
   const connectNodes = useFactoryStore((state) => state.connectNodes);
   const deleteEdge = useFactoryStore((state) => state.deleteEdge);
   const pendingResourceConnection = useFactoryStore((state) => state.pendingResourceConnection);
   const cancelResourceConnection = useFactoryStore((state) => state.cancelResourceConnection);
 
-  const nodes = useMemo<RecipeFlowNode[]>(
-    () =>
-      project.nodes.map((node) => {
+  const nodes = useMemo<Array<RecipeFlowNode | StorageFlowNode>>(
+    () => [
+      ...project.nodes.map((node) => {
         const recipe = project.recipes.find((entry) => entry.id === node.recipeId);
         return {
           id: node.id,
@@ -76,9 +80,19 @@ export function FactoryFlow() {
               } satisfies RecipeFlowNode["data"]["recipe"]),
             result: result.nodes[node.id],
           },
-        };
+        } satisfies RecipeFlowNode;
       }),
-    [project.nodes, project.recipes, result.nodes],
+      ...(project.storages ?? []).map((storage) => ({
+        id: storage.id,
+        type: "storageNode",
+        position: storage.position,
+        data: {
+          storage,
+          result: result.storages[storage.id],
+        },
+      }) satisfies StorageFlowNode),
+    ],
+    [project.nodes, project.recipes, project.storages, result.nodes, result.storages],
   );
 
   const edges = useMemo<ResourceFlowEdge[]>(
@@ -177,7 +191,14 @@ export function FactoryFlow() {
           selectNode(undefined);
           cancelResourceConnection();
         }}
-        onNodeDragStop={(_, node) => setNodePosition(node.id, node.position)}
+        onNodeDragStop={(_, node: Node) => {
+          if (node.type === "storageNode") {
+            setStoragePosition(node.id, node.position);
+            return;
+          }
+
+          setNodePosition(node.id, node.position);
+        }}
         onEdgesDelete={(deletedEdges) => deletedEdges.forEach((edge) => deleteEdge(edge.id))}
         fitView
         fitViewOptions={{ padding: 0.18 }}
@@ -270,15 +291,18 @@ function getEdgeResource(
 ): Pick<ResourceAmount, "kind" | "id" | "amount" | "displayName" | "iconPath"> {
   const sourceNode = project.nodes.find((node) => node.id === edge.source);
   const sourceRecipe = project.recipes.find((recipe) => recipe.id === sourceNode?.recipeId);
+  const sourceStorage = (project.storages ?? []).find((storage) => storage.id === edge.source);
+  const targetStorage = (project.storages ?? []).find((storage) => storage.id === edge.target);
   const output = sourceRecipe?.outputs.find(
     (resource) => resource.kind === edge.resourceKind && resource.id === edge.resourceId,
   );
+  const storage = sourceStorage ?? targetStorage;
 
   return {
     kind: edge.resourceKind,
     id: edge.resourceId,
     amount: 1,
-    displayName: output?.displayName ?? edge.label,
-    iconPath: output?.iconPath,
+    displayName: output?.displayName ?? storage?.displayName ?? edge.label,
+    iconPath: output?.iconPath ?? storage?.iconPath,
   };
 }

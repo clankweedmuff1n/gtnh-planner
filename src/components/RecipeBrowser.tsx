@@ -1,6 +1,6 @@
 "use client";
 
-import { GitBranchPlus, Plus, Search, X } from "lucide-react";
+import { Archive, GitBranchPlus, Plus, Search, X } from "lucide-react";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { mergeDatasetAndProjectRecipes } from "@/lib/datasets";
@@ -25,6 +25,7 @@ export function RecipeBrowser() {
   const selectRecipe = useFactoryStore((state) => state.selectRecipe);
   const addNodeForRecipe = useFactoryStore((state) => state.addNodeForRecipe);
   const addConnectedNodeForRecipe = useFactoryStore((state) => state.addConnectedNodeForRecipe);
+  const addResourceStorage = useFactoryStore((state) => state.addResourceStorage);
   const datasetRecipes = dataset?.recipes;
   const [selectedRecipeMap, setSelectedRecipeMap] = useState("all");
   const deferredRecipeSearch = useDeferredValue(recipeSearch);
@@ -241,6 +242,9 @@ export function RecipeBrowser() {
               : undefined
           }
           onClose={clearResourceBrowser}
+          onAddStorage={() => {
+            addResourceStorage(activeResource);
+          }}
           onBrowseResource={(resource, mode) =>
             browseResource(
               {
@@ -417,6 +421,7 @@ function RecipeBookOverlay({
   onAdd,
   onAddConnected,
   onClose,
+  onAddStorage,
   onBrowseResource,
   onRecipeMapChange,
   onSelectRecipe,
@@ -429,6 +434,7 @@ function RecipeBookOverlay({
   onAdd: (recipeId: string) => void;
   onAddConnected?: (recipeId: string) => void;
   onClose: () => void;
+  onAddStorage: () => void;
   onBrowseResource: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
   onRecipeMapChange: (recipeMap: string) => void;
   onSelectRecipe: (recipeId: string) => void;
@@ -573,7 +579,18 @@ function RecipeBookOverlay({
             >
               {activeRecipeMap || filteredRecipes[0]?.machineType || resourceLabel(activeResource)}
             </div>
-            <div />
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddStorage();
+              }}
+              className="nodrag h-8 w-8 border-2 border-[#252525] bg-[#7d7d7d] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:bg-[#9b9b9b]"
+              title={`Add ${activeResource.kind === "fluid" ? "super tank" : "drawer"}`}
+              aria-label={`Add ${activeResource.kind === "fluid" ? "super tank" : "drawer"}`}
+            >
+              <Archive className="mx-auto h-4 w-4" />
+            </button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">

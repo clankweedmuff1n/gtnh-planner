@@ -8,6 +8,7 @@ import {
 import type {
   BottleneckReport,
   EdgeThroughput,
+  FactoryStorage,
   FactoryProject,
   FuelEstimate,
   NodeThroughputResult,
@@ -18,6 +19,7 @@ import type {
   ResourceFlow,
   ResourceKey,
   ResourceKind,
+  StorageThroughputResult,
   ThroughputResult,
 } from "../model/types";
 import { TICKS_PER_SECOND } from "../model/types";
@@ -36,9 +38,27 @@ export function calculateThroughput(
 ): ThroughputResult {
   const recipesById = new Map(project.recipes.map((recipe) => [recipe.id, recipe]));
   const nodes: Record<string, NodeThroughputResult> = {};
+  const storages: Record<string, StorageThroughputResult> = {};
   const balances = new Map<ResourceKey, ResourceBalance>();
   const bottlenecks: BottleneckReport[] = [];
   let totalEuT = 0;
+  const projectStorages = project.storages ?? [];
+  const storagesById = new Map(projectStorages.map((storage) => [storage.id, storage]));
+
+  for (const storage of projectStorages) {
+    storages[storage.id] = {
+      storageId: storage.id,
+      kind: storage.kind,
+      resourceId: storage.resourceId,
+      displayName: storage.displayName,
+      storedAmount: 0,
+      capacity: storage.capacity ?? getDefaultStorageCapacity(storage),
+      producedPerSecond: 0,
+      consumedPerSecond: 0,
+      netPerSecond: 0,
+      status: "empty",
+    };
+  }
 
   for (const node of project.nodes) {
     const recipe = recipesById.get(node.recipeId);
@@ -120,9 +140,56 @@ export function calculateThroughput(
   const incomingEdgeCounts = countIncomingEdgesByTargetResource(project);
   const requiredByNodeAndResource = new Map<string, Map<ResourceKey, number>>();
   const edgeResults: Record<string, EdgeThroughput> = {};
+  const storageOutgoingDemand = calculateStorageOutgoingDemand(project, nodes, projectStorages);
+  const storageIncomingCounts = countIncomingEdgesToStorage(project, projectStorages);
+  const storageIncomingTransferred = new Map<string, number>();
 
   for (const edge of project.edges) {
     const key = makeResourceKey(edge.resourceKind, edge.resourceId);
+    const sourceStorage = storagesById.get(edge.source);
+    const targetStorage = storagesById.get(edge.target);
+
+    if (sourceStorage || targetStorage) {
+      if (sourceStorage && targetStorage) {
+        continue;
+      }
+
+      if (targetStorage) {
+        const sourceResult = nodes[edge.source];
+        const countKey = `${targetStorage.id}|${key}`;
+        const targetDemand = storageOutgoingDemand.get(countKey) ?? 0;
+        const targetCount = storageIncomingCounts.get(countKey) ?? 1;
+        const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
+        const sourceCapacity = sourceResult?.outputs[key]?.amountPerSecond ?? 0;
+        const transferredPerSecond = Math.min(sourceCapacity, demandPerSecond);
+
+        addRequiredRate(requiredByNodeAndResource, edge.source, key, demandPerSecond);
+        storageIncomingTransferred.set(
+          countKey,
+          (storageIncomingTransferred.get(countKey) ?? 0) + transferredPerSecond,
+        );
+        updateStorageFlow(storages[targetStorage.id], transferredPerSecond, 0);
+        edgeResults[edge.id] = buildEdgeResult(edge, key, demandPerSecond, transferredPerSecond);
+        continue;
+      }
+
+      if (sourceStorage) {
+        const targetResult = nodes[edge.target];
+        const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
+        const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
+        const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
+        const sourceCapacity = storageIncomingTransferred.get(`${sourceStorage.id}|${key}`) ?? 0;
+        const totalDemand = storageOutgoingDemand.get(`${sourceStorage.id}|${key}`) ?? demandPerSecond;
+        const allocatedCapacity =
+          totalDemand > EPSILON ? (sourceCapacity * demandPerSecond) / totalDemand : sourceCapacity;
+        const transferredPerSecond = Math.min(allocatedCapacity, demandPerSecond);
+
+        updateStorageFlow(storages[sourceStorage.id], 0, transferredPerSecond);
+        edgeResults[edge.id] = buildEdgeResult(edge, key, demandPerSecond, transferredPerSecond);
+        continue;
+      }
+    }
+
     const sourceResult = nodes[edge.source];
     const targetResult = nodes[edge.target];
     const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
@@ -133,19 +200,11 @@ export function calculateThroughput(
 
     addRequiredRate(requiredByNodeAndResource, edge.source, key, demandPerSecond);
 
-    edgeResults[edge.id] = {
-      edgeId: edge.id,
-      resource: {
-        key,
-        kind: edge.resourceKind,
-        resourceId: edge.resourceId,
-        displayName: edge.label,
-        amountPerSecond: transferredPerSecond,
-      },
-      demandPerSecond,
-      transferredPerSecond,
-      isLimited: transferredPerSecond + EPSILON < demandPerSecond,
-    };
+    edgeResults[edge.id] = buildEdgeResult(edge, key, demandPerSecond, transferredPerSecond);
+  }
+
+  for (const storageResult of Object.values(storages)) {
+    finalizeStorageFlow(storageResult);
   }
 
   applyProjectTarget(project, nodes, requiredByNodeAndResource);
@@ -233,6 +292,7 @@ export function calculateThroughput(
 
   return {
     nodes,
+    storages,
     resources: resourceResults,
     edges: edgeResults,
     totalEuT,
@@ -339,6 +399,105 @@ function countIncomingEdgesByTargetResource(project: FactoryProject): Map<string
   }
 
   return counts;
+}
+
+function countIncomingEdgesToStorage(
+  project: FactoryProject,
+  storages: FactoryStorage[],
+): Map<string, number> {
+  const storageIds = new Set(storages.map((storage) => storage.id));
+  const counts = new Map<string, number>();
+
+  for (const edge of project.edges) {
+    if (!storageIds.has(edge.target)) {
+      continue;
+    }
+
+    const key = makeResourceKey(edge.resourceKind, edge.resourceId);
+    const countKey = `${edge.target}|${key}`;
+    counts.set(countKey, (counts.get(countKey) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+function calculateStorageOutgoingDemand(
+  project: FactoryProject,
+  nodes: Record<string, NodeThroughputResult>,
+  storages: FactoryStorage[],
+): Map<string, number> {
+  const storageIds = new Set(storages.map((storage) => storage.id));
+  const demand = new Map<string, number>();
+  const incomingEdgeCounts = countIncomingEdgesByTargetResource(project);
+
+  for (const edge of project.edges) {
+    if (!storageIds.has(edge.source)) {
+      continue;
+    }
+
+    const key = makeResourceKey(edge.resourceKind, edge.resourceId);
+    const targetResult = nodes[edge.target];
+    const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
+    const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
+    const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
+    const countKey = `${edge.source}|${key}`;
+    demand.set(countKey, (demand.get(countKey) ?? 0) + demandPerSecond);
+  }
+
+  return demand;
+}
+
+function buildEdgeResult(
+  edge: { id: string; resourceKind: ResourceKind; resourceId: string; label?: string },
+  key: ResourceKey,
+  demandPerSecond: number,
+  transferredPerSecond: number,
+): EdgeThroughput {
+  return {
+    edgeId: edge.id,
+    resource: {
+      key,
+      kind: edge.resourceKind,
+      resourceId: edge.resourceId,
+      displayName: edge.label,
+      amountPerSecond: transferredPerSecond,
+    },
+    demandPerSecond,
+    transferredPerSecond,
+    isLimited: transferredPerSecond + EPSILON < demandPerSecond,
+  };
+}
+
+function getDefaultStorageCapacity(storage: FactoryStorage): number {
+  return storage.kind === "fluid" ? 4_000_000 : 262_144;
+}
+
+function updateStorageFlow(
+  storage: StorageThroughputResult | undefined,
+  producedPerSecond: number,
+  consumedPerSecond: number,
+) {
+  if (!storage) {
+    return;
+  }
+
+  storage.producedPerSecond += producedPerSecond;
+  storage.consumedPerSecond += consumedPerSecond;
+}
+
+function finalizeStorageFlow(storage: StorageThroughputResult) {
+  storage.netPerSecond = storage.producedPerSecond - storage.consumedPerSecond;
+  storage.storedAmount = Math.max(0, Math.min(storage.capacity, storage.netPerSecond));
+
+  if (storage.producedPerSecond <= EPSILON && storage.consumedPerSecond <= EPSILON) {
+    storage.status = "empty";
+  } else if (Math.abs(storage.netPerSecond) <= EPSILON) {
+    storage.status = "balanced";
+  } else if (storage.netPerSecond > 0) {
+    storage.status = "filling";
+  } else {
+    storage.status = "draining";
+  }
 }
 
 function addRequiredRate(

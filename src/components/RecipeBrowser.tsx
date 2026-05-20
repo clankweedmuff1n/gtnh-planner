@@ -475,6 +475,7 @@ function RecipeBookOverlay({
                     onSelect={() => onSelectRecipe(recipe.id)}
                     onAdd={() => onAdd(recipe.id)}
                     onAddConnected={onAddConnected ? () => onAddConnected(recipe.id) : undefined}
+                    minimal
                   />
                 ))}
               </div>
@@ -492,12 +493,14 @@ function RecipeResultCard({
   onSelect,
   onAdd,
   onAddConnected,
+  minimal = false,
 }: {
   recipe: Recipe;
   selected: boolean;
   onSelect: () => void;
   onAdd: () => void;
   onAddConnected?: () => void;
+  minimal?: boolean;
 }) {
   const primary = primaryOutput(recipe);
 
@@ -509,14 +512,16 @@ function RecipeResultCard({
         selected ? "border-cyan-400 ring-1 ring-cyan-400" : "border-neutral-700",
       ].join(" ")}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-neutral-50">{recipe.name}</h3>
-          <p className="mt-0.5 truncate text-xs text-neutral-400">
-            {recipe.source?.recipeMap ?? recipe.machineType} | {recipe.durationTicks} ticks |{" "}
-            {recipe.eut} EU/t
-          </p>
-        </div>
+      <div className="flex items-start justify-end gap-2">
+        {!minimal ? (
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold text-neutral-50">{recipe.name}</h3>
+            <p className="mt-0.5 truncate text-xs text-neutral-400">
+              {recipe.source?.recipeMap ?? recipe.machineType} | {recipe.durationTicks} ticks |{" "}
+              {recipe.eut} EU/t
+            </p>
+          </div>
+        ) : null}
         <button
           type="button"
           title={onAddConnected ? "Add and connect recipe node" : "Add recipe node"}
@@ -541,7 +546,7 @@ function RecipeResultCard({
       <div className="mt-2 overflow-x-auto pb-1">
         <NeiRecipeWindow recipe={recipe} scale={2} compact className="mx-auto" />
       </div>
-      {primary ? (
+      {!minimal && primary ? (
         <p className="mt-2 truncate text-[11px] text-neutral-400">
           Primary: {primary.displayName ?? primary.id}
         </p>

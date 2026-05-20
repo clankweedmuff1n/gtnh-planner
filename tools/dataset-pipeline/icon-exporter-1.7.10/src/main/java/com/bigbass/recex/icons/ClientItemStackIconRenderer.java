@@ -104,7 +104,7 @@ public final class ClientItemStackIconRenderer {
         minecraft.displayGuiScreen(new IconExportScreen(afterExport));
     }
 
-    private static BufferedImage renderStackToImage(ItemStack stack) throws Exception {
+    static BufferedImage renderStackToImage(ItemStack stack) throws Exception {
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft == null || minecraft.getTextureManager() == null) {
             throw new IllegalStateException("Minecraft client is not ready.");
@@ -200,6 +200,15 @@ public final class ClientItemStackIconRenderer {
         } catch (Throwable ignored) {
             return overlay;
         }
+    }
+
+    static BufferedImage renderEmptyCellBaseImage() throws Exception {
+        Item emptyCellItem = (Item) Item.itemRegistry.getObject("IC2:itemCellEmpty");
+        if (emptyCellItem == null) {
+            return null;
+        }
+
+        return renderStackToImage(new ItemStack(emptyCellItem, 1, 0));
     }
 
     private static boolean shouldRenderEmptyCellBase(ItemStack stack) {

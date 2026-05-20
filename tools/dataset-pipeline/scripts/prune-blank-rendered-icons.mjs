@@ -18,6 +18,7 @@ const pruneAtlasLikeIcons = process.env.PRUNE_ATLAS_LIKE_ICONS === "true";
 const blankFiles = new Set();
 let scanned = 0;
 let removedAtlasLikeIcons = 0;
+let removedMissingTextureIcons = 0;
 
 for (const entry of await fs.readdir(renderedDir, { withFileTypes: true })) {
   if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".png")) {
@@ -29,7 +30,8 @@ for (const entry of await fs.readdir(renderedDir, { withFileTypes: true })) {
   const png = await fs.readFile(filePath);
   const analysis = analyzePngVisibility(png);
   const isAtlasLike = pruneAtlasLikeIcons && analysis.visibleCorners === 4;
-  if (analysis.hasVisiblePixel && !isAtlasLike) {
+  const isMissingTexture = analysis.missingTextureRatio > 0.5;
+  if (analysis.hasVisiblePixel && !isAtlasLike && !isMissingTexture) {
     continue;
   }
 
@@ -37,6 +39,9 @@ for (const entry of await fs.readdir(renderedDir, { withFileTypes: true })) {
   await fs.rm(filePath, { force: true });
   if (isAtlasLike) {
     removedAtlasLikeIcons += 1;
+  }
+  if (isMissingTexture) {
+    removedMissingTextureIcons += 1;
   }
 }
 
@@ -66,6 +71,7 @@ console.log(
     scanned,
     removedBlankIcons: blankFiles.size,
     removedAtlasLikeIcons,
+    removedMissingTextureIcons,
     clearedIconPaths,
   }),
 );
@@ -87,7 +93,7 @@ function clearBlankIconPath(resource, blankFiles) {
 function analyzePngVisibility(buffer) {
   const png = parsePng(buffer);
   if (!png || png.bitDepth !== 8 || ![2, 6].includes(png.colorType)) {
-    return { hasVisiblePixel: true, visibleCorners: 0 };
+    return { hasVisiblePixel: true, visibleCorners: 0, missingTextureRatio: 0 };
   }
 
   const bytesPerPixel = png.colorType === 6 ? 4 : 3;
@@ -97,6 +103,8 @@ function analyzePngVisibility(buffer) {
   let offset = 0;
   let hasVisiblePixel = false;
   let visibleCorners = 0;
+  let visiblePixels = 0;
+  let missingTexturePixels = 0;
 
   for (let y = 0; y < png.height; y++) {
     const filter = inflated[offset];
@@ -110,6 +118,10 @@ function analyzePngVisibility(buffer) {
       const alpha = png.colorType === 6 ? current[index + 3] : 255;
       if (alpha > 0 && (current[index] > 0 || current[index + 1] > 0 || current[index + 2] > 0)) {
         hasVisiblePixel = true;
+        visiblePixels += 1;
+        if (isMissingTexturePixel(current[index], current[index + 1], current[index + 2])) {
+          missingTexturePixels += 1;
+        }
       }
       if (
         alpha > 0 &&
@@ -125,7 +137,15 @@ function analyzePngVisibility(buffer) {
     previous = current;
   }
 
-  return { hasVisiblePixel, visibleCorners };
+  return {
+    hasVisiblePixel,
+    visibleCorners,
+    missingTextureRatio: visiblePixels > 0 ? missingTexturePixels / visiblePixels : 0,
+  };
+}
+
+function isMissingTexturePixel(red, green, blue) {
+  return red >= 220 && green <= 40 && blue >= 220;
 }
 
 function parsePng(buffer) {

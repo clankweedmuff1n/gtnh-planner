@@ -4,7 +4,7 @@ import { GitBranchPlus, Plus, Search, X } from "lucide-react";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { mergeDatasetAndProjectRecipes } from "@/lib/datasets";
-import type { DatasetResource } from "@/lib/datasets/types";
+import type { DatasetResource, DatasetResourceIndexEntry } from "@/lib/datasets/types";
 import { getResourceKey, primaryOutput, resourceLabel } from "@/lib/model";
 import { useFactoryStore } from "@/store/factory-store";
 import type { Recipe, ResourceAmount, ResourceKey } from "@/lib/model/types";
@@ -34,7 +34,10 @@ export function RecipeBrowser() {
     [datasetRecipes, projectRecipes],
   );
 
-  const resourceIndex = useMemo(() => buildResourceIndex(recipes), [recipes]);
+  const resourceIndex = useMemo(
+    () => buildResourceIndex(dataset?.resourceIndex, datasetRecipes ?? [], projectRecipes),
+    [dataset?.resourceIndex, datasetRecipes, projectRecipes],
+  );
   const activeResource = useMemo(() => {
     if (!browserResource) {
       return undefined;
@@ -716,9 +719,32 @@ function getInitialRecipeBookSize() {
   };
 }
 
-function buildResourceIndex(recipes: Recipe[]): Map<ResourceKey, IndexedResource> {
+function buildResourceIndex(
+  datasetResourceIndex: DatasetResourceIndexEntry[] | undefined,
+  datasetRecipes: Recipe[],
+  projectRecipes: Recipe[],
+): Map<ResourceKey, IndexedResource> {
   const index = new Map<ResourceKey, IndexedResource>();
+  if (datasetResourceIndex) {
+    for (const resource of datasetResourceIndex) {
+      index.set(`${resource.kind}:${resource.id}` as ResourceKey, resource);
+    }
+  } else {
+    addRecipesToResourceIndex(index, datasetRecipes);
+  }
 
+  if (projectRecipes.length > 0) {
+    const datasetRecipeIds = new Set(datasetRecipes.map((recipe) => recipe.id));
+    addRecipesToResourceIndex(
+      index,
+      projectRecipes.filter((recipe) => !datasetRecipeIds.has(recipe.id)),
+    );
+  }
+
+  return index;
+}
+
+function addRecipesToResourceIndex(index: Map<ResourceKey, IndexedResource>, recipes: Recipe[]) {
   for (const recipe of recipes) {
     for (const resource of [...recipe.inputs, ...recipe.outputs]) {
       const key = getResourceKey(resource);
@@ -742,8 +768,6 @@ function buildResourceIndex(recipes: Recipe[]): Map<ResourceKey, IndexedResource
       }
     }
   }
-
-  return index;
 }
 
 function resourceMatchesQuery(resource: IndexedResource, query: string): boolean {

@@ -1,4 +1,4 @@
-import type { DatasetResource, RecipeDataset } from "./types";
+import type { DatasetResource, DatasetResourceIndexEntry, RecipeDataset } from "./types";
 import type { Recipe, ResourceAmount } from "../model/types";
 
 interface RecipeMapSlotCapacity {
@@ -23,12 +23,45 @@ export function enrichDatasetRecipes(dataset: RecipeDataset): RecipeDataset {
   );
   const slotCapacitiesByRecipeMap = buildRecipeMapSlotCapacities(dataset.recipes);
 
+  const recipes = dataset.recipes.map((recipe) =>
+    enrichRecipe(recipe, resourcesByKey, slotCapacitiesByRecipeMap),
+  );
+
   return {
     ...dataset,
-    recipes: dataset.recipes.map((recipe) =>
-      enrichRecipe(recipe, resourcesByKey, slotCapacitiesByRecipeMap),
-    ),
+    recipes,
+    resourceIndex: buildDatasetResourceIndex(recipes),
   };
+}
+
+export function buildDatasetResourceIndex(recipes: Recipe[]): DatasetResourceIndexEntry[] {
+  const index = new Map<string, DatasetResourceIndexEntry>();
+
+  for (const recipe of recipes) {
+    for (const resource of [...recipe.inputs, ...recipe.outputs]) {
+      const key = `${resource.kind}:${resource.id}`;
+      const existing = index.get(key);
+      if (existing) {
+        existing.recipeCount += 1;
+        if (!existing.iconPath && resource.iconPath) {
+          existing.iconPath = resource.iconPath;
+        }
+        if (!existing.displayName && resource.displayName) {
+          existing.displayName = resource.displayName;
+        }
+      } else {
+        index.set(key, {
+          kind: resource.kind,
+          id: resource.id,
+          displayName: resource.displayName,
+          iconPath: resource.iconPath,
+          recipeCount: 1,
+        });
+      }
+    }
+  }
+
+  return [...index.values()];
 }
 
 function enrichRecipe(

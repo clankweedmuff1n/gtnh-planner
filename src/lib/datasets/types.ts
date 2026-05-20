@@ -18,6 +18,14 @@ export interface DatasetResource {
   oreDictionary?: string[];
 }
 
+export interface DatasetResourceIndexEntry {
+  id: string;
+  kind: "item" | "fluid";
+  displayName?: string;
+  iconPath?: string;
+  recipeCount: number;
+}
+
 export interface DatasetVersion {
   id: string;
   gtnhVersion: string;
@@ -42,6 +50,7 @@ export interface RecipeDataset {
   gtnhVersion: string;
   sourceInfo: DatasetSourceInfo;
   resources: DatasetResource[];
+  resourceIndex?: DatasetResourceIndexEntry[];
   recipes: Recipe[];
   oreDictionary: Record<string, string[]>;
   recipeMaps: string[];

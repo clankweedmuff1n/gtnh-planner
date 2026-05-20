@@ -19,12 +19,21 @@ export const datasetResourceSchema = z.object({
   oreDictionary: z.array(z.string()).optional(),
 });
 
+export const datasetResourceIndexEntrySchema = z.object({
+  id: z.string().min(1),
+  kind: z.enum(["item", "fluid"]),
+  displayName: z.string().optional(),
+  iconPath: z.string().optional(),
+  recipeCount: z.number().int().min(0),
+});
+
 export const recipeDatasetSchema = z.object({
   schemaVersion: z.literal(1),
   datasetVersionId: z.string().min(1),
   gtnhVersion: z.string().min(1),
   sourceInfo: datasetSourceInfoSchema,
   resources: z.array(datasetResourceSchema).default([]),
+  resourceIndex: z.array(datasetResourceIndexEntrySchema).optional(),
   recipes: z.array(recipeSchema),
   oreDictionary: z.record(z.string(), z.array(z.string())),
   recipeMaps: z.array(z.string()),

@@ -77,6 +77,7 @@ function loadDatasetInWorker(
 
 function getDatasetCacheKey(version: DatasetVersion): string {
   return [
+    "v2",
     version.id,
     version.recipeDatasetPath,
     version.checksumSha256,

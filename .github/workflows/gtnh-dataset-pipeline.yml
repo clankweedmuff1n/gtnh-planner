@@ -57,9 +57,10 @@ jobs:
     name: Build ${{ matrix.channel }} dataset
     needs: detect
     if: needs.detect.outputs.has_versions == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, gtnh-export]
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4

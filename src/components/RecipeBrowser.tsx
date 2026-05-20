@@ -211,7 +211,6 @@ export function RecipeBrowser() {
         <RecipeBookOverlay
           activeRecipeMap={activeRecipeMap}
           activeResource={activeResource}
-          browserMode={browserMode}
           filteredRecipes={filteredRecipes}
           recipeMapTabs={recipeMapTabs}
           selectedRecipeId={selectedRecipeId}
@@ -354,7 +353,6 @@ function NeiTabArrow({ direction, onClick }: { direction: "left" | "right"; onCl
 function RecipeBookOverlay({
   activeRecipeMap,
   activeResource,
-  browserMode,
   filteredRecipes,
   recipeMapTabs,
   selectedRecipeId,
@@ -367,7 +365,6 @@ function RecipeBookOverlay({
 }: {
   activeRecipeMap: string;
   activeResource: IndexedResource & { anchorNodeId?: string };
-  browserMode: "recipes" | "uses";
   filteredRecipes: Recipe[];
   recipeMapTabs: RecipeMapTab[];
   selectedRecipeId?: string;
@@ -495,7 +492,7 @@ function RecipeBookOverlay({
               onPointerCancel={handlePointerUp}
               className="h-8 cursor-move select-none truncate border-2 border-[#555] bg-[#9b9b9b] px-2 text-center text-[18px] leading-[26px] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a] [text-shadow:2px_2px_0_#3f3f3f]"
             >
-              {resourceLabel(activeResource)}
+              {activeRecipeMap || filteredRecipes[0]?.machineType || resourceLabel(activeResource)}
             </div>
             <button
               type="button"
@@ -506,14 +503,6 @@ function RecipeBookOverlay({
             >
               x
             </button>
-          </div>
-
-          <div className="grid grid-cols-[36px_minmax(0,1fr)_36px] items-center px-2">
-            <div />
-            <div className="h-8 truncate border-x-2 border-b-2 border-[#555] bg-[#a7a7a7] px-2 text-center text-[18px] leading-[26px] text-white shadow-[inset_2px_0_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a] [text-shadow:2px_2px_0_#3f3f3f]">
-              {browserMode === "recipes" ? "Recipes" : "Uses"}
-            </div>
-            <div className="h-8 border-x-2 border-b-2 border-[#252525] bg-[#5d5d5d] shadow-[inset_2px_0_0_#9f9f9f,inset_-2px_-2px_0_#303030]" />
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">

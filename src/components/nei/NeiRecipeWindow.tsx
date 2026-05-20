@@ -38,8 +38,12 @@ export function NeiRecipeWindow({
       style={{ imageRendering: "pixelated" }}
     >
       <div className="border-2 border-[#f7f7f7] bg-[#c6c6c6] shadow-[inset_-2px_-2px_0_#6f6f6f]">
-        <NeiTitleBar label={recipeMap} compact={compact} />
-        <NeiPageBar compact={compact} />
+        {!compact ? (
+          <>
+            <NeiTitleBar label={recipeMap} compact={compact} />
+            <NeiPageBar compact={compact} />
+          </>
+        ) : null}
         <div className={compact ? "p-1" : "p-2"}>
           <NeiRecipeCanvas
             recipe={recipe}

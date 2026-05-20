@@ -15,7 +15,7 @@ interface NeiRecipeCanvasProps {
   scale?: number;
   className?: string;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
-  onSlotClick?: (slot: NeiPositionedSlot) => void;
+  onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
 }
 
 export function NeiRecipeCanvas({
@@ -83,7 +83,7 @@ function NeiSlotFrameView({
 }: {
   frame: NeiSlotFrame;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
-  onSlotClick?: (slot: NeiPositionedSlot) => void;
+  onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
 }) {
   const slot = frame.resource ? (frame as NeiPositionedSlot) : undefined;
 
@@ -97,7 +97,16 @@ function NeiSlotFrameView({
         }
 
         event.stopPropagation();
-        onSlotClick(slot);
+        onSlotClick(slot, "recipes");
+      }}
+      onContextMenu={(event) => {
+        if (!slot || !onSlotClick) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        onSlotClick(slot, "uses");
       }}
       className={[
         "relative h-full w-full border-0 bg-transparent p-0 text-left",

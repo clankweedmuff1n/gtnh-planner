@@ -36,7 +36,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         <NeiRecipeWindow
           recipe={recipe}
           scale={2}
-          onSlotClick={(slot) =>
+          onSlotClick={(slot, mode) =>
             browseResource(
               {
                 kind: slot.resource.kind,
@@ -45,7 +45,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
                 iconPath: slot.resource.iconPath,
                 anchorNodeId: projectNode.id,
               },
-              slot.side === "input" ? "recipes" : "uses",
+              mode,
             )
           }
           renderHandle={(slot) => {

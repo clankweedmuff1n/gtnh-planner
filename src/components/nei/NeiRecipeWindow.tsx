@@ -12,7 +12,7 @@ interface NeiRecipeWindowProps {
   className?: string;
   compact?: boolean;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
-  onSlotClick?: (slot: NeiPositionedSlot) => void;
+  onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
 }
 
 export function NeiRecipeWindow({

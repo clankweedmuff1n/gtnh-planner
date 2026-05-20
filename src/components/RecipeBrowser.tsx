@@ -136,15 +136,6 @@ export function RecipeBrowser() {
     ].slice(0, 240);
   }, [activeRecipeMap, activeResource, deferredRecipeSearch, scopedRecipes]);
 
-  const setMode = (mode: "recipes" | "uses") => {
-    if (!activeResource) {
-      return;
-    }
-
-    browseResource(activeResource, mode);
-    setSelectedRecipeMap("all");
-  };
-
   return (
     <>
       <aside className="flex h-full min-h-[360px] flex-col border-r border-neutral-800 bg-[#25272c] text-neutral-100">
@@ -202,9 +193,6 @@ export function RecipeBrowser() {
                 <div className="truncate text-sm font-semibold text-neutral-50">
                   {resourceLabel(activeResource)}
                 </div>
-                <div className="truncate text-[11px] text-neutral-400">
-                  {browserMode === "recipes" ? "Recipes" : "Uses"} / {filteredRecipes.length} shown
-                </div>
               </div>
             </div>
           ) : null}
@@ -232,8 +220,7 @@ export function RecipeBrowser() {
                   active={
                     activeResource?.kind === resource.kind && activeResource.id === resource.id
                   }
-                  onRecipes={() => browseResource(resource, "recipes")}
-                  onUses={() => browseResource(resource, "uses")}
+                  onBrowse={(mode) => browseResource(resource, mode)}
                 />
               ))}
             </div>
@@ -262,7 +249,18 @@ export function RecipeBrowser() {
               : undefined
           }
           onClose={clearResourceBrowser}
-          onModeChange={setMode}
+          onBrowseResource={(resource, mode) =>
+            browseResource(
+              {
+                kind: resource.kind,
+                id: resource.id,
+                displayName: resource.displayName,
+                iconPath: resource.iconPath,
+                anchorNodeId: activeResource.anchorNodeId,
+              },
+              mode,
+            )
+          }
           onRecipeMapChange={setSelectedRecipeMap}
           onSelectRecipe={selectRecipe}
         />
@@ -284,45 +282,33 @@ interface RecipeMapTab {
 function ResourceResult({
   resource,
   active,
-  onRecipes,
-  onUses,
+  onBrowse,
 }: {
   resource: IndexedResource;
   active?: boolean;
-  onRecipes: () => void;
-  onUses: () => void;
+  onBrowse: (mode: "recipes" | "uses") => void;
 }) {
   return (
-    <article
+    <button
+      type="button"
+      onClick={() => onBrowse("recipes")}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onBrowse("uses");
+      }}
       className={[
-        "flex items-center gap-2 rounded-[4px] border bg-[#303238] p-2",
+        "flex items-center gap-2 rounded-[4px] border bg-[#303238] p-2 text-left",
         active ? "border-cyan-400 ring-1 ring-cyan-400" : "border-neutral-700",
       ].join(" ")}
+      title="Left click: recipes. Right click: uses."
     >
       <ResourceIcon resource={{ ...resource, amount: 1 }} size="sm" showAmount={false} />
-      <button type="button" onClick={onRecipes} className="min-w-0 flex-1 text-left">
+      <span className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-neutral-50">
           {resourceLabel(resource)}
         </div>
-        <div className="truncate text-[11px] text-neutral-400">
-          {resource.kind} / {resource.recipeCount} linked recipes
-        </div>
-      </button>
-      <button
-        type="button"
-        onClick={onRecipes}
-        className="h-8 rounded-[3px] border border-neutral-700 bg-[#1b1d21] px-2 text-xs font-semibold text-neutral-200 hover:border-cyan-400"
-      >
-        R
-      </button>
-      <button
-        type="button"
-        onClick={onUses}
-        className="h-8 rounded-[3px] border border-neutral-700 bg-[#1b1d21] px-2 text-xs font-semibold text-neutral-200 hover:border-cyan-400"
-      >
-        U
-      </button>
-    </article>
+      </span>
+    </button>
   );
 }
 
@@ -396,7 +382,7 @@ function RecipeBookOverlay({
   onAdd,
   onAddConnected,
   onClose,
-  onModeChange,
+  onBrowseResource,
   onRecipeMapChange,
   onSelectRecipe,
 }: {
@@ -409,7 +395,7 @@ function RecipeBookOverlay({
   onAdd: (recipeId: string) => void;
   onAddConnected?: (recipeId: string) => void;
   onClose: () => void;
-  onModeChange: (mode: "recipes" | "uses") => void;
+  onBrowseResource: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
   onRecipeMapChange: (recipeMap: string) => void;
   onSelectRecipe: (recipeId: string) => void;
 }) {
@@ -522,14 +508,7 @@ function RecipeBookOverlay({
 
         <div className="relative flex min-h-0 flex-1 flex-col border-2 border-[#f4f4f4] bg-[#c6c6c6] text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]">
           <div className="grid grid-cols-[36px_minmax(0,1fr)_36px] items-center px-2 pt-2">
-            <button
-              type="button"
-              onClick={() => onModeChange("recipes")}
-              className={bookModeButtonClass(browserMode === "recipes")}
-              title="Recipes"
-            >
-              R
-            </button>
+            <div />
             <div
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
@@ -551,16 +530,9 @@ function RecipeBookOverlay({
           </div>
 
           <div className="grid grid-cols-[36px_minmax(0,1fr)_36px] items-center px-2">
-            <button
-              type="button"
-              onClick={() => onModeChange("uses")}
-              className={bookModeButtonClass(browserMode === "uses")}
-              title="Uses"
-            >
-              U
-            </button>
+            <div />
             <div className="h-8 truncate border-x-2 border-b-2 border-[#555] bg-[#a7a7a7] px-2 text-center text-[18px] leading-[26px] text-white shadow-[inset_2px_0_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a] [text-shadow:2px_2px_0_#3f3f3f]">
-              {browserMode === "recipes" ? "Recipes" : "Uses"} / {filteredRecipes.length}
+              {browserMode === "recipes" ? "Recipes" : "Uses"}
             </div>
             <div className="h-8 border-x-2 border-b-2 border-[#252525] bg-[#5d5d5d] shadow-[inset_2px_0_0_#9f9f9f,inset_-2px_-2px_0_#303030]" />
           </div>
@@ -580,6 +552,7 @@ function RecipeBookOverlay({
                     onSelect={() => onSelectRecipe(recipe.id)}
                     onAdd={() => onAdd(recipe.id)}
                     onAddConnected={onAddConnected ? () => onAddConnected(recipe.id) : undefined}
+                    onSlotBrowse={onBrowseResource}
                     minimal
                   />
                 ))}
@@ -610,6 +583,7 @@ function RecipeResultCard({
   onSelect,
   onAdd,
   onAddConnected,
+  onSlotBrowse,
   minimal = false,
 }: {
   recipe: Recipe;
@@ -617,6 +591,7 @@ function RecipeResultCard({
   onSelect: () => void;
   onAdd: () => void;
   onAddConnected?: () => void;
+  onSlotBrowse?: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
   minimal?: boolean;
 }) {
   const primary = primaryOutput(recipe);
@@ -661,7 +636,13 @@ function RecipeResultCard({
         </button>
       </div>
       <div className="mt-2 overflow-x-auto pb-1">
-        <NeiRecipeWindow recipe={recipe} scale={2} compact className="mx-auto" />
+        <NeiRecipeWindow
+          recipe={recipe}
+          scale={2}
+          compact
+          className="mx-auto"
+          onSlotClick={onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined}
+        />
       </div>
       {!minimal && primary ? (
         <p className="mt-2 truncate text-[11px] text-neutral-400">
@@ -857,12 +838,5 @@ function neiTabClass(active: boolean): string {
   return [
     "flex h-10 w-10 shrink-0 items-center justify-center border-2 p-0 shadow-[inset_2px_2px_0_rgba(255,255,255,0.35),inset_-2px_-2px_0_rgba(0,0,0,0.45)]",
     active ? "border-[#f4f4f4] bg-[#c6c6c6]" : "border-[#252525] bg-[#7d7d7d] hover:bg-[#9b9b9b]",
-  ].join(" ");
-}
-
-function bookModeButtonClass(active: boolean): string {
-  return [
-    "h-8 border-2 border-[#252525] text-[16px] font-bold leading-5 text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] [text-shadow:1px_1px_0_#000]",
-    active ? "bg-[#00758a]" : "bg-[#5d5d5d]",
   ].join(" ");
 }

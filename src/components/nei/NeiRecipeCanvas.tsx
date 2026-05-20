@@ -11,6 +11,8 @@ import {
 } from "@/lib/nei/layout";
 import { ResourceIcon } from "./ResourceIcon";
 
+const SLOT_SIZE = 18;
+
 interface NeiRecipeCanvasProps {
   recipe: Recipe;
   scale?: number;
@@ -28,12 +30,12 @@ export function NeiRecipeCanvas({
 }: NeiRecipeCanvasProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const layout = getNeiRecipeLayout(recipe);
-  const renderFrames = useMemo(
-    () => getRenderFrames(layout.frames, layout.overflowGroups, expandedGroups),
-    [expandedGroups, layout.frames, layout.overflowGroups],
+  const renderLayout = useMemo(
+    () => getRenderLayout(layout.frames, layout.logo.y, layout.overflowGroups, expandedGroups),
+    [expandedGroups, layout.frames, layout.logo.y, layout.overflowGroups],
   );
   const width = layout.canvas.width * scale;
-  const height = getCanvasHeight(renderFrames, layout.logo.y) * scale;
+  const height = getCanvasHeight(renderLayout.frames, renderLayout.logoY) * scale;
   const slotSize = layout.slotSize * scale;
 
   return (
@@ -51,9 +53,9 @@ export function NeiRecipeCanvas({
         <ProgressTexture key={`${bar.x}-${bar.y}-${index}`} bar={bar} scale={scale} />
       ))}
 
-      {renderFrames.map((frame) => (
+      {renderLayout.frames.map((frame) => (
         <div
-          key={`${frame.side}-${frame.kind}-${frame.slotIndex}`}
+          key={`${frame.side}-${frame.kind}-${frame.slotIndex}-${frame.action ?? "slot"}`}
           className="nodrag absolute"
           style={{
             left: frame.x * scale,
@@ -67,11 +69,21 @@ export function NeiRecipeCanvas({
             renderHandle={renderHandle}
             onSlotClick={onSlotClick}
             onOverflowClick={
-              frame.overflowCount
+              frame.action === "overflow"
                 ? () =>
                     setExpandedGroups((current) => {
                       const next = new Set(current);
                       next.add(getGroupKey(frame));
+                      return next;
+                    })
+                : undefined
+            }
+            onCollapseClick={
+              frame.action === "collapse"
+                ? () =>
+                    setExpandedGroups((current) => {
+                      const next = new Set(current);
+                      next.delete(getGroupKey(frame));
                       return next;
                     })
                 : undefined
@@ -84,7 +96,7 @@ export function NeiRecipeCanvas({
         className="absolute"
         style={{
           left: layout.logo.x * scale,
-          top: layout.logo.y * scale,
+          top: renderLayout.logoY * scale,
           width: 17 * scale,
           height: 17 * scale,
           backgroundImage: "url('/nei/gregtech/gui/picture/gt_logo_17x17_transparent.png')",
@@ -96,22 +108,65 @@ export function NeiRecipeCanvas({
   );
 }
 
-type RenderFrame = NeiSlotFrame & { overflowCount?: number };
+type RenderAction = "overflow" | "collapse";
 
-function getRenderFrames(
+type RenderFrame = NeiSlotFrame & {
+  action?: RenderAction;
+  overflowCount?: number;
+};
+
+interface VerticalShift {
+  thresholdY: number;
+  deltaY: number;
+}
+
+function getRenderLayout(
   frames: NeiSlotFrame[],
+  logoY: number,
   overflowGroups: NeiOverflowGroup[],
   expandedGroups: Set<string>,
-): RenderFrame[] {
+): { frames: RenderFrame[]; logoY: number } {
   if (overflowGroups.length === 0) {
-    return frames;
+    return { frames, logoY };
   }
 
   const groupsByKey = new Map(overflowGroups.map((group) => [getGroupKey(group), group]));
+  const groupInfos = new Map(
+    overflowGroups.map((group) => [getGroupKey(group), getOverflowGroupInfo(frames, group)]),
+  );
+  const shifts: VerticalShift[] = [];
 
-  return frames.flatMap((frame): RenderFrame[] => {
+  for (const group of overflowGroups) {
+    const info = groupInfos.get(getGroupKey(group));
+    if (!info || !expandedGroups.has(getGroupKey(group))) {
+      continue;
+    }
+
+    const deltaY = info.expandedBottomY - info.collapsedBottomY;
+    if (deltaY > 0) {
+      shifts.push({ thresholdY: info.collapsedBottomY, deltaY });
+    }
+  }
+
+  const renderFrames = frames.flatMap((frame): RenderFrame[] => {
     const group = groupsByKey.get(getGroupKey(frame));
-    if (!group || expandedGroups.has(getGroupKey(frame))) {
+    const groupKey = getGroupKey(frame);
+    const info = groupInfos.get(groupKey);
+
+    if (!group || !info) {
+      return [{ ...frame, y: applyVerticalShifts(frame.y, shifts) }];
+    }
+
+    if (expandedGroups.has(groupKey)) {
+      if (frame.slotIndex === group.resourceCount - 1) {
+        return [
+          frame,
+          {
+            ...getCollapseFrame(frame, info.collapsePosition),
+          },
+        ];
+      }
+
       return [frame];
     }
 
@@ -125,6 +180,7 @@ function getRenderFrames(
           ...frame,
           resource: undefined,
           resourceIndex: undefined,
+          action: "overflow",
           overflowCount: group.resourceCount - group.capacity + 1,
         },
       ];
@@ -132,10 +188,81 @@ function getRenderFrames(
 
     return [frame];
   });
+
+  return {
+    frames: renderFrames,
+    logoY: applyVerticalShifts(logoY, shifts),
+  };
+}
+
+function getOverflowGroupInfo(frames: NeiSlotFrame[], group: NeiOverflowGroup) {
+  const groupFrames = frames
+    .filter((frame) => getGroupKey(frame) === getGroupKey(group))
+    .sort((left, right) => left.slotIndex - right.slotIndex);
+  const visibleFrames = groupFrames.slice(0, group.capacity);
+  const collapsePosition = getNextGridPosition(groupFrames);
+  const collapsedBottomY = Math.max(0, ...visibleFrames.map((frame) => frame.y + SLOT_SIZE));
+  const expandedBottomY = Math.max(
+    0,
+    ...groupFrames.map((frame) => frame.y + SLOT_SIZE),
+    collapsePosition.y + SLOT_SIZE,
+  );
+
+  return { collapsedBottomY, expandedBottomY, collapsePosition };
+}
+
+function getCollapseFrame(
+  previousFrame: NeiSlotFrame,
+  position: Pick<NeiSlotFrame, "x" | "y" | "slotIndex">,
+): RenderFrame {
+  return {
+    side: previousFrame.side,
+    kind: previousFrame.kind,
+    slotIndex: position.slotIndex,
+    x: position.x,
+    y: position.y,
+    action: "collapse",
+  };
+}
+
+function getNextGridPosition(frames: NeiSlotFrame[]): Pick<NeiSlotFrame, "x" | "y" | "slotIndex"> {
+  const sortedFrames = [...frames].sort((left, right) => left.slotIndex - right.slotIndex);
+  const lastFrame = sortedFrames.at(-1);
+  if (!lastFrame) {
+    return { x: 0, y: 0, slotIndex: 0 };
+  }
+
+  const rowXs = sortedFrames
+    .filter((frame) => frame.y === lastFrame.y)
+    .map((frame) => frame.x)
+    .sort((left, right) => left - right);
+  const columns = Math.max(
+    1,
+    new Set(sortedFrames.filter((frame) => frame.y === sortedFrames[0]?.y).map((frame) => frame.x))
+      .size,
+  );
+  const firstX = Math.min(...sortedFrames.map((frame) => frame.x));
+  const nextColumn = rowXs.length % columns;
+
+  return {
+    x: firstX + nextColumn * SLOT_SIZE,
+    y: rowXs.length >= columns ? lastFrame.y + SLOT_SIZE : lastFrame.y,
+    slotIndex: lastFrame.slotIndex + 1,
+  };
+}
+
+function applyVerticalShifts(y: number, shifts: VerticalShift[]) {
+  return shifts.reduce((nextY, shift) => {
+    if (y >= shift.thresholdY) {
+      return nextY + shift.deltaY;
+    }
+
+    return nextY;
+  }, y);
 }
 
 function getCanvasHeight(frames: RenderFrame[], logoY: number) {
-  const maxSlotBottom = Math.max(0, ...frames.map((frame) => frame.y + 20));
+  const maxSlotBottom = Math.max(0, ...frames.map((frame) => frame.y + SLOT_SIZE + 2));
   return Math.max(82, logoY + 19, maxSlotBottom + 2);
 }
 
@@ -148,23 +275,32 @@ function NeiSlotFrameView({
   renderHandle,
   onSlotClick,
   onOverflowClick,
+  onCollapseClick,
 }: {
   frame: RenderFrame;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
   onOverflowClick?: () => void;
+  onCollapseClick?: () => void;
 }) {
   const slot = frame.resource ? (frame as NeiPositionedSlot) : undefined;
-  const isOverflow = Boolean(frame.overflowCount);
+  const isOverflow = frame.action === "overflow";
+  const isCollapse = frame.action === "collapse";
 
   return (
     <button
       type="button"
-      tabIndex={slot || isOverflow ? 0 : -1}
+      tabIndex={slot || isOverflow || isCollapse ? 0 : -1}
       onClick={(event) => {
         if (isOverflow && onOverflowClick) {
           event.stopPropagation();
           onOverflowClick();
+          return;
+        }
+
+        if (isCollapse && onCollapseClick) {
+          event.stopPropagation();
+          onCollapseClick();
           return;
         }
 
@@ -176,7 +312,7 @@ function NeiSlotFrameView({
         onSlotClick(slot, "recipes");
       }}
       onContextMenu={(event) => {
-        if (isOverflow) {
+        if (isOverflow || isCollapse) {
           event.preventDefault();
           event.stopPropagation();
           return;
@@ -192,7 +328,7 @@ function NeiSlotFrameView({
       }}
       className={[
         "relative h-full w-full border-0 bg-transparent p-0 text-left",
-        (slot && onSlotClick) || isOverflow
+        (slot && onSlotClick) || isOverflow || isCollapse
           ? "cursor-pointer hover:ring-2 hover:ring-cyan-300"
           : "",
       ].join(" ")}
@@ -203,9 +339,9 @@ function NeiSlotFrameView({
       }}
     >
       {slot ? renderHandle?.(slot) : null}
-      {isOverflow ? (
-        <span className="flex h-full w-full items-center justify-center text-[13px] font-bold leading-none text-white [text-shadow:1px_1px_0_#000]">
-          ...
+      {isOverflow || isCollapse ? (
+        <span className="grid h-full w-full place-items-center text-center text-[13px] font-bold leading-none text-white [text-shadow:1px_1px_0_#000]">
+          {isOverflow ? "..." : "-"}
         </span>
       ) : null}
       {slot ? (

@@ -65,6 +65,7 @@ interface FactoryStore {
       targetHandle?: string;
     },
   ) => void;
+  autoConnectNode: (nodeId: string) => void;
   deleteEdge: (edgeId: string) => void;
   setTargetRate: (targetRate?: TargetRate) => void;
   selectFuelProfile: (fuelProfileId: string) => void;
@@ -312,16 +313,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      const duplicate = state.project.edges.some(
-        (existing) =>
-          existing.source === edge.source &&
-          existing.target === edge.target &&
-          existing.resourceKind === edge.resourceKind &&
-          existing.resourceId === edge.resourceId &&
-          existing.sourceHandle === edge.sourceHandle &&
-          existing.targetHandle === edge.targetHandle,
-      );
-      if (duplicate) {
+      if (hasDuplicateEdge(state.project.edges, edge)) {
         return state;
       }
 
@@ -329,6 +321,47 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ...state.project,
         edges: [...state.project.edges, edge],
       });
+      return {
+        project,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
+  autoConnectNode: (nodeId) => {
+    set((state) => {
+      const node = state.project.nodes.find((entry) => entry.id === nodeId);
+      if (!node) {
+        return state;
+      }
+
+      const edges: FactoryEdge[] = [];
+      const existingAndPending = [...state.project.edges];
+
+      for (const otherNode of state.project.nodes) {
+        if (otherNode.id === nodeId) {
+          continue;
+        }
+
+        for (const edge of [
+          ...buildCompatibleEdgesBetweenNodes(state.project, otherNode.id, nodeId),
+          ...buildCompatibleEdgesBetweenNodes(state.project, nodeId, otherNode.id),
+        ]) {
+          if (!hasDuplicateEdge(existingAndPending, edge)) {
+            edges.push(edge);
+            existingAndPending.push(edge);
+          }
+        }
+      }
+
+      if (edges.length === 0) {
+        return state;
+      }
+
+      const project = touchProject({
+        ...state.project,
+        edges: [...state.project.edges, ...edges],
+      });
+
       return {
         project,
         lastResult: calculateThroughput(project),
@@ -423,6 +456,64 @@ function buildEdgeBetweenNodes(
     resourceId: matchedOutput.id,
     label: resourceLabel(matchedOutput),
   };
+}
+
+function buildCompatibleEdgesBetweenNodes(
+  project: FactoryProject,
+  sourceNodeId: string,
+  targetNodeId: string,
+): FactoryEdge[] {
+  const sourceNode = project.nodes.find((node) => node.id === sourceNodeId);
+  const targetNode = project.nodes.find((node) => node.id === targetNodeId);
+  const sourceRecipe = project.recipes.find((recipe) => recipe.id === sourceNode?.recipeId);
+  const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
+
+  if (!sourceNode || !targetNode || !sourceRecipe || !targetRecipe) {
+    return [];
+  }
+
+  const edges: FactoryEdge[] = [];
+
+  sourceRecipe.outputs.forEach((output, outputIndex) => {
+    targetRecipe.inputs.forEach((input, inputIndex) => {
+      if (input.consumed === false || output.kind !== input.kind || output.id !== input.id) {
+        return;
+      }
+
+      edges.push({
+        id: createId("edge"),
+        source: sourceNode.id,
+        target: targetNode.id,
+        sourceHandle: makeResourceHandleId("output", output, outputIndex),
+        targetHandle: makeResourceHandleId("input", input, inputIndex),
+        resourceKind: output.kind,
+        resourceId: output.id,
+        label: resourceLabel(output),
+      });
+    });
+  });
+
+  return edges;
+}
+
+function hasDuplicateEdge(edges: FactoryEdge[], edge: FactoryEdge): boolean {
+  return edges.some(
+    (existing) =>
+      existing.source === edge.source &&
+      existing.target === edge.target &&
+      existing.resourceKind === edge.resourceKind &&
+      existing.resourceId === edge.resourceId &&
+      existing.sourceHandle === edge.sourceHandle &&
+      existing.targetHandle === edge.targetHandle,
+  );
+}
+
+function makeResourceHandleId(
+  side: "input" | "output",
+  resource: Pick<ResourceAmount, "kind" | "id">,
+  slotIndex?: number,
+): string {
+  return `${side}:${resource.kind}:${encodeURIComponent(resource.id)}${slotIndex === undefined ? "" : `:${slotIndex}`}`;
 }
 
 function touchProject(project: FactoryProject): FactoryProject {

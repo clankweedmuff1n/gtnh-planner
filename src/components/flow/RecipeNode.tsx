@@ -1,6 +1,7 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Cable } from "lucide-react";
 import type { FactoryNode, NodeThroughputResult, Recipe } from "@/lib/model/types";
 import { formatRate, isRecipeInputConsumed } from "@/lib/model";
 import { NeiRecipeWindow } from "@/components/nei/NeiRecipeWindow";
@@ -18,6 +19,7 @@ export type RecipeFlowNode = Node<RecipeNodeData, "recipeNode">;
 export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const { projectNode, recipe, result } = data;
   const browseResource = useFactoryStore((state) => state.browseResource);
+  const autoConnectNode = useFactoryStore((state) => state.autoConnectNode);
   const utilization = result?.utilization ?? 0;
   const utilizationPercent = Number.isFinite(utilization) ? utilization * 100 : 999;
   const status = result?.status ?? "underutilized";
@@ -32,8 +34,23 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
       ].join(" ")}
     >
       <div className="px-2 pb-2 pt-1">
-        <div className="minecraft-title mb-1 h-6 truncate border-2 border-[#555] bg-[#9b9b9b] px-2 text-center text-[17px] leading-[20px] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a]">
-          {recipe.source?.recipeMap ?? recipe.machineType}
+        <div className="mb-1 grid grid-cols-[24px_minmax(0,1fr)_24px] items-center">
+          <div />
+          <div className="minecraft-title h-6 truncate border-2 border-[#555] bg-[#9b9b9b] px-2 text-center text-[17px] leading-[20px] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a]">
+            {recipe.source?.recipeMap ?? recipe.machineType}
+          </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              autoConnectNode(projectNode.id);
+            }}
+            className="nodrag h-6 w-6 border-2 border-[#252525] bg-[#7d7d7d] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:bg-[#9b9b9b]"
+            title="Auto-connect compatible resources"
+            aria-label="Auto-connect compatible resources"
+          >
+            <Cable className="mx-auto h-3.5 w-3.5" />
+          </button>
         </div>
         <NeiRecipeWindow
           recipe={recipe}

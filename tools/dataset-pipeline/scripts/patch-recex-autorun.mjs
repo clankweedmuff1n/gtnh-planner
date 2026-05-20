@@ -403,10 +403,7 @@ public final class ClientItemStackIconRenderer {
     }
 
     private static void renderToPng(ItemStack stack, File outFile) throws Exception {
-        BufferedImage image = renderFromLoadedTextureAtlas(stack);
-        if (image == null) {
-            image = renderWithMinecraftItemRenderer(stack);
-        }
+        BufferedImage image = renderWithMinecraftItemRenderer(stack);
         if (image == null) {
             throw new IllegalStateException("No icon renderer is available for " + stack);
         }
@@ -444,7 +441,7 @@ public final class ClientItemStackIconRenderer {
             renderedAnyPass = true;
         }
 
-        return renderedAnyPass ? output : null;
+        return renderedAnyPass && imageHasVisiblePixels(output) ? output : null;
     }
 
     private static BufferedImage renderWithMinecraftItemRenderer(ItemStack stack) throws Exception {

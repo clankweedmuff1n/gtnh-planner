@@ -116,6 +116,13 @@ const FLUID_ONLY_MAPS = new Set([
 ]);
 
 const RECIPE_MAP_LAYOUTS: Record<string, RecipeMapLayoutDefinition> = {
+  Centrifuge: {
+    id: "centrifuge",
+    maxItemInputs: 1,
+    maxItemOutputs: 6,
+    maxFluidInputs: 0,
+    maxFluidOutputs: 1,
+  },
   "Chemical Plant": {
     id: "gtpp-chemical-plant",
     maxItemInputs: 4,
@@ -219,15 +226,13 @@ export function getNeiRecipeLayout(recipe: Recipe): NeiRecipeLayout {
 }
 
 function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLayoutDefinition {
+  const exact = RECIPE_MAP_LAYOUTS[recipeMap];
   const exportedGrid = exportedGridLayout(recipe);
   if (exportedGrid) {
-    return exportedGrid;
+    return exact ? withMinimumSlotCapacity(exportedGrid, exact) : exportedGrid;
   }
 
-  const exact = RECIPE_MAP_LAYOUTS[recipeMap];
-  if (exact) {
-    return exact;
-  }
+  if (exact) return exact;
 
   if (ASSEMBLY_LINE_MAPS.has(recipeMap)) {
     return {
@@ -279,6 +284,19 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
 
   return {
     id: "default",
+  };
+}
+
+function withMinimumSlotCapacity(
+  definition: RecipeMapLayoutDefinition,
+  minimum: RecipeMapLayoutDefinition,
+): RecipeMapLayoutDefinition {
+  return {
+    ...definition,
+    maxItemInputs: Math.max(definition.maxItemInputs ?? 0, minimum.maxItemInputs ?? 0),
+    maxItemOutputs: Math.max(definition.maxItemOutputs ?? 0, minimum.maxItemOutputs ?? 0),
+    maxFluidInputs: Math.max(definition.maxFluidInputs ?? 0, minimum.maxFluidInputs ?? 0),
+    maxFluidOutputs: Math.max(definition.maxFluidOutputs ?? 0, minimum.maxFluidOutputs ?? 0),
   };
 }
 

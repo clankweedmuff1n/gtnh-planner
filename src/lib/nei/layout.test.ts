@@ -80,6 +80,45 @@ describe("NEI layout", () => {
     ]);
   });
 
+  it("keeps empty centrifuge output slots when only some outputs are used", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Centrifuge",
+        sourceRecipeMap: "Centrifuge",
+        inputs: [
+          { kind: "item", id: "dust", amount: 1 },
+          { kind: "fluid", id: "water", amount: 1000 },
+        ],
+        outputs: [
+          { kind: "item", id: "red", amount: 1 },
+          { kind: "item", id: "green", amount: 1 },
+          { kind: "item", id: "black", amount: 1 },
+          { kind: "fluid", id: "oxygen", amount: 1000 },
+        ],
+        nei: {
+          itemInputGrid: { width: 1, height: 1 },
+          itemOutputGrid: { width: 3, height: 1 },
+          fluidOutputGrid: { width: 1, height: 1 },
+        },
+      }),
+    );
+
+    const itemOutputFrames = layout.frames.filter(
+      (frame) => frame.kind === "item" && frame.side === "output",
+    );
+
+    expect(itemOutputFrames).toHaveLength(6);
+    expect(itemOutputFrames.filter((frame) => frame.resource)).toHaveLength(3);
+    expect(itemOutputFrames.map((frame) => [frame.x, frame.y])).toEqual([
+      [106, 8],
+      [124, 8],
+      [142, 8],
+      [106, 26],
+      [124, 26],
+      [142, 26],
+    ]);
+  });
+
   it("uses FluidOnlyFrontend positions for fusion fluids", () => {
     const layout = getNeiRecipeLayout(
       recipe({
@@ -107,11 +146,13 @@ function recipe({
   sourceRecipeMap,
   inputs,
   outputs,
+  nei,
 }: {
   machineType: string;
   sourceRecipeMap?: string;
   inputs: Recipe["inputs"];
   outputs: Recipe["outputs"];
+  nei?: Recipe["nei"];
 }): Recipe {
   return {
     id: machineType,
@@ -122,6 +163,7 @@ function recipe({
     eut: 8,
     inputs,
     outputs,
+    nei,
     source: sourceRecipeMap ? { recipeMap: sourceRecipeMap } : undefined,
   };
 }

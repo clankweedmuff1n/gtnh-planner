@@ -94,8 +94,8 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       datasetManifestUrl: manifestUrl,
       selectedDatasetVersionId:
         state.selectedDatasetVersionId ??
-        manifest.latestStableVersion ??
         manifest.latestDailyVersion ??
+        manifest.latestStableVersion ??
         manifest.versions[0]?.id,
       datasetError: undefined,
     }));

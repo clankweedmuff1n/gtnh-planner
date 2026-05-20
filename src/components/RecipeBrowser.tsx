@@ -37,7 +37,8 @@ export function RecipeBrowser() {
   const filteredRecipes = useMemo(() => {
     const query = deferredRecipeSearch.trim().toLowerCase();
     const activeMap = activeRecipeMap === "all" ? undefined : activeRecipeMap;
-    const results: Recipe[] = [];
+    const resultsWithIcons: Array<{ recipe: Recipe; iconScore: number }> = [];
+    const resultsWithoutIcons: Recipe[] = [];
 
     for (const recipe of recipes) {
       const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
@@ -49,13 +50,24 @@ export function RecipeBrowser() {
         continue;
       }
 
-      results.push(recipe);
-      if (results.length >= 240) {
+      const iconScore = recipeIconScore(recipe);
+      if (iconScore > 0) {
+        resultsWithIcons.push({ recipe, iconScore });
+      } else if (resultsWithoutIcons.length < 240) {
+        resultsWithoutIcons.push(recipe);
+      }
+
+      if (resultsWithIcons.length >= 240) {
         break;
       }
     }
 
-    return results;
+    return [
+      ...resultsWithIcons
+        .sort((left, right) => right.iconScore - left.iconScore)
+        .map((entry) => entry.recipe),
+      ...resultsWithoutIcons,
+    ].slice(0, 240);
   }, [activeRecipeMap, deferredRecipeSearch, recipes]);
 
   return (
@@ -185,4 +197,11 @@ function recipeMatchesQuery(recipe: Recipe, query: string): boolean {
   ]
     .filter(Boolean)
     .some((value) => value?.toLowerCase().includes(query));
+}
+
+function recipeIconScore(recipe: Recipe): number {
+  return [...recipe.inputs, ...recipe.outputs].reduce(
+    (score, resource) => score + (resource.iconPath ? 1 : 0),
+    0,
+  );
 }

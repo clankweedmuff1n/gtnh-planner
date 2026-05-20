@@ -32,7 +32,7 @@ import org.lwjgl.opengl.GL12;
 
 public final class ClientItemStackIconRenderer {
 
-    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 64);
+    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 1024);
     private static final int GUI_ICON_CANVAS_SIZE = 32;
     private static final int GUI_ITEM_SIZE = 16;
     private static final int MAX_RENDER_WARNINGS = Integer.getInteger("recex.maxIconRenderWarnings", 50);

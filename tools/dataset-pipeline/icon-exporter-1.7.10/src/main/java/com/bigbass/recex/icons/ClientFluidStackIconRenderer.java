@@ -23,7 +23,7 @@ import org.lwjgl.opengl.GL11;
 
 public final class ClientFluidStackIconRenderer {
 
-    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 64);
+    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 1024);
     private static final int GUI_ICON_CANVAS_SIZE = 32;
     private static final int GUI_ITEM_SIZE = 16;
     private static final int MAX_RENDER_WARNINGS = Integer.getInteger("recex.maxFluidIconRenderWarnings", 50);

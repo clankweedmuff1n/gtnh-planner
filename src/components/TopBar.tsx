@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, Download, FileJson, Upload } from "lucide-react";
+import { Calculator, Download, FileJson, Trash2, Upload } from "lucide-react";
 import { useRef } from "react";
 import {
   cloneImportedProject,
@@ -21,6 +21,7 @@ export function TopBar({ onLoadDatasetVersion, onNotice }: TopBarProps) {
   const selectedDatasetVersionId = useFactoryStore((state) => state.selectedDatasetVersionId);
   const isDatasetLoading = useFactoryStore((state) => state.isDatasetLoading);
   const setProject = useFactoryStore((state) => state.setProject);
+  const cleanBoard = useFactoryStore((state) => state.cleanBoard);
   const recalculate = useFactoryStore((state) => state.recalculate);
 
   const exportJson = () => {
@@ -85,6 +86,23 @@ export function TopBar({ onLoadDatasetVersion, onNotice }: TopBarProps) {
           onClick={() => {
             recalculate();
             onNotice("Throughput recalculated.");
+          }}
+        />
+        <ToolbarButton
+          icon={Trash2}
+          label="Clean board"
+          onClick={() => {
+            if (project.nodes.length === 0 && project.edges.length === 0) {
+              onNotice("Board is already empty.");
+              return;
+            }
+
+            if (!window.confirm("Clean the board and remove all nodes and links?")) {
+              return;
+            }
+
+            cleanBoard();
+            onNotice("Board cleaned.");
           }}
         />
         <ToolbarButton

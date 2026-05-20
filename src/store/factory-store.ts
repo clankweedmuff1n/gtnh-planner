@@ -44,6 +44,7 @@ interface FactoryStore {
   setRecipeSearch: (query: string) => void;
   browseResource: (resource: RecipeBrowserResource, mode?: RecipeBrowserMode) => void;
   clearResourceBrowser: () => void;
+  cleanBoard: () => void;
   selectResourceConnectionSlot: (slot: PendingResourceConnection) => void;
   cancelResourceConnection: () => void;
   recalculate: () => void;
@@ -183,6 +184,26 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
     set({
       recipeBrowserResource: undefined,
       recipeSearch: "",
+    });
+  },
+  cleanBoard: () => {
+    set((state) => {
+      const project = touchProject({
+        ...state.project,
+        recipes: [],
+        nodes: [],
+        edges: [],
+        targetRate: undefined,
+      });
+
+      return {
+        project,
+        recipeBrowserResource: undefined,
+        pendingResourceConnection: undefined,
+        selectedNodeId: undefined,
+        selectedRecipeId: state.dataset?.recipes[0]?.id,
+        lastResult: calculateThroughput(project),
+      };
     });
   },
   selectResourceConnectionSlot: (slot) => {

@@ -53,7 +53,7 @@ export function ResourceIcon({
           alt={resource.displayName ?? resource.id}
           width={32}
           height={32}
-          className="pixelated-image h-[calc(100%-4px)] w-[calc(100%-4px)] object-contain"
+          className="pixelated-image h-[calc(200%-8px)] w-[calc(200%-8px)] max-w-none object-contain"
           style={{ imageRendering: "pixelated" }}
           unoptimized
         />

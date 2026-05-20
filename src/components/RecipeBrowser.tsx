@@ -415,12 +415,20 @@ function RecipeBookOverlay({
 }) {
   const panelRef = useRef<HTMLElement>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [panelSize, setPanelSize] = useState({ width: 620, height: 760 });
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
     startY: number;
     originX: number;
     originY: number;
+  } | null>(null);
+  const resizeRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    width: number;
+    height: number;
   } | null>(null);
 
   const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
@@ -459,16 +467,51 @@ function RecipeBookOverlay({
     if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null;
     }
+    if (resizeRef.current?.pointerId === event.pointerId) {
+      resizeRef.current = null;
+    }
+  };
+
+  const handleResizePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      width: panelSize.width,
+      height: panelSize.height,
+    };
+  };
+
+  const handleResizePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    const resize = resizeRef.current;
+    if (!resize || resize.pointerId !== event.pointerId) {
+      return;
+    }
+
+    setPanelSize(
+      clampPanelSize({
+        width: resize.width + event.clientX - resize.startX,
+        height: resize.height + event.clientY - resize.startY,
+      }),
+    );
   };
 
   return (
     <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center px-3 py-4 lg:left-[360px] lg:right-[440px]">
       <section
         ref={panelRef}
-        className="pointer-events-auto relative flex h-[min(760px,calc(100vh-32px))] w-full max-w-[620px] flex-col pt-[42px] font-mono"
+        className="pointer-events-auto relative flex flex-col pt-[42px] font-mono"
         aria-label="Recipe book"
         style={{
           transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+          width: `min(${panelSize.width}px, calc(100vw - 24px))`,
+          height: `min(${panelSize.height}px, calc(100vh - 32px))`,
         }}
       >
         <RecipeMapTabBar
@@ -477,7 +520,7 @@ function RecipeBookOverlay({
           onRecipeMapChange={onRecipeMapChange}
         />
 
-        <div className="flex min-h-0 flex-1 flex-col border-2 border-[#f4f4f4] bg-[#c6c6c6] text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]">
+        <div className="relative flex min-h-0 flex-1 flex-col border-2 border-[#f4f4f4] bg-[#c6c6c6] text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]">
           <div className="grid grid-cols-[36px_minmax(0,1fr)_36px] items-center px-2 pt-2">
             <button
               type="button"
@@ -543,6 +586,18 @@ function RecipeBookOverlay({
               </div>
             )}
           </div>
+          <button
+            type="button"
+            onPointerDown={handleResizePointerDown}
+            onPointerMove={handleResizePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            className="absolute bottom-1 right-1 h-5 w-5 cursor-nwse-resize border-2 border-[#252525] bg-[#8f8f8f] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040]"
+            title="Resize recipe book"
+            aria-label="Resize recipe book"
+          >
+            <span className="absolute bottom-0.5 right-0.5 h-2 w-2 border-b-2 border-r-2 border-white opacity-80" />
+          </button>
         </div>
       </section>
     </div>
@@ -635,6 +690,16 @@ function clampDragOffset(offset: { x: number; y: number }, panel: HTMLElement | 
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clampPanelSize(size: { width: number; height: number }) {
+  const maxWidth = typeof window === "undefined" ? 960 : Math.max(420, window.innerWidth - 24);
+  const maxHeight = typeof window === "undefined" ? 900 : Math.max(360, window.innerHeight - 32);
+
+  return {
+    width: clamp(size.width, 420, maxWidth),
+    height: clamp(size.height, 360, maxHeight),
+  };
 }
 
 function buildResourceIndex(recipes: Recipe[]): Map<ResourceKey, IndexedResource> {

@@ -7,7 +7,6 @@ import {
   parseFactoryProjectJson,
   serializeFactoryProject,
 } from "@/lib/import-export";
-import type { ResourceKind, TargetRate } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
 
 interface TopBarProps {
@@ -24,27 +23,7 @@ export function TopBar({ onLoadDatasetVersion, onNotice }: TopBarProps) {
   const isDatasetLoading = useFactoryStore((state) => state.isDatasetLoading);
   const datasetError = useFactoryStore((state) => state.datasetError);
   const setProject = useFactoryStore((state) => state.setProject);
-  const setTargetRate = useFactoryStore((state) => state.setTargetRate);
   const recalculate = useFactoryStore((state) => state.recalculate);
-
-  const targetRate = project.targetRate ?? {
-    kind: "fluid",
-    resourceId: "",
-    amountPerSecond: 0,
-  };
-
-  const updateTarget = (patch: Partial<TargetRate>) => {
-    const nextTarget = {
-      ...targetRate,
-      ...patch,
-    };
-
-    if (nextTarget.resourceId && nextTarget.amountPerSecond > 0) {
-      setTargetRate(nextTarget);
-    } else {
-      setTargetRate(undefined);
-    }
-  };
 
   const exportJson = () => {
     const json = serializeFactoryProject(project);
@@ -108,40 +87,6 @@ export function TopBar({ onLoadDatasetVersion, onNotice }: TopBarProps) {
           )}
         </select>
       </label>
-
-      <div className="flex flex-wrap items-end gap-2 rounded border border-neutral-200 bg-neutral-50 px-2 py-1.5">
-        <label className="grid gap-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
-          Target kind
-          <select
-            value={targetRate.kind}
-            onChange={(event) => updateTarget({ kind: event.target.value as ResourceKind })}
-            className="h-8 rounded border border-neutral-300 bg-white px-2 text-sm normal-case tracking-normal text-neutral-900"
-          >
-            <option value="item">Item</option>
-            <option value="fluid">Fluid</option>
-          </select>
-        </label>
-        <label className="grid gap-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
-          Target resource
-          <input
-            value={targetRate.resourceId}
-            onChange={(event) => updateTarget({ resourceId: event.target.value })}
-            placeholder="fluid or item id"
-            className="h-8 w-40 rounded border border-neutral-300 bg-white px-2 text-sm normal-case tracking-normal text-neutral-900"
-          />
-        </label>
-        <label className="grid gap-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
-          Rate/s
-          <input
-            type="number"
-            min="0"
-            step="0.001"
-            value={targetRate.amountPerSecond}
-            onChange={(event) => updateTarget({ amountPerSecond: Number(event.target.value) })}
-            className="h-8 w-24 rounded border border-neutral-300 bg-white px-2 text-sm normal-case tracking-normal text-neutral-900"
-          />
-        </label>
-      </div>
 
       <div className="flex flex-wrap gap-2">
         <ToolbarButton

@@ -41,6 +41,8 @@ type ResourceEdgeData = {
   transferred?: string;
   unit: string;
   isLimited: boolean;
+  isStorageEdge: boolean;
+  showLabel: boolean;
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -55,6 +57,7 @@ export function FactoryFlow() {
   const deleteEdge = useFactoryStore((state) => state.deleteEdge);
   const pendingResourceConnection = useFactoryStore((state) => state.pendingResourceConnection);
   const cancelResourceConnection = useFactoryStore((state) => state.cancelResourceConnection);
+  const hoveredStorageResourceKey = useFactoryStore((state) => state.hoveredStorageResourceKey);
 
   const nodes = useMemo<Array<RecipeFlowNode | StorageFlowNode>>(
     () => [
@@ -102,6 +105,16 @@ export function FactoryFlow() {
         const unit = edge.resourceKind === "fluid" ? "L/s" : "/s";
         const demand = edgeResult?.demandPerSecond ?? edge.ratePerSecond ?? 0;
         const transferred = edgeResult?.transferredPerSecond ?? demand;
+        const sourceStorage = (project.storages ?? []).find((storage) => storage.id === edge.source);
+        const targetStorage = (project.storages ?? []).find((storage) => storage.id === edge.target);
+        const isStorageEdge = Boolean(sourceStorage || targetStorage);
+        const storageResourceKey = sourceStorage
+          ? `${sourceStorage.kind}:${sourceStorage.resourceId}`
+          : targetStorage
+            ? `${targetStorage.kind}:${targetStorage.resourceId}`
+            : undefined;
+        const isStorageEdgeActive =
+          !isStorageEdge || hoveredStorageResourceKey === storageResourceKey;
         const edgeColor = edgeResult?.isLimited
           ? "#dc2626"
           : edge.resourceKind === "fluid"
@@ -124,6 +137,8 @@ export function FactoryFlow() {
             transferred: edgeResult?.isLimited === true ? formatRate(transferred) : undefined,
             unit,
             isLimited: edgeResult?.isLimited === true,
+            isStorageEdge,
+            showLabel: isStorageEdgeActive,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -132,11 +147,12 @@ export function FactoryFlow() {
           style: {
             stroke: edgeColor,
             strokeDasharray: edgeResult?.isLimited ? "7 4" : undefined,
-            strokeWidth: edgeResult?.isLimited ? 3 : 2,
+            strokeOpacity: isStorageEdge ? (isStorageEdgeActive ? 0.9 : 0.16) : 1,
+            strokeWidth: isStorageEdge ? (isStorageEdgeActive ? 2 : 1) : edgeResult?.isLimited ? 3 : 2,
           },
         };
       }),
-    [project, result.edges],
+    [hoveredStorageResourceKey, project, result.edges],
   );
 
   const handleConnect = (connection: Connection) => {
@@ -275,7 +291,7 @@ function ResourceEdge({
   return (
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
-      {data ? (
+      {data?.showLabel ? (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan absolute flex items-center gap-1 border border-[#252525] bg-[#2b2d32] px-1.5 py-1 text-[11px] font-medium text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.18),inset_-1px_-1px_0_rgba(0,0,0,0.55)]"

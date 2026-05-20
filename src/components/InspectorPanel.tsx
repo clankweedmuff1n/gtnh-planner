@@ -335,22 +335,32 @@ function SummaryPanel({ onSelectFuel }: { onSelectFuel: (fuelProfileId: string) 
 function StorageSummary({ className = "" }: { className?: string }) {
   const project = useFactoryStore((state) => state.project);
   const result = useFactoryStore((state) => state.lastResult);
+  const autoRouteStorage = useFactoryStore((state) => state.autoRouteStorage);
+  const deleteStorage = useFactoryStore((state) => state.deleteStorage);
+  const setHoveredStorageResourceKey = useFactoryStore((state) => state.setHoveredStorageResourceKey);
   const storages = project.storages ?? [];
 
   return (
     <section className={[className, "rounded border border-neutral-200 bg-white p-3"].join(" ")}>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Storages</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        Resource buses
+      </h3>
       {storages.length === 0 ? (
-        <p className="mt-2 text-sm text-neutral-500">No tanks or drawers.</p>
+        <p className="mt-2 text-sm text-neutral-500">No tank or drawer buses.</p>
       ) : (
         <div className="mt-2 space-y-2">
           {storages.map((storage) => {
             const storageResult = result.storages[storage.id];
             const unit = storage.kind === "fluid" ? "L/s" : "/s";
+            const resourceKey = `${storage.kind}:${storage.resourceId}`;
+            const producerCount = project.edges.filter((edge) => edge.target === storage.id).length;
+            const consumerCount = project.edges.filter((edge) => edge.source === storage.id).length;
             return (
               <div
                 key={storage.id}
-                className="grid grid-cols-[34px_minmax(0,1fr)] gap-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs"
+                onMouseEnter={() => setHoveredStorageResourceKey(resourceKey)}
+                onMouseLeave={() => setHoveredStorageResourceKey(undefined)}
+                className="grid grid-cols-[34px_minmax(0,1fr)_56px] gap-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs"
               >
                 <ResourceIcon
                   resource={{ ...storage, id: storage.resourceId, amount: 1 }}
@@ -371,6 +381,29 @@ function StorageSummary({ className = "" }: { className?: string }) {
                       {formatRate(storageResult?.netPerSecond ?? 0, 2)}{unit}
                     </span>
                   </div>
+                  <div className="mt-1 text-[10px] text-neutral-500">
+                    {producerCount} in / {consumerCount} out
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => autoRouteStorage(storage.id)}
+                    className="h-7 rounded border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100"
+                    title="Auto-route matching recipes"
+                    aria-label="Auto-route matching recipes"
+                  >
+                    <Cable className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteStorage(storage.id)}
+                    className="h-7 rounded border border-neutral-300 bg-white text-red-700 hover:bg-red-50"
+                    title="Delete bus"
+                    aria-label="Delete bus"
+                  >
+                    <Trash2 className="mx-auto h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             );

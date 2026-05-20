@@ -1,6 +1,7 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Cable } from "lucide-react";
 import type { FactoryStorage, StorageThroughputResult } from "@/lib/model/types";
 import { formatRate, makeResourceKey } from "@/lib/model";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
@@ -17,11 +18,11 @@ export type StorageFlowNode = Node<StorageNodeData, "storageNode">;
 export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
   const { storage, result } = data;
   const deleteStorage = useFactoryStore((state) => state.deleteStorage);
+  const autoRouteStorage = useFactoryStore((state) => state.autoRouteStorage);
   const hoveredStorageResourceKey = useFactoryStore((state) => state.hoveredStorageResourceKey);
   const setHoveredStorageResourceKey = useFactoryStore((state) => state.setHoveredStorageResourceKey);
   const resourceKey = makeResourceKey(storage.kind, storage.resourceId);
   const isHighlighted = hoveredStorageResourceKey === resourceKey;
-  const title = storage.kind === "fluid" ? "Super Tank I" : "Storage Drawer";
   const produced = result?.producedPerSecond ?? 0;
   const consumed = result?.consumedPerSecond ?? 0;
   const net = result?.netPerSecond ?? 0;
@@ -32,12 +33,13 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
       onMouseEnter={() => setHoveredStorageResourceKey(resourceKey)}
       onMouseLeave={() => setHoveredStorageResourceKey(undefined)}
       className={[
-        "group relative w-[156px] border-2 border-[#252525] text-[#202020]",
+        "group relative w-[116px] border-2 border-[#252525] text-[#202020]",
         storage.kind === "fluid"
-          ? "bg-[#b9c0d6] shadow-[inset_2px_2px_0_#e4e8f5,inset_-2px_-2px_0_#636b82]"
-          : "bg-[#7a5a2f] shadow-[inset_3px_3px_0_#a98249,inset_-3px_-3px_0_#3d2b17]",
+          ? "bg-[#aeb7cc] shadow-[inset_2px_2px_0_#eef2ff,inset_-2px_-2px_0_#586174]"
+          : "bg-[#76552b] shadow-[inset_3px_3px_0_#a67a3e,inset_-3px_-3px_0_#3b2915]",
         isHighlighted ? "ring-4 ring-cyan-300" : "",
       ].join(" ")}
+      title={`${storage.displayName ?? storage.resourceId}\nIn ${formatRate(produced, 3)}${unit}\nOut ${formatRate(consumed, 3)}${unit}\nNet ${net >= 0 ? "+" : ""}${formatRate(net, 3)}${unit}`}
     >
       <Handle
         id={makeResourceHandleId("input", { kind: storage.kind, id: storage.resourceId })}
@@ -52,57 +54,73 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
         className="!-right-1.5 !h-3 !w-3 !border-2 !border-white !bg-emerald-600 !opacity-0 group-hover:!opacity-100"
       />
 
-      <div className="flex h-7 items-center gap-1 border-b-2 border-[#565656] bg-[#a9a9a9] px-1 shadow-[inset_1px_1px_0_#dedede]">
+      <div className="flex h-6 items-center gap-1 border-b-2 border-[#565656] bg-[#a9a9a9] px-1 shadow-[inset_1px_1px_0_#dedede]">
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
             deleteStorage(storage.id);
           }}
-          className="nodrag h-5 w-5 border border-[#252525] bg-[#7d7d7d] text-sm leading-3 text-white hover:bg-red-700"
-          title="Delete storage"
-          aria-label="Delete storage"
+          className="nodrag h-4 w-4 border border-[#252525] bg-[#7d7d7d] text-xs leading-[9px] text-white hover:bg-red-700"
+          title="Delete bus"
+          aria-label="Delete bus"
         >
           -
         </button>
-        <div className="minecraft-title min-w-0 flex-1 truncate text-[15px] leading-5">
-          {title}
+        <div className="minecraft-title min-w-0 flex-1 truncate text-center text-[13px] leading-4">
+          {storage.kind === "fluid" ? "Tank Bus" : "Drawer Bus"}
         </div>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            autoRouteStorage(storage.id);
+          }}
+          className="nodrag h-4 w-4 border border-[#252525] bg-[#7d7d7d] text-white hover:bg-[#9b9b9b]"
+          title="Auto-route matching recipes through this bus"
+          aria-label="Auto-route matching recipes through this bus"
+        >
+          <Cable className="mx-auto h-2.5 w-2.5" />
+        </button>
       </div>
 
-      <div className={storage.kind === "fluid" ? "p-2" : "p-3"}>
+      <div className="p-2">
         {storage.kind === "fluid" ? (
-          <div className="border-2 border-[#6f7890] bg-[#d8dded] p-1">
-            <div className="relative h-[74px] overflow-hidden border-2 border-[#202020] bg-black p-1 text-white">
-              <div
-                className="absolute bottom-0 left-0 right-0 bg-cyan-500/70"
-                style={{ height: `${getFillPercent(result)}%` }}
-              />
-              <div className="relative z-10 text-[11px] leading-4">
-                <div>Fluid Amount</div>
-                <div>{formatRate(result?.storedAmount ?? 0, 0)}</div>
-              </div>
-              <div className="absolute bottom-1 right-1 text-[9px] text-red-200">4ML</div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid h-[86px] place-items-center border-2 border-[#4a341c] bg-[#8c6938] shadow-[inset_4px_4px_0_#6a4b28,inset_-4px_-4px_0_#3e2b16]">
-            <div className="grid h-12 w-12 place-items-center border-2 border-[#1f1f1f] bg-[#d8c4b4] shadow-[inset_2px_2px_0_#fff,inset_-2px_-2px_0_#7d6d61]">
+          <div className="relative mx-auto h-[58px] w-[42px] border-2 border-[#202020] bg-[#1f2937] shadow-[inset_2px_2px_0_#93a4bf,inset_-2px_-2px_0_#111827]">
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-cyan-400/70"
+              style={{ height: `${getFillPercent(result)}%` }}
+            />
+            <div className="absolute inset-0 grid place-items-center">
               <ResourceIcon
                 resource={{ ...storage, id: storage.resourceId, amount: 1 }}
                 size="sm"
                 showAmount={false}
                 bare
-                className="!h-10 !w-10"
+                className="!h-9 !w-9"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto grid h-[58px] w-[58px] place-items-center border-2 border-[#2b1c0e] bg-[#8f6734] shadow-[inset_4px_4px_0_#6a4b28,inset_-4px_-4px_0_#3e2b16]">
+            <div className="grid h-11 w-11 place-items-center border-2 border-[#1f1f1f] bg-[#d8c4b4] shadow-[inset_2px_2px_0_#fff,inset_-2px_-2px_0_#7d6d61]">
+              <ResourceIcon
+                resource={{ ...storage, id: storage.resourceId, amount: 1 }}
+                size="sm"
+                showAmount={false}
+                bare
+                className="!h-9 !w-9"
               />
             </div>
           </div>
         )}
 
-        <div className="mt-2 grid grid-cols-3 gap-1 text-[10px]">
-          <StorageStat label="In" value={`${formatRate(produced, 2)}${unit}`} />
-          <StorageStat label="Out" value={`${formatRate(consumed, 2)}${unit}`} />
-          <StorageStat label="Net" value={`${net >= 0 ? "+" : ""}${formatRate(net, 2)}${unit}`} />
+        <div className="mt-1 grid grid-cols-2 gap-1 text-[9px]">
+          <StorageStat label="In" value={formatCompact(produced, unit)} />
+          <StorageStat label="Out" value={formatCompact(consumed, unit)} />
+          <div className="col-span-2">
+            <StorageStat label="Net" value={`${net >= 0 ? "+" : ""}${formatCompact(net, unit)}`} />
+          </div>
         </div>
       </div>
     </div>
@@ -112,16 +130,21 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
 function StorageStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="border border-[#555] bg-[#b6b6b6] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
-      <div className="text-[8px] uppercase text-[#424242]">{label}</div>
-      <div className="truncate font-medium">{value}</div>
+      <div className="text-[7px] uppercase text-[#424242]">{label}</div>
+      <div className="truncate font-medium leading-3">{value}</div>
     </div>
   );
 }
 
+function formatCompact(value: number, unit: string) {
+  return `${formatRate(value, 2)}${unit}`;
+}
+
 function getFillPercent(result?: StorageThroughputResult) {
-  if (!result || result.capacity <= 0) {
-    return 0;
+  if (!result || result.producedPerSecond <= 0) {
+    return 12;
   }
 
-  return Math.max(6, Math.min(100, (result.storedAmount / result.capacity) * 100));
+  const ratio = result.consumedPerSecond / result.producedPerSecond;
+  return Math.max(18, Math.min(100, 52 + (1 - ratio) * 38));
 }

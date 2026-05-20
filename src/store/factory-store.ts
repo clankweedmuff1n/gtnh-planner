@@ -67,6 +67,7 @@ interface FactoryStore {
   deleteNode: (nodeId: string) => void;
   addResourceStorage: (resource: Pick<ResourceAmount, "kind" | "id" | "displayName" | "iconPath">) => void;
   deleteStorage: (storageId: string) => void;
+  autoRouteStorage: (storageId: string) => void;
   setStoragePosition: (storageId: string, position: FactoryStorage["position"]) => void;
   setNodePosition: (nodeId: string, position: FactoryNode["position"]) => void;
   connectNodes: (
@@ -427,7 +428,22 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         (storage) => storage.kind === resource.kind && storage.resourceId === resource.id,
       );
       if (existing) {
-        return { selectedNodeId: undefined };
+        const edges = buildCompatibleEdgesForStorage(state.project, existing);
+        const missingEdges = edges.filter((edge) => !hasDuplicateEdge(state.project.edges, edge));
+        if (missingEdges.length === 0) {
+          return { selectedNodeId: undefined };
+        }
+
+        const project = touchProject({
+          ...state.project,
+          edges: [...state.project.edges, ...missingEdges],
+        });
+
+        return {
+          project,
+          selectedNodeId: undefined,
+          lastResult: calculateThroughput(project),
+        };
       }
 
       const storage: FactoryStorage = {
@@ -441,9 +457,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
           y: 180 + (state.project.storages?.length ?? 0) * 60,
         },
       };
-      const project = touchProject({
+      const projectWithStorage = {
         ...state.project,
         storages: [...(state.project.storages ?? []), storage],
+      };
+      const edges = buildCompatibleEdgesForStorage(projectWithStorage, storage);
+      const project = touchProject({
+        ...projectWithStorage,
+        edges: [...projectWithStorage.edges, ...edges],
       });
 
       return {
@@ -469,6 +490,30 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
           state.pendingResourceConnection?.nodeId === storageId
             ? undefined
             : state.pendingResourceConnection,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
+  autoRouteStorage: (storageId) => {
+    set((state) => {
+      const storage = (state.project.storages ?? []).find((entry) => entry.id === storageId);
+      if (!storage) {
+        return state;
+      }
+
+      const edges = buildCompatibleEdgesForStorage(state.project, storage);
+      const missingEdges = edges.filter((edge) => !hasDuplicateEdge(state.project.edges, edge));
+      if (missingEdges.length === 0) {
+        return state;
+      }
+
+      const project = touchProject({
+        ...state.project,
+        edges: [...state.project.edges, ...missingEdges],
+      });
+
+      return {
+        project,
         lastResult: calculateThroughput(project),
       };
     });
@@ -745,6 +790,75 @@ function buildCompatibleEdgesBetweenNodes(
   });
 
   return edges;
+}
+
+function buildCompatibleEdgesForStorage(
+  project: FactoryProject,
+  storage: FactoryStorage,
+): FactoryEdge[] {
+  const edges: FactoryEdge[] = [];
+  const storageInputHandle = makeResourceHandleId("input", {
+    kind: storage.kind,
+    id: storage.resourceId,
+  });
+  const storageOutputHandle = makeResourceHandleId("output", {
+    kind: storage.kind,
+    id: storage.resourceId,
+  });
+
+  for (const node of project.nodes) {
+    const recipe = project.recipes.find((entry) => entry.id === node.recipeId);
+    if (!recipe) {
+      continue;
+    }
+
+    recipe.outputs.forEach((output, outputIndex) => {
+      if (output.kind !== storage.kind || output.id !== storage.resourceId) {
+        return;
+      }
+
+      edges.push({
+        id: createId("edge"),
+        source: node.id,
+        target: storage.id,
+        sourceHandle: makeResourceHandleId("output", output, outputIndex),
+        targetHandle: storageInputHandle,
+        resourceKind: storage.kind,
+        resourceId: storage.resourceId,
+        label: resourceLabel(output),
+      });
+    });
+
+    recipe.inputs.forEach((input, inputIndex) => {
+      if (
+        input.consumed === false ||
+        input.kind !== storage.kind ||
+        input.id !== storage.resourceId
+      ) {
+        return;
+      }
+
+      edges.push({
+        id: createId("edge"),
+        source: storage.id,
+        target: node.id,
+        sourceHandle: storageOutputHandle,
+        targetHandle: makeResourceHandleId("input", input, inputIndex),
+        resourceKind: storage.kind,
+        resourceId: storage.resourceId,
+        label: resourceLabel(input),
+      });
+    });
+  }
+
+  const deduped: FactoryEdge[] = [];
+  for (const edge of edges) {
+    if (!hasDuplicateEdge(deduped, edge)) {
+      deduped.push(edge);
+    }
+  }
+
+  return deduped;
 }
 
 function hasDuplicateEdge(edges: FactoryEdge[], edge: FactoryEdge): boolean {

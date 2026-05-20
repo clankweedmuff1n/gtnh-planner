@@ -507,10 +507,10 @@ function withRequiredMaxes(
   recipe: Recipe,
 ): RequiredRecipeMapLayoutDefinition {
   return {
-    maxItemInputs: definition.maxItemInputs ?? Math.max(countKind(recipe.inputs, "item"), 1),
-    maxItemOutputs: definition.maxItemOutputs ?? Math.max(countKind(recipe.outputs, "item"), 1),
-    maxFluidInputs: definition.maxFluidInputs ?? Math.max(countKind(recipe.inputs, "fluid"), 0),
-    maxFluidOutputs: definition.maxFluidOutputs ?? Math.max(countKind(recipe.outputs, "fluid"), 0),
+    maxItemInputs: Math.max(definition.maxItemInputs ?? 1, countKind(recipe.inputs, "item")),
+    maxItemOutputs: Math.max(definition.maxItemOutputs ?? 1, countKind(recipe.outputs, "item")),
+    maxFluidInputs: Math.max(definition.maxFluidInputs ?? 0, countKind(recipe.inputs, "fluid")),
+    maxFluidOutputs: Math.max(definition.maxFluidOutputs ?? 0, countKind(recipe.outputs, "fluid")),
   };
 }
 

@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEFAULT_DATASET_MANIFEST_URL,
   fetchDatasetManifest,
-  fetchRecipeDatasetVersion,
   pickDefaultDatasetVersion,
 } from "@/lib/datasets";
+import { loadRecipeDatasetVersion } from "@/lib/datasets/browser-loader";
 import { parseFactoryProjectJson, serializeFactoryProject } from "@/lib/import-export";
 import { LOCAL_STORAGE_KEY, useFactoryStore } from "@/store/factory-store";
 import { FactoryFlow } from "./flow/FactoryFlow";
@@ -39,7 +39,7 @@ export function FactoryPlannerApp() {
 
       try {
         setDatasetLoading(true);
-        const dataset = await fetchRecipeDatasetVersion(manifestUrl, version);
+        const dataset = await loadRecipeDatasetVersion(manifestUrl, version);
         setDataset(dataset);
         setNotice(
           `Loaded GTNH ${dataset.gtnhVersion}: ${dataset.recipes.length.toLocaleString()} recipes.`,

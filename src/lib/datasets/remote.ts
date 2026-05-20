@@ -25,7 +25,8 @@ export async function fetchRecipeDatasetVersion(
   version: DatasetVersion,
 ): Promise<RecipeDataset> {
   const datasetUrl = resolveDatasetUrl(manifestUrl, version.recipeDatasetPath);
-  const response = await fetch(withCacheBust(datasetUrl), {
+  const response = await fetch(datasetUrl, {
+    cache: "force-cache",
     headers: {
       Accept: "application/json, application/gzip, application/octet-stream",
     },

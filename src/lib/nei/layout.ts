@@ -524,11 +524,29 @@ function withRequiredMaxes(
   definition: RecipeMapLayoutDefinition,
   recipe: Recipe,
 ): RequiredRecipeMapLayoutDefinition {
+  const capacity = recipe.nei?.slotCapacity;
+
   return {
-    maxItemInputs: Math.max(definition.maxItemInputs ?? 1, countKind(recipe.inputs, "item")),
-    maxItemOutputs: Math.max(definition.maxItemOutputs ?? 1, countKind(recipe.outputs, "item")),
-    maxFluidInputs: Math.max(definition.maxFluidInputs ?? 0, countKind(recipe.inputs, "fluid")),
-    maxFluidOutputs: Math.max(definition.maxFluidOutputs ?? 0, countKind(recipe.outputs, "fluid")),
+    maxItemInputs: Math.max(
+      definition.maxItemInputs ?? 1,
+      capacity?.maxItemInputs ?? 0,
+      countKind(recipe.inputs, "item"),
+    ),
+    maxItemOutputs: Math.max(
+      definition.maxItemOutputs ?? 1,
+      capacity?.maxItemOutputs ?? 0,
+      countKind(recipe.outputs, "item"),
+    ),
+    maxFluidInputs: Math.max(
+      definition.maxFluidInputs ?? 0,
+      capacity?.maxFluidInputs ?? 0,
+      countKind(recipe.inputs, "fluid"),
+    ),
+    maxFluidOutputs: Math.max(
+      definition.maxFluidOutputs ?? 0,
+      capacity?.maxFluidOutputs ?? 0,
+      countKind(recipe.outputs, "fluid"),
+    ),
   };
 }
 

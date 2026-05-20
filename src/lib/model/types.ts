@@ -82,6 +82,12 @@ export interface Recipe {
     itemOutputGrid?: { width: number; height: number };
     fluidInputGrid?: { width: number; height: number };
     fluidOutputGrid?: { width: number; height: number };
+    slotCapacity?: {
+      maxItemInputs?: number;
+      maxItemOutputs?: number;
+      maxFluidInputs?: number;
+      maxFluidOutputs?: number;
+    };
     additionalInfo?: string[];
     requiresCleanroom?: boolean;
     requiresLowGravity?: boolean;

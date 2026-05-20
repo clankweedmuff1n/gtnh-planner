@@ -119,6 +119,33 @@ describe("NEI layout", () => {
     ]);
   });
 
+  it("uses enriched recipe map slot capacities for partial electrolyzer outputs", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Electrolyzer",
+        sourceRecipeMap: "Electrolyzer",
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [
+          { kind: "item", id: "a", amount: 1 },
+          { kind: "item", id: "b", amount: 1 },
+          { kind: "item", id: "c", amount: 1 },
+        ],
+        nei: {
+          slotCapacity: {
+            maxItemOutputs: 6,
+          },
+        },
+      }),
+    );
+
+    const itemOutputFrames = layout.frames.filter(
+      (frame) => frame.kind === "item" && frame.side === "output",
+    );
+
+    expect(itemOutputFrames).toHaveLength(6);
+    expect(itemOutputFrames.filter((frame) => frame.resource)).toHaveLength(3);
+  });
+
   it("uses FluidOnlyFrontend positions for fusion fluids", () => {
     const layout = getNeiRecipeLayout(
       recipe({

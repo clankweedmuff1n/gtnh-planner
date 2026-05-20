@@ -42,4 +42,64 @@ describe("enrichDatasetRecipes", () => {
       iconPath: "/datasets/gtnh/test/textures/rendered/test-dust.png",
     });
   });
+
+  it("adds shared recipe map slot capacities to recipes with partial outputs", () => {
+    const dataset = baseDataset([
+      {
+        id: "partial-electrolyzer",
+        name: "Partial Electrolyzer",
+        machineType: "Electrolyzer",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 8,
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [
+          { kind: "item", id: "a", amount: 1 },
+          { kind: "item", id: "b", amount: 1 },
+          { kind: "item", id: "c", amount: 1 },
+        ],
+        source: { recipeMap: "Electrolyzer" },
+      },
+      {
+        id: "full-electrolyzer",
+        name: "Full Electrolyzer",
+        machineType: "Electrolyzer",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 8,
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [
+          { kind: "item", id: "a", amount: 1 },
+          { kind: "item", id: "b", amount: 1 },
+          { kind: "item", id: "c", amount: 1 },
+          { kind: "item", id: "d", amount: 1 },
+          { kind: "item", id: "e", amount: 1 },
+          { kind: "item", id: "f", amount: 1 },
+        ],
+        source: { recipeMap: "Electrolyzer" },
+      },
+    ]);
+
+    const enriched = enrichDatasetRecipes(dataset);
+
+    expect(enriched.recipes[0]?.nei?.slotCapacity).toMatchObject({
+      maxItemOutputs: 6,
+    });
+  });
 });
+
+function baseDataset(recipes: RecipeDataset["recipes"]): RecipeDataset {
+  return {
+    schemaVersion: 1,
+    datasetVersionId: "test",
+    gtnhVersion: "test",
+    sourceInfo: { sourceId: "recex", generatedAt: "2026-01-01T00:00:00.000Z" },
+    resources: [],
+    recipes,
+    oreDictionary: {},
+    recipeMaps: [
+      ...new Set(recipes.map((recipe) => recipe.source?.recipeMap ?? recipe.machineType)),
+    ],
+    generatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}

@@ -65,6 +65,14 @@ export const recipeSchema = z.object({
       itemOutputGrid: z.object({ width: z.number(), height: z.number() }).optional(),
       fluidInputGrid: z.object({ width: z.number(), height: z.number() }).optional(),
       fluidOutputGrid: z.object({ width: z.number(), height: z.number() }).optional(),
+      slotCapacity: z
+        .object({
+          maxItemInputs: z.number().int().min(0).optional(),
+          maxItemOutputs: z.number().int().min(0).optional(),
+          maxFluidInputs: z.number().int().min(0).optional(),
+          maxFluidOutputs: z.number().int().min(0).optional(),
+        })
+        .optional(),
       additionalInfo: z.array(z.string()).optional(),
       requiresCleanroom: z.boolean().optional(),
       requiresLowGravity: z.boolean().optional(),

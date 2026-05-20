@@ -1,22 +1,54 @@
 import type { DatasetResource, RecipeDataset } from "./types";
 import type { Recipe, ResourceAmount } from "../model/types";
 
+interface RecipeMapSlotCapacity {
+  maxItemInputs?: number;
+  maxItemOutputs?: number;
+  maxFluidInputs?: number;
+  maxFluidOutputs?: number;
+}
+
+const RECIPE_MAP_SLOT_CAPACITY_OVERRIDES: Record<string, RecipeMapSlotCapacity> = {
+  Centrifuge: {
+    maxItemOutputs: 6,
+  },
+  Electrolyzer: {
+    maxItemOutputs: 6,
+  },
+};
+
 export function enrichDatasetRecipes(dataset: RecipeDataset): RecipeDataset {
   const resourcesByKey = new Map(
     dataset.resources.map((resource) => [`${resource.kind}:${resource.id}`, resource] as const),
   );
+  const slotCapacitiesByRecipeMap = buildRecipeMapSlotCapacities(dataset.recipes);
 
   return {
     ...dataset,
-    recipes: dataset.recipes.map((recipe) => enrichRecipe(recipe, resourcesByKey)),
+    recipes: dataset.recipes.map((recipe) =>
+      enrichRecipe(recipe, resourcesByKey, slotCapacitiesByRecipeMap),
+    ),
   };
 }
 
-function enrichRecipe(recipe: Recipe, resourcesByKey: Map<string, DatasetResource>): Recipe {
+function enrichRecipe(
+  recipe: Recipe,
+  resourcesByKey: Map<string, DatasetResource>,
+  slotCapacitiesByRecipeMap: Map<string, RecipeMapSlotCapacity>,
+): Recipe {
+  const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
+  const slotCapacity = slotCapacitiesByRecipeMap.get(recipeMap);
+
   return {
     ...recipe,
     inputs: recipe.inputs.map((resource) => enrichResource(resource, resourcesByKey)),
     outputs: recipe.outputs.map((resource) => enrichResource(resource, resourcesByKey)),
+    nei: slotCapacity
+      ? {
+          ...recipe.nei,
+          slotCapacity: mergeSlotCapacity(recipe.nei?.slotCapacity, slotCapacity),
+        }
+      : recipe.nei,
   };
 }
 
@@ -37,4 +69,86 @@ function enrichResource<T extends ResourceAmount>(
     tooltip: resource.tooltip ?? indexed.tooltip,
     modId: resource.modId ?? indexed.modId,
   };
+}
+
+function buildRecipeMapSlotCapacities(recipes: Recipe[]): Map<string, RecipeMapSlotCapacity> {
+  const capacities = new Map<string, RecipeMapSlotCapacity>();
+
+  for (const recipe of recipes) {
+    const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
+    const existing = capacities.get(recipeMap) ?? {};
+    capacities.set(recipeMap, mergeSlotCapacity(existing, observedSlotCapacity(recipe)));
+  }
+
+  for (const [recipeMap, override] of Object.entries(RECIPE_MAP_SLOT_CAPACITY_OVERRIDES)) {
+    capacities.set(recipeMap, mergeSlotCapacity(capacities.get(recipeMap), override));
+  }
+
+  return capacities;
+}
+
+function observedSlotCapacity(recipe: Recipe): RecipeMapSlotCapacity {
+  return compactSlotCapacity({
+    maxItemInputs: boundedSharedCapacity(
+      countKind(recipe.inputs, "item"),
+      gridCapacity(recipe.nei?.itemInputGrid),
+    ),
+    maxItemOutputs: boundedSharedCapacity(
+      countKind(recipe.outputs, "item"),
+      gridCapacity(recipe.nei?.itemOutputGrid),
+    ),
+    maxFluidInputs: boundedSharedCapacity(
+      countKind(recipe.inputs, "fluid"),
+      gridCapacity(recipe.nei?.fluidInputGrid),
+    ),
+    maxFluidOutputs: boundedSharedCapacity(
+      countKind(recipe.outputs, "fluid"),
+      gridCapacity(recipe.nei?.fluidOutputGrid),
+    ),
+  });
+}
+
+function boundedSharedCapacity(resourceCount: number, gridCount?: number): number | undefined {
+  const capacity = Math.max(resourceCount, gridCount ?? 0);
+  return capacity > 1 && capacity <= 6 ? capacity : undefined;
+}
+
+function gridCapacity(grid?: { width: number; height: number }): number | undefined {
+  if (!grid) {
+    return undefined;
+  }
+
+  return Math.max(0, grid.width * grid.height);
+}
+
+function mergeSlotCapacity(
+  left: RecipeMapSlotCapacity | undefined,
+  right: RecipeMapSlotCapacity | undefined,
+): RecipeMapSlotCapacity {
+  return compactSlotCapacity({
+    maxItemInputs: maxOptional(left?.maxItemInputs, right?.maxItemInputs),
+    maxItemOutputs: maxOptional(left?.maxItemOutputs, right?.maxItemOutputs),
+    maxFluidInputs: maxOptional(left?.maxFluidInputs, right?.maxFluidInputs),
+    maxFluidOutputs: maxOptional(left?.maxFluidOutputs, right?.maxFluidOutputs),
+  });
+}
+
+function compactSlotCapacity(capacity: RecipeMapSlotCapacity): RecipeMapSlotCapacity {
+  return Object.fromEntries(
+    Object.entries(capacity).filter(([, value]) => typeof value === "number" && value > 0),
+  ) as RecipeMapSlotCapacity;
+}
+
+function maxOptional(left?: number, right?: number): number | undefined {
+  if (left === undefined) {
+    return right;
+  }
+  if (right === undefined) {
+    return left;
+  }
+  return Math.max(left, right);
+}
+
+function countKind(resources: ResourceAmount[], kind: ResourceAmount["kind"]) {
+  return resources.filter((resource) => resource.kind === kind).length;
 }

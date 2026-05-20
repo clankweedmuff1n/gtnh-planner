@@ -12,6 +12,7 @@ interface NeiRecipeWindowProps {
   className?: string;
   compact?: boolean;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
+  onSlotClick?: (slot: NeiPositionedSlot) => void;
 }
 
 export function NeiRecipeWindow({
@@ -20,6 +21,7 @@ export function NeiRecipeWindow({
   className = "",
   compact = false,
   renderHandle,
+  onSlotClick,
 }: NeiRecipeWindowProps) {
   const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
   const totalEu = recipe.eut * recipe.durationTicks;
@@ -39,7 +41,12 @@ export function NeiRecipeWindow({
         <NeiTitleBar label={recipeMap} compact={compact} />
         <NeiPageBar compact={compact} />
         <div className={compact ? "p-1" : "p-2"}>
-          <NeiRecipeCanvas recipe={recipe} scale={scale} renderHandle={renderHandle} />
+          <NeiRecipeCanvas
+            recipe={recipe}
+            scale={scale}
+            renderHandle={renderHandle}
+            onSlotClick={onSlotClick}
+          />
         </div>
       </div>
 

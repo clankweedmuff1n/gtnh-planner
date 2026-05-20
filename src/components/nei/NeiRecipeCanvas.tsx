@@ -15,6 +15,7 @@ interface NeiRecipeCanvasProps {
   scale?: number;
   className?: string;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
+  onSlotClick?: (slot: NeiPositionedSlot) => void;
 }
 
 export function NeiRecipeCanvas({
@@ -22,6 +23,7 @@ export function NeiRecipeCanvas({
   scale = 2,
   className = "",
   renderHandle,
+  onSlotClick,
 }: NeiRecipeCanvasProps) {
   const layout = getNeiRecipeLayout(recipe);
   const width = layout.canvas.width * scale;
@@ -54,7 +56,7 @@ export function NeiRecipeCanvas({
             height: slotSize,
           }}
         >
-          <NeiSlotFrameView frame={frame} renderHandle={renderHandle} />
+          <NeiSlotFrameView frame={frame} renderHandle={renderHandle} onSlotClick={onSlotClick} />
         </div>
       ))}
 
@@ -77,15 +79,30 @@ export function NeiRecipeCanvas({
 function NeiSlotFrameView({
   frame,
   renderHandle,
+  onSlotClick,
 }: {
   frame: NeiSlotFrame;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
+  onSlotClick?: (slot: NeiPositionedSlot) => void;
 }) {
   const slot = frame.resource ? (frame as NeiPositionedSlot) : undefined;
 
   return (
-    <div
-      className="relative h-full w-full"
+    <button
+      type="button"
+      tabIndex={slot ? 0 : -1}
+      onClick={(event) => {
+        if (!slot || !onSlotClick) {
+          return;
+        }
+
+        event.stopPropagation();
+        onSlotClick(slot);
+      }}
+      className={[
+        "relative h-full w-full border-0 bg-transparent p-0 text-left",
+        slot && onSlotClick ? "cursor-pointer hover:ring-2 hover:ring-cyan-300" : "",
+      ].join(" ")}
       style={{
         backgroundImage: `url('${getSlotTexture(frame)}')`,
         backgroundSize: "100% 100%",
@@ -102,7 +119,7 @@ function NeiSlotFrameView({
           bare
         />
       ) : null}
-    </div>
+    </button>
   );
 }
 

@@ -11,6 +11,7 @@ import type {
   FactoryProject,
   Recipe,
   ResourceAmount,
+  ResourceKind,
   TargetRate,
   ThroughputResult,
 } from "@/lib/model/types";
@@ -26,6 +27,8 @@ interface FactoryStore {
   isDatasetLoading: boolean;
   datasetError?: string;
   recipeSearch: string;
+  recipeBrowserResource?: RecipeBrowserResource;
+  recipeBrowserMode: RecipeBrowserMode;
   selectedNodeId?: string;
   selectedRecipeId?: string;
   lastResult: ThroughputResult;
@@ -37,10 +40,19 @@ interface FactoryStore {
   setDatasetLoading: (isLoading: boolean) => void;
   setDatasetError: (error?: string) => void;
   setRecipeSearch: (query: string) => void;
+  browseResource: (resource: RecipeBrowserResource, mode?: RecipeBrowserMode) => void;
+  clearResourceBrowser: () => void;
   recalculate: () => void;
   selectNode: (nodeId?: string) => void;
   selectRecipe: (recipeId?: string) => void;
   addNodeForRecipe: (recipeId: string) => void;
+  addConnectedNodeForRecipe: (
+    recipeId: string,
+    anchorNodeId: string,
+    resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+      mode: RecipeBrowserMode;
+    },
+  ) => void;
   updateNode: (nodeId: string, patch: Partial<FactoryNode>) => void;
   deleteNode: (nodeId: string) => void;
   setNodePosition: (nodeId: string, position: FactoryNode["position"]) => void;
@@ -59,6 +71,16 @@ interface FactoryStore {
 
 const initialProject = createEmptyProject();
 
+export type RecipeBrowserMode = "recipes" | "uses";
+
+export interface RecipeBrowserResource {
+  kind: ResourceKind;
+  id: string;
+  displayName?: string;
+  iconPath?: string;
+  anchorNodeId?: string;
+}
+
 export const useFactoryStore = create<FactoryStore>((set, get) => ({
   project: initialProject,
   datasetManifest: undefined,
@@ -68,6 +90,8 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   isDatasetLoading: false,
   datasetError: undefined,
   recipeSearch: "",
+  recipeBrowserResource: undefined,
+  recipeBrowserMode: "recipes",
   selectedNodeId: undefined,
   selectedRecipeId: undefined,
   lastResult: calculateThroughput(initialProject),
@@ -131,6 +155,20 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   setRecipeSearch: (query) => {
     set({ recipeSearch: query });
   },
+  browseResource: (resource, mode = "recipes") => {
+    set({
+      recipeBrowserResource: resource,
+      recipeBrowserMode: mode,
+      recipeSearch: resource.displayName ?? resource.id,
+      selectedNodeId: resource.anchorNodeId,
+    });
+  },
+  clearResourceBrowser: () => {
+    set({
+      recipeBrowserResource: undefined,
+      recipeSearch: "",
+    });
+  },
   recalculate: () => {
     const { project } = get();
     set({ lastResult: calculateThroughput(project) });
@@ -177,6 +215,56 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       return {
         project,
         selectedNodeId: node.id,
+        selectedRecipeId: recipeId,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
+  addConnectedNodeForRecipe: (recipeId, anchorNodeId, resource) => {
+    set((state) => {
+      const recipe = findRecipeForPlanning(state, recipeId);
+      const anchorNode = state.project.nodes.find((node) => node.id === anchorNodeId);
+      const anchorRecipe = state.project.recipes.find((entry) => entry.id === anchorNode?.recipeId);
+
+      if (!recipe || !anchorNode || !anchorRecipe) {
+        return state;
+      }
+
+      const recipeAlreadyInProject = state.project.recipes.some((entry) => entry.id === recipe.id);
+      const nextNode: FactoryNode = {
+        id: createId("node"),
+        recipeId,
+        machineCount: 1,
+        parallel: 1,
+        overclockTier: recipe.minimumTier,
+        enabled: true,
+        position:
+          resource.mode === "recipes"
+            ? { x: anchorNode.position.x - 440, y: anchorNode.position.y }
+            : { x: anchorNode.position.x + 440, y: anchorNode.position.y },
+      };
+
+      const projectWithNode: FactoryProject = {
+        ...state.project,
+        recipes: recipeAlreadyInProject
+          ? state.project.recipes
+          : [...state.project.recipes, recipe],
+        nodes: [...state.project.nodes, nextNode],
+      };
+
+      const edge =
+        resource.mode === "recipes"
+          ? buildEdgeBetweenNodes(projectWithNode, nextNode.id, anchorNode.id, resource)
+          : buildEdgeBetweenNodes(projectWithNode, anchorNode.id, nextNode.id, resource);
+
+      const project = touchProject({
+        ...projectWithNode,
+        edges: edge ? [...projectWithNode.edges, edge] : projectWithNode.edges,
+      });
+
+      return {
+        project,
+        selectedNodeId: nextNode.id,
         selectedRecipeId: recipeId,
         lastResult: calculateThroughput(project),
       };

@@ -5,6 +5,7 @@ import type { FactoryNode, NodeThroughputResult, Recipe } from "@/lib/model/type
 import { formatRate, isRecipeInputConsumed } from "@/lib/model";
 import { NeiRecipeWindow } from "@/components/nei/NeiRecipeWindow";
 import { makeResourceHandleId } from "./resource-handles";
+import { useFactoryStore } from "@/store/factory-store";
 
 export interface RecipeNodeData extends Record<string, unknown> {
   projectNode: FactoryNode;
@@ -16,6 +17,7 @@ export type RecipeFlowNode = Node<RecipeNodeData, "recipeNode">;
 
 export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const { projectNode, recipe, result } = data;
+  const browseResource = useFactoryStore((state) => state.browseResource);
   const utilization = result?.utilization ?? 0;
   const utilizationPercent = Number.isFinite(utilization) ? utilization * 100 : 999;
   const status = result?.status ?? "underutilized";
@@ -34,6 +36,18 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         <NeiRecipeWindow
           recipe={recipe}
           scale={2}
+          onSlotClick={(slot) =>
+            browseResource(
+              {
+                kind: slot.resource.kind,
+                id: slot.resource.id,
+                displayName: slot.resource.displayName,
+                iconPath: slot.resource.iconPath,
+                anchorNodeId: projectNode.id,
+              },
+              slot.side === "input" ? "recipes" : "uses",
+            )
+          }
           renderHandle={(slot) => {
             const isInput = slot.side === "input";
             if (isInput && !isRecipeInputConsumed(slot.resource)) {

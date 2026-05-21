@@ -76,9 +76,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
       {exceedsMaxTier ? (
         <div className="pointer-events-none absolute -right-3 -top-3 z-40 flex max-w-[210px] items-center gap-2 border-4 border-red-700 bg-[#facc15] px-2 py-1 font-mono text-[13px] font-black uppercase leading-tight text-red-950 shadow-[4px_4px_0_rgba(0,0,0,0.45)] [text-shadow:1px_1px_0_rgba(255,255,255,0.45)]">
           <AlertTriangle className="h-7 w-7 shrink-0 fill-red-700 text-red-950" />
-          <span>
-            /!\ {recipePowerTier} required, max {maxTierFilter}
-          </span>
+          <span>{recipePowerTier} Required</span>
         </div>
       ) : null}
       <div className="px-2 pb-2 pt-1">

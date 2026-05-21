@@ -810,29 +810,18 @@ function formatEdgeRateLabel(data: ResourceEdgeData | undefined) {
     return "";
   }
 
-  if (data.isLimited && data.transferred !== undefined) {
-    return `${formatEdgeRate(data.transferred, data.unit)} / ${formatEdgeRate(
-      data.demand,
-      data.unit,
-    )}`;
-  }
-
-  return formatEdgeRate(data.demand, data.unit);
+  const visibleRate =
+    data.isLimited && data.transferred !== undefined ? data.transferred : data.demand;
+  return `${formatEdgeValue(visibleRate)} ${data.unit}`;
 }
 
-function formatEdgeRate(valueText: string, unit: string) {
+function formatEdgeValue(valueText: string) {
   const value = Number(valueText);
   if (!Number.isFinite(value)) {
-    return `${valueText} ${unit}`.trim();
+    return valueText;
   }
 
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (unit === "L/s" && abs >= 1000) {
-    return `${sign}${trimEdgeNumber(abs / 1000)} kL/s`;
-  }
-
-  return `${trimEdgeNumber(value)}${unit}`;
+  return trimEdgeNumber(value);
 }
 
 function trimEdgeNumber(value: number) {

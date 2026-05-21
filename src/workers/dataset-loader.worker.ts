@@ -496,8 +496,8 @@ function buildDatasetResourceIndex(dataset: RecipeDataset): DatasetResourceIndex
           kind: resource.kind,
           id: resource.id,
           displayName: resource.displayName ?? datasetResource?.displayName,
-          iconPath: resource.iconPath ?? datasetResource?.iconPath,
-          iconAtlas: resource.iconAtlas ?? datasetResource?.iconAtlas,
+          iconPath: getCurrentIconPath(resource.iconPath, datasetResource?.iconPath),
+          iconAtlas: datasetResource?.iconAtlas ?? resource.iconAtlas,
           recipeCount: 1,
         });
       }
@@ -505,6 +505,21 @@ function buildDatasetResourceIndex(dataset: RecipeDataset): DatasetResourceIndex
   }
 
   return [...index.values()];
+}
+
+function getCurrentIconPath(
+  resourceIconPath: string | undefined,
+  datasetIconPath: string | undefined,
+): string | undefined {
+  if (isLegacyRenderedIconPath(resourceIconPath)) {
+    return datasetIconPath;
+  }
+
+  return datasetIconPath ?? resourceIconPath;
+}
+
+function isLegacyRenderedIconPath(iconPath: string | undefined): boolean {
+  return typeof iconPath === "string" && iconPath.includes("/textures/rendered/");
 }
 
 function recipeMatchesTierIndex(

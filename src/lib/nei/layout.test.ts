@@ -191,6 +191,30 @@ describe("NEI layout", () => {
       ["fluid", "output", 106, 24],
     ]);
   });
+
+  it("uses machine-specific GregTech progress textures", () => {
+    expect(
+      getNeiRecipeLayout(
+        recipe({
+          machineType: "Extruder",
+          sourceRecipeMap: "Extruder",
+          inputs: [{ kind: "item", id: "ingot", amount: 1 }],
+          outputs: [{ kind: "item", id: "rod", amount: 2 }],
+        }),
+      ).progressBars[0]?.texture,
+    ).toBe("extrude");
+
+    expect(
+      getNeiRecipeLayout(
+        recipe({
+          machineType: "Wiremill",
+          sourceRecipeMap: "Wiremill",
+          inputs: [{ kind: "item", id: "ingot", amount: 1 }],
+          outputs: [{ kind: "item", id: "wire", amount: 2 }],
+        }),
+      ).progressBars[0]?.texture,
+    ).toBe("wiremill");
+  });
 });
 
 function recipe({

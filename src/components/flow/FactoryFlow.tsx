@@ -784,21 +784,74 @@ function getResourceHandleAtPointer(event: MouseEvent | TouchEvent) {
     return undefined;
   }
 
-  for (const element of document.elementsFromPoint(position.x, position.y)) {
-    const handleElement = element.closest<HTMLElement>("[data-resource-handle='true']");
-    const nodeId = handleElement?.dataset.resourceNodeId;
-    const handleId = handleElement?.dataset.resourceHandleId;
-    const handle = parseResourceHandleId(handleId);
+  const geometricMatch = findResourceHandleByGeometry(position);
+  if (geometricMatch) {
+    return geometricMatch;
+  }
 
-    if (nodeId && handleId && handle) {
-      return {
-        nodeId,
-        handleId,
-        side: handle.side,
-        kind: handle.kind,
-        resourceId: handle.resourceId,
-      };
+  for (const element of document.elementsFromPoint(position.x, position.y)) {
+    const match = readResourceHandleElement(
+      element.closest<HTMLElement>("[data-resource-handle='true']"),
+    );
+    if (match) {
+      return match;
     }
+  }
+
+  return undefined;
+}
+
+function findResourceHandleByGeometry(position: { x: number; y: number }) {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const matches = [...document.querySelectorAll<HTMLElement>("[data-resource-handle='true']")]
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      if (
+        position.x < rect.left ||
+        position.x > rect.right ||
+        position.y < rect.top ||
+        position.y > rect.bottom
+      ) {
+        return undefined;
+      }
+
+      const handle = readResourceHandleElement(element);
+      if (!handle) {
+        return undefined;
+      }
+
+      return {
+        handle,
+        area: rect.width * rect.height,
+      };
+    })
+    .filter(
+      (
+        match,
+      ): match is { handle: ReturnType<typeof readResourceHandleElement> & {}; area: number } =>
+        Boolean(match),
+    )
+    .sort((left, right) => left.area - right.area);
+
+  return matches[0]?.handle;
+}
+
+function readResourceHandleElement(element: HTMLElement | null) {
+  const nodeId = element?.dataset.resourceNodeId;
+  const handleId = element?.dataset.resourceHandleId;
+  const handle = parseResourceHandleId(handleId);
+
+  if (nodeId && handleId && handle) {
+    return {
+      nodeId,
+      handleId,
+      side: handle.side,
+      kind: handle.kind,
+      resourceId: handle.resourceId,
+    };
   }
 
   return undefined;
@@ -813,8 +866,25 @@ function getStorageHandleAtPointer(
     return undefined;
   }
 
-  for (const element of document.elementsFromPoint(position.x, position.y)) {
-    const storageElement = element.closest<HTMLElement>("[data-storage-node-id]");
+  const storageElements = [
+    ...document.querySelectorAll<HTMLElement>("[data-storage-node-id]"),
+    ...document
+      .elementsFromPoint(position.x, position.y)
+      .map((element) => element.closest<HTMLElement>("[data-storage-node-id]"))
+      .filter((element): element is HTMLElement => Boolean(element)),
+  ];
+
+  for (const storageElement of storageElements) {
+    const rect = storageElement.getBoundingClientRect();
+    if (
+      position.x < rect.left ||
+      position.x > rect.right ||
+      position.y < rect.top ||
+      position.y > rect.bottom
+    ) {
+      continue;
+    }
+
     const nodeId = storageElement?.dataset.storageNodeId;
     const kind = storageElement?.dataset.storageKind;
     const resourceId = storageElement?.dataset.storageResourceId;

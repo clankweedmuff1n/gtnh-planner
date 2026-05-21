@@ -166,4 +166,45 @@ describe("calculateThroughput", () => {
     expect(result.resources["item:catalyst"]).toBeUndefined();
     expect(result.resources["item:dust"].consumedPerSecond).toBeCloseTo(2);
   });
+
+  it("applies voltage tier overclocks to speed and EU/t", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "overclock-project",
+      name: "Overclock test",
+      recipes: [
+        {
+          id: "dust-recipe",
+          name: "Dust recipe",
+          machineType: "Macerator",
+          minimumTier: "LV",
+          durationTicks: 80,
+          eut: 30,
+          inputs: [{ kind: "item", id: "ore", amount: 1 }],
+          outputs: [{ kind: "item", id: "dust", amount: 2 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "node",
+          recipeId: "dust-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "MV",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+      ],
+      edges: [],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.nodes.node.operationRatePerSecond).toBeCloseTo(0.5);
+    expect(result.nodes.node.outputs["item:dust"].amountPerSecond).toBeCloseTo(1);
+    expect(result.nodes.node.inputs["item:ore"].amountPerSecond).toBeCloseTo(0.5);
+    expect(result.nodes.node.euT).toBe(120);
+    expect(result.totalEuT).toBe(120);
+  });
 });

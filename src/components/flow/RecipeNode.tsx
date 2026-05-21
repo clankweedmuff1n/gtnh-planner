@@ -4,6 +4,7 @@ import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useState } from "react";
 import { AlertTriangle, WandSparkles } from "lucide-react";
 import type { FactoryNode, MachineTier, NodeThroughputResult, Recipe } from "@/lib/model/types";
+import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
 import {
   formatRate,
   GT_VOLTAGE_TIERS,
@@ -41,6 +42,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const nodeColor = projectNode.colorTag ? GT_NODE_COLORS[projectNode.colorTag] : undefined;
   const recipePowerTier = getRecipePowerTier(recipe);
   const tierControl = getNodeTierControl(recipe, projectNode);
+  const overclockedRecipe = { ...recipe, ...getOverclockedRecipeStats(recipe, projectNode) };
   const exceedsMaxTier =
     maxTierFilter !== "all" && isVoltageTierAbove(recipePowerTier, maxTierFilter);
   const updateTier = (direction: -1 | 1) => {
@@ -101,23 +103,22 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              updateTier(-1);
+              updateTier(1);
             }}
             onContextMenu={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              updateTier(1);
+              updateTier(-1);
             }}
-            className="nodrag h-6 w-9 border-2 border-[#252525] bg-[#7d7d7d] text-[10px] font-bold leading-[9px] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:bg-[#8d8d8d]"
-            title={`Tier ${tierControl.current}. Left click down, right click up.`}
+            className="nodrag h-6 w-9 border-2 border-[#252525] bg-[#7d7d7d] text-[12px] font-bold leading-[18px] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:bg-[#8d8d8d]"
+            title={`Tier ${tierControl.current}. Left click up, right click down.`}
             aria-label={`Tier ${tierControl.current}`}
           >
-            <span className="block text-[7px] uppercase leading-[7px] text-[#d8d8d8]">Tier</span>
-            <span className="block leading-[11px]">{tierControl.current}</span>
+            {tierControl.current}
           </button>
         </div>
         <NeiRecipeWindow
-          recipe={recipe}
+          recipe={overclockedRecipe}
           scale={2}
           compact
           onSlotClick={(slot, mode) => {
@@ -212,7 +213,7 @@ function normalizeSearch(value: string) {
 type VoltageTier = Exclude<MachineTier, "DEMO">;
 
 function getNodeTierControl(recipe: Recipe, node: FactoryNode) {
-  const minimum = resolveVoltageTier(recipe.minimumTier, getRecipePowerTier(recipe));
+  const minimum = getOverclockedRecipeStats(recipe, node).minimumTier;
   const current = clampTier(resolveVoltageTier(node.overclockTier, minimum), minimum);
   return { minimum, current };
 }

@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { createEmptyProject } from "@/examples";
 import type { DatasetManifest, RecipeDataset } from "@/lib/datasets";
 import { calculateThroughput } from "@/lib/solver";
-import { getResourceKey, primaryOutput, resourceLabel } from "@/lib/model/resources";
+import { getResourceKey, isRecipeInputConsumed, resourceLabel } from "@/lib/model/resources";
 import type {
   FactoryEdge,
   FactoryNode,
@@ -409,13 +409,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   deleteNode: (nodeId) => {
     set((state) => {
-      const project = touchProject(pruneOrphanStorages({
-        ...state.project,
-        nodes: state.project.nodes.filter((node) => node.id !== nodeId),
-        edges: state.project.edges.filter(
-          (edge) => edge.source !== nodeId && edge.target !== nodeId,
-        ),
-      }));
+      const project = touchProject(
+        pruneOrphanStorages({
+          ...state.project,
+          nodes: state.project.nodes.filter((node) => node.id !== nodeId),
+          edges: state.project.edges.filter(
+            (edge) => edge.source !== nodeId && edge.target !== nodeId,
+          ),
+        }),
+      );
       return {
         project,
         pendingResourceConnection:
@@ -510,12 +512,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       }
 
       const duplicateEdge = findDuplicateEdge(projectWithStorage.edges, edge);
-      const project = touchProject(pruneOrphanStorages({
-        ...projectWithStorage,
-        edges: duplicateEdge
-          ? projectWithStorage.edges.filter((entry) => entry.id !== duplicateEdge.id)
-          : [...projectWithStorage.edges, edge],
-      }));
+      const project = touchProject(
+        pruneOrphanStorages({
+          ...projectWithStorage,
+          edges: duplicateEdge
+            ? projectWithStorage.edges.filter((entry) => entry.id !== duplicateEdge.id)
+            : [...projectWithStorage.edges, edge],
+        }),
+      );
 
       return {
         project,
@@ -604,10 +608,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
 
       const duplicateEdge = findDuplicateEdge(state.project.edges, edge);
       if (duplicateEdge) {
-        const project = touchProject(pruneOrphanStorages({
-          ...state.project,
-          edges: state.project.edges.filter((entry) => entry.id !== duplicateEdge.id),
-        }));
+        const project = touchProject(
+          pruneOrphanStorages({
+            ...state.project,
+            edges: state.project.edges.filter((entry) => entry.id !== duplicateEdge.id),
+          }),
+        );
         return {
           project,
           lastResult: calculateThroughput(project),
@@ -676,12 +682,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       }
 
       const duplicateEdge = findDuplicateEdge(projectWithoutOld.edges, edge);
-      const project = touchProject(pruneOrphanStorages({
-        ...projectWithoutOld,
-        edges: duplicateEdge
-          ? projectWithoutOld.edges.filter((entry) => entry.id !== duplicateEdge.id)
-          : [...projectWithoutOld.edges, edge],
-      }));
+      const project = touchProject(
+        pruneOrphanStorages({
+          ...projectWithoutOld,
+          edges: duplicateEdge
+            ? projectWithoutOld.edges.filter((entry) => entry.id !== duplicateEdge.id)
+            : [...projectWithoutOld.edges, edge],
+        }),
+      );
 
       return {
         project,
@@ -732,10 +740,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   deleteEdge: (edgeId) => {
     set((state) => {
-      const project = touchProject(pruneOrphanStorages({
-        ...state.project,
-        edges: state.project.edges.filter((edge) => edge.id !== edgeId),
-      }));
+      const project = touchProject(
+        pruneOrphanStorages({
+          ...state.project,
+          edges: state.project.edges.filter((edge) => edge.id !== edgeId),
+        }),
+      );
       return {
         project,
         lastResult: calculateThroughput(project),
@@ -909,7 +919,8 @@ function buildEdgeBetweenNodes(
         input.kind === sourceStorage.kind &&
         input.id === sourceStorage.resourceId &&
         input.kind === selectedResource.kind &&
-        input.id === selectedResource.id,
+        input.id === selectedResource.id &&
+        isRecipeInputConsumed(input),
     );
     if (!matchedInput) {
       return undefined;
@@ -960,11 +971,17 @@ function buildEdgeBetweenNodes(
         (output) =>
           output.kind === selectedResource.kind &&
           output.id === selectedResource.id &&
-          targetRecipe.inputs.some((input) => getResourceKey(input) === getResourceKey(output)),
+          targetRecipe.inputs.some(
+            (input) =>
+              isRecipeInputConsumed(input) && getResourceKey(input) === getResourceKey(output),
+          ),
       )
-    : (sourceRecipe.outputs.find((output) =>
-        targetRecipe.inputs.some((input) => getResourceKey(input) === getResourceKey(output)),
-      ) ?? primaryOutput(sourceRecipe));
+    : sourceRecipe.outputs.find((output) =>
+        targetRecipe.inputs.some(
+          (input) =>
+            isRecipeInputConsumed(input) && getResourceKey(input) === getResourceKey(output),
+        ),
+      );
 
   if (!matchedOutput) {
     return undefined;
@@ -1163,7 +1180,10 @@ function updateResourceHistory(
   };
   const key = getResourceKey(entry);
 
-  return [entry, ...history.filter((item) => getResourceKey(item) !== key)].slice(0, RESOURCE_HISTORY_LIMIT);
+  return [entry, ...history.filter((item) => getResourceKey(item) !== key)].slice(
+    0,
+    RESOURCE_HISTORY_LIMIT,
+  );
 }
 
 export function loadResourceHistory(): RecipeBrowserResource[] {

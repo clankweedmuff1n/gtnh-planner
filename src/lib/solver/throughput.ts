@@ -23,6 +23,7 @@ import type {
   ThroughputResult,
 } from "../model/types";
 import { TICKS_PER_SECOND } from "../model/types";
+import { getOverclockedRecipeStats } from "./overclock";
 
 const EPSILON = 0.000001;
 
@@ -95,8 +96,9 @@ export function calculateThroughput(
       continue;
     }
 
+    const overclockedRecipe = getOverclockedRecipeStats(recipe, node);
     const operationRatePerSecond =
-      (node.machineCount * node.parallel * TICKS_PER_SECOND) / recipe.durationTicks;
+      (node.machineCount * node.parallel * TICKS_PER_SECOND) / overclockedRecipe.durationTicks;
     const inputs: FlowRecord = {};
     const outputs: FlowRecord = {};
 
@@ -116,7 +118,7 @@ export function calculateThroughput(
       addBalanceProduction(balances, output, amountPerSecond);
     }
 
-    const euT = recipe.eut * node.machineCount * node.parallel;
+    const euT = overclockedRecipe.eut * node.machineCount * node.parallel;
     totalEuT += euT;
 
     nodes[node.id] = {
@@ -179,7 +181,8 @@ export function calculateThroughput(
         const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
         const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
         const sourceCapacity = storageIncomingTransferred.get(`${sourceStorage.id}|${key}`) ?? 0;
-        const totalDemand = storageOutgoingDemand.get(`${sourceStorage.id}|${key}`) ?? demandPerSecond;
+        const totalDemand =
+          storageOutgoingDemand.get(`${sourceStorage.id}|${key}`) ?? demandPerSecond;
         const allocatedCapacity =
           totalDemand > EPSILON ? (sourceCapacity * demandPerSecond) / totalDemand : sourceCapacity;
         const transferredPerSecond = Math.min(allocatedCapacity, demandPerSecond);
@@ -238,7 +241,16 @@ export function calculateThroughput(
       }
     }
 
-    const utilizationReport = selectLimitingOutput(recipe, node, nodeResult, requiredByResource);
+    const overclockedRecipe = {
+      ...recipe,
+      ...getOverclockedRecipeStats(recipe, node),
+    };
+    const utilizationReport = selectLimitingOutput(
+      overclockedRecipe,
+      node,
+      nodeResult,
+      requiredByResource,
+    );
     nodeResult.requiredRatePerSecond = utilizationReport.requiredRatePerSecond;
     nodeResult.maxRatePerSecond = utilizationReport.maxRatePerSecond;
     nodeResult.utilization = utilizationReport.utilization;

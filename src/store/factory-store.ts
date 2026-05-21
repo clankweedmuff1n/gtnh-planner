@@ -395,12 +395,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   updateNode: (nodeId, patch) => {
     set((state) => {
-      const project = touchProject({
-        ...state.project,
-        nodes: state.project.nodes.map((node) =>
-          node.id === nodeId ? { ...node, ...patch } : node,
-        ),
-      });
+      const project = touchProject(
+        pruneInvalidEdgesAndOrphanStorages({
+          ...state.project,
+          nodes: state.project.nodes.map((node) =>
+            node.id === nodeId ? { ...node, ...patch } : node,
+          ),
+        }),
+      );
       return {
         project,
         lastResult: calculateThroughput(project),
@@ -562,10 +564,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      const project = touchProject({
-        ...state.project,
-        edges: [...state.project.edges, ...missingEdges],
-      });
+      const project = touchProject(
+        pruneInvalidEdgesAndOrphanStorages({
+          ...state.project,
+          edges: [...state.project.edges, ...missingEdges],
+        }),
+      );
 
       return {
         project,
@@ -620,10 +624,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         };
       }
 
-      const project = touchProject({
-        ...state.project,
-        edges: [...state.project.edges, edge],
-      });
+      const project = touchProject(
+        pruneInvalidEdgesAndOrphanStorages({
+          ...state.project,
+          edges: [...state.project.edges, edge],
+        }),
+      );
       return {
         project,
         lastResult: calculateThroughput(project),
@@ -727,10 +733,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      const project = touchProject({
-        ...state.project,
-        edges: [...state.project.edges, ...edges],
-      });
+      const project = touchProject(
+        pruneInvalidEdgesAndOrphanStorages({
+          ...state.project,
+          edges: [...state.project.edges, ...edges],
+        }),
+      );
 
       return {
         project,
@@ -891,6 +899,65 @@ function pruneOrphanStorages(project: FactoryProject): FactoryProject {
 
   const nextStorages = storages.filter((storage) => linkedStorageIds.has(storage.id));
   return nextStorages.length === storages.length ? project : { ...project, storages: nextStorages };
+}
+
+function pruneInvalidEdgesAndOrphanStorages(project: FactoryProject): FactoryProject {
+  const validEdges = project.edges.filter((edge) => isFactoryEdgeStillValid(project, edge));
+  const projectWithValidEdges =
+    validEdges.length === project.edges.length ? project : { ...project, edges: validEdges };
+  return pruneOrphanStorages(projectWithValidEdges);
+}
+
+function isFactoryEdgeStillValid(project: FactoryProject, edge: FactoryEdge): boolean {
+  const sourceNode = project.nodes.find((node) => node.id === edge.source);
+  const targetNode = project.nodes.find((node) => node.id === edge.target);
+  const sourceStorage = (project.storages ?? []).find((storage) => storage.id === edge.source);
+  const targetStorage = (project.storages ?? []).find((storage) => storage.id === edge.target);
+  const sourceRecipe = project.recipes.find((recipe) => recipe.id === sourceNode?.recipeId);
+  const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
+
+  if ((!sourceNode && !sourceStorage) || (!targetNode && !targetStorage)) {
+    return false;
+  }
+
+  if (sourceStorage && targetRecipe) {
+    return (
+      edge.resourceKind === sourceStorage.kind &&
+      edge.resourceId === sourceStorage.resourceId &&
+      targetRecipe.inputs.some(
+        (input) =>
+          isRecipeInputConsumed(input) &&
+          input.kind === edge.resourceKind &&
+          input.id === edge.resourceId,
+      )
+    );
+  }
+
+  if (sourceRecipe && targetStorage) {
+    return (
+      edge.resourceKind === targetStorage.kind &&
+      edge.resourceId === targetStorage.resourceId &&
+      sourceRecipe.outputs.some(
+        (output) => output.kind === edge.resourceKind && output.id === edge.resourceId,
+      )
+    );
+  }
+
+  if (!sourceRecipe || !targetRecipe) {
+    return false;
+  }
+
+  return (
+    sourceRecipe.outputs.some(
+      (output) => output.kind === edge.resourceKind && output.id === edge.resourceId,
+    ) &&
+    targetRecipe.inputs.some(
+      (input) =>
+        isRecipeInputConsumed(input) &&
+        input.kind === edge.resourceKind &&
+        input.id === edge.resourceId,
+    )
+  );
 }
 
 function buildEdgeBetweenNodes(

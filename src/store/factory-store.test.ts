@@ -164,6 +164,42 @@ describe("factory resource links", () => {
     expect(useFactoryStore.getState().project.edges).toHaveLength(0);
   });
 
+  it("removes an orphan drawer or tank when its last edge is deleted", () => {
+    useFactoryStore.getState().connectNodes("fluid-source", "water-tank", {
+      kind: "fluid",
+      id: "water",
+      sourceHandle: makeResourceHandleId("output", { kind: "fluid", id: "water" }, 0),
+      targetHandle: makeResourceHandleId("input", { kind: "fluid", id: "water" }),
+    });
+    const edgeId = useFactoryStore.getState().project.edges[0]?.id;
+    expect(useFactoryStore.getState().project.storages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "water-tank" })]),
+    );
+
+    useFactoryStore.getState().deleteEdge(edgeId);
+
+    expect(useFactoryStore.getState().project.edges).toHaveLength(0);
+    expect(useFactoryStore.getState().project.storages).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "water-tank" })]),
+    );
+  });
+
+  it("removes storage links when a node is changed to a recipe that no longer references it", () => {
+    useFactoryStore.getState().connectNodes("fluid-source", "water-tank", {
+      kind: "fluid",
+      id: "water",
+      sourceHandle: makeResourceHandleId("output", { kind: "fluid", id: "water" }, 0),
+      targetHandle: makeResourceHandleId("input", { kind: "fluid", id: "water" }),
+    });
+
+    useFactoryStore.getState().updateNode("fluid-source", { recipeId: "item-source-recipe" });
+
+    expect(useFactoryStore.getState().project.edges).toHaveLength(0);
+    expect(useFactoryStore.getState().project.storages).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "water-tank" })]),
+    );
+  });
+
   it("links a sodium to NaK coolant fluid chain without creating storage", () => {
     useFactoryStore.getState().setProject(createNakCoolantProject());
 

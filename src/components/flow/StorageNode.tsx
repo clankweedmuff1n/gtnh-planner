@@ -104,11 +104,9 @@ function StorageHeader({
         variant === "tank" ? "border-[#747c91] bg-[#b8c1d9]" : "border-[#4f3518] bg-[#8a6030]",
       ].join(" ")}
     >
-      <span className="h-4 w-4 border border-[#252525] bg-[#7d7d7d] shadow-[inset_1px_1px_0_rgba(255,255,255,0.35),inset_-1px_-1px_0_rgba(0,0,0,0.45)]" />
       <div className="minecraft-title min-w-0 flex-1 truncate text-center text-[13px] leading-4">
         {title}
       </div>
-      <span className="h-4 w-4 border border-[#252525] bg-[#7d7d7d] shadow-[inset_1px_1px_0_rgba(255,255,255,0.35),inset_-1px_-1px_0_rgba(0,0,0,0.45)]" />
     </div>
   );
 }
@@ -132,22 +130,21 @@ function FluidStorageCard({
     <div className="w-[174px] border-2 border-[#565f72] bg-[#b9c2d4] p-1 shadow-[0_0_0_3px_#53e5ef,inset_2px_2px_0_#e8edf7,inset_-2px_-2px_0_#7b8497]">
       <StorageHeader title="Super Tank" variant="tank" />
       <div className="border-2 border-[#80889c] bg-[#9fa9bd] p-2 shadow-[inset_2px_2px_0_#d8deeb,inset_-2px_-2px_0_#767f91]">
-        <div className="relative h-[92px] border-2 border-[#1a1a1a] bg-black p-1 shadow-[2px_2px_0_#e2e7f0,-2px_-2px_0_#70798b]">
+        <div className="relative h-[92px] overflow-hidden border-2 border-[#1a1a1a] bg-black shadow-[2px_2px_0_#e2e7f0,-2px_-2px_0_#70798b]">
           <div
-            className="absolute bottom-1 left-1 right-1 overflow-hidden bg-[#0d3b69]"
-            style={{ height: `${Math.max(8, Math.min(82, getFillPercent(result) * 0.82))}px` }}
+            className="absolute bottom-0 left-0 right-0 overflow-hidden bg-[#0d3b69]"
+            style={{ height: `${Math.max(8, Math.min(88, getFillPercent(result) * 0.88))}px` }}
           >
-            <div className="h-full w-full opacity-80 [background:linear-gradient(180deg,#1968ad_0%,#0c5596_38%,#0a3f76_39%,#0b4b86_72%,#07365f_100%)]" />
-            <div className="absolute left-2 top-2 h-2 w-24 bg-[#2a87d5]/70" />
-            <div className="absolute bottom-3 left-4 h-2 w-12 bg-[#2a87d5]/55" />
+            <ResourceIcon
+              resource={{ ...storage, id: storage.resourceId, amount: 1 }}
+              size="sm"
+              showAmount={false}
+              bare
+              className="absolute inset-0 !h-full !w-full opacity-85"
+            />
           </div>
-          <ResourceIcon
-            resource={{ ...storage, id: storage.resourceId, amount: 1 }}
-            size="sm"
-            showAmount={false}
-            bare
-            className="absolute bottom-2 left-2 !h-8 !w-8 opacity-70"
-          />
+          <div className="pointer-events-none absolute inset-x-3 top-2 h-1 bg-[#2a87d5]/70" />
+          <div className="pointer-events-none absolute bottom-5 left-7 h-2 w-20 bg-[#2a87d5]/55" />
         </div>
       </div>
       <StorageStats produced={produced} consumed={consumed} net={net} unit={unit} />

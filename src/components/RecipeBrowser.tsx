@@ -22,7 +22,7 @@ import { MinecraftTooltip } from "./nei/MinecraftTooltip";
 import { NeiRecipeWindow } from "./nei/NeiRecipeWindow";
 import { ResourceIcon } from "./nei/ResourceIcon";
 
-const RECIPE_QUERY_LIMIT = 48;
+const RECIPE_QUERY_LIMIT = 24;
 const RECIPE_QUERY_CACHE_TTL_MS = 90_000;
 
 export function RecipeBrowser() {
@@ -1107,9 +1107,9 @@ function VirtualRecipeResultList({
   onSlotBrowse: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState({ scrollTop: 0, height: 760 });
+  const [viewport, setViewport] = useState({ scrollTop: 0, height: 360 });
   const rowHeight = 246;
-  const overscan = 4;
+  const overscan = 1;
   const startIndex = Math.max(0, Math.floor(viewport.scrollTop / rowHeight) - overscan);
   const visibleCount = Math.ceil(viewport.height / rowHeight) + overscan * 2;
   const visibleRecipes = recipes.slice(startIndex, startIndex + visibleCount);
@@ -1233,8 +1233,14 @@ function RecipeResultCard({
   onAddConnected?: () => void;
   onSlotBrowse?: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
 }) {
+  const [renderPreview, setRenderPreview] = useState(false);
   const previewRecipe = summaryToPreviewRecipe(recipe);
   const primary = primaryOutput(previewRecipe);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setRenderPreview(true), 0);
+    return () => window.clearTimeout(timeout);
+  }, [recipe.id]);
 
   return (
     <article
@@ -1263,21 +1269,48 @@ function RecipeResultCard({
           {onAddConnected ? <GitBranchPlus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </button>
       </div>
-      <div className="overflow-x-auto pb-1 pr-9">
-        <NeiRecipeWindow
-          recipe={previewRecipe}
-          scale={2}
-          compact
-          className="mx-auto"
-          onSlotClick={onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined}
-        />
-      </div>
+      {renderPreview ? (
+        <div className="overflow-x-auto pb-1 pr-9">
+          <NeiRecipeWindow
+            recipe={previewRecipe}
+            scale={2}
+            compact
+            className="mx-auto"
+            onSlotClick={
+              onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined
+            }
+          />
+        </div>
+      ) : (
+        <RecipeResultPlaceholder recipe={previewRecipe} primary={primary} />
+      )}
       {primary ? (
         <p className="mt-2 truncate text-[11px] text-neutral-400">
           Primary: {primary.displayName ?? primary.id}
         </p>
       ) : null}
     </article>
+  );
+}
+
+function RecipeResultPlaceholder({
+  recipe,
+  primary,
+}: {
+  recipe: Recipe;
+  primary?: ResourceAmount;
+}) {
+  return (
+    <div className="mr-9 flex h-[214px] items-center justify-center border-2 border-[#777] bg-[#b6b6b6] shadow-[inset_2px_2px_0_#eeeeee,inset_-2px_-2px_0_#777]">
+      <div className="flex items-center gap-3">
+        {primary ? (
+          <ResourceIcon resource={primary} size="sm" showAmount={false} tooltip={false} />
+        ) : null}
+        <div className="max-w-[280px] truncate text-center text-[13px] text-[#222]">
+          {recipe.source?.recipeMap ?? recipe.machineType}
+        </div>
+      </div>
+    </div>
   );
 }
 

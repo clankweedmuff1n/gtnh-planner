@@ -33,7 +33,9 @@ interface LoadedRecipeIndex {
 
 interface QueryIndexes {
   recipeIndexesByResource: Map<string, number[]>;
+  recipeIndexesByResourceAndMap: Map<string, number[]>;
   recipeMaps: string[];
+  recipeMapsByResource: Map<string, string[]>;
   tierIndexes: number[];
   searchText: string[];
   iconScores: number[];
@@ -47,7 +49,10 @@ interface RecipeShardPayload {
 
 const datasetRoot = path.join(process.cwd(), "public", "datasets", "gtnh");
 const loadedCatalogs = new Map<string, LoadedRecipeIndex>();
+const pendingCatalogLoads = new Map<string, Promise<LoadedRecipeIndex>>();
+const pendingRecipeIndexLoads = new Map<string, Promise<LoadedRecipeIndex>>();
 const loadedShards = new Map<string, Recipe[]>();
+const pendingShardLoads = new Map<string, Promise<Recipe[]>>();
 let manifestCache: DatasetManifest | undefined;
 
 export async function getDatasetCatalog(versionId: string) {
@@ -82,34 +87,32 @@ export async function queryDatasetRecipes(
   const catalog = await loadRecipeIndex(versionId);
   const indexes = ensureIndexes(catalog);
   const query = normalizeText(request.query);
-  const recipeMaps = new Set<string>();
   const candidates = request.resource
     ? (indexes.recipeIndexesByResource.get(getResourceModeKey(request.resource, request.mode)) ??
       [])
     : indexes.allRecipeIndexes;
-  const eligible: number[] = [];
+  const eligibleRecipeMaps = request.resource
+    ? (indexes.recipeMapsByResource.get(getResourceModeKey(request.resource, request.mode)) ?? [])
+    : [...new Set(indexes.recipeMaps.filter(Boolean))];
+  const sortedRecipeMaps = [...eligibleRecipeMaps].sort((a, b) => a.localeCompare(b));
+  const effectiveMap = request.recipeMap || (request.resource ? sortedRecipeMaps[0] : undefined);
+  const scopedCandidates =
+    request.resource && effectiveMap
+      ? (indexes.recipeIndexesByResourceAndMap.get(
+          getResourceModeMapKey(request.resource, request.mode, effectiveMap),
+        ) ?? [])
+      : candidates;
+  const withIcons: Array<{ recipeIndex: number; iconScore: number }> = [];
+  const withoutIcons: number[] = [];
+  let total = 0;
 
-  for (const recipeIndex of candidates) {
+  for (const recipeIndex of scopedCandidates) {
     if (!recipeMatchesTierIndex(indexes, recipeIndex, request.maxTier)) {
       continue;
     }
     if (!request.resource && query && !indexes.searchText[recipeIndex]?.includes(query)) {
       continue;
     }
-    const recipeMap = indexes.recipeMaps[recipeIndex];
-    if (recipeMap) {
-      recipeMaps.add(recipeMap);
-    }
-    eligible.push(recipeIndex);
-  }
-
-  const sortedRecipeMaps = [...recipeMaps].sort((a, b) => a.localeCompare(b));
-  const effectiveMap = request.recipeMap || (request.resource ? sortedRecipeMaps[0] : undefined);
-  const withIcons: Array<{ recipeIndex: number; iconScore: number }> = [];
-  const withoutIcons: number[] = [];
-  let total = 0;
-
-  for (const recipeIndex of eligible) {
     if (effectiveMap && indexes.recipeMaps[recipeIndex] !== effectiveMap) {
       continue;
     }
@@ -182,20 +185,32 @@ async function loadCatalog(versionId: string): Promise<LoadedRecipeIndex> {
     return cached;
   }
 
-  const manifest = await loadManifest();
-  const version = manifest.versions.find((entry) => entry.id === versionId);
-  if (!version?.resourceIndexPath) {
-    throw new Error(`Dataset ${versionId} has no server resource index.`);
+  const pending = pendingCatalogLoads.get(versionId);
+  if (pending) {
+    return pending;
   }
-  const catalog = await readGzipJson<LoadedRecipeIndex>(
-    publicPathToFile(version.resourceIndexPath),
-  );
-  const loaded = {
-    ...catalog,
-    version,
-  };
-  loadedCatalogs.set(versionId, loaded);
-  return loaded;
+
+  const promise = (async () => {
+    const manifest = await loadManifest();
+    const version = manifest.versions.find((entry) => entry.id === versionId);
+    if (!version?.resourceIndexPath) {
+      throw new Error(`Dataset ${versionId} has no server resource index.`);
+    }
+    const catalog = await readGzipJson<LoadedRecipeIndex>(
+      publicPathToFile(version.resourceIndexPath),
+    );
+    const loaded = {
+      ...catalog,
+      version,
+    };
+    loadedCatalogs.set(versionId, loaded);
+    return loaded;
+  })().finally(() => {
+    pendingCatalogLoads.delete(versionId);
+  });
+
+  pendingCatalogLoads.set(versionId, promise);
+  return promise;
 }
 
 async function loadRecipeIndex(versionId: string): Promise<LoadedRecipeIndex> {
@@ -203,16 +218,29 @@ async function loadRecipeIndex(versionId: string): Promise<LoadedRecipeIndex> {
   if (catalog.recipes) {
     return catalog;
   }
-  if (!catalog.version.recipeIndexPath) {
-    throw new Error(`Dataset ${versionId} has no recipe index.`);
+
+  const pending = pendingRecipeIndexLoads.get(versionId);
+  if (pending) {
+    return pending;
   }
-  const recipeIndex = await readGzipJson<LoadedRecipeIndex>(
-    publicPathToFile(catalog.version.recipeIndexPath),
-  );
-  catalog.recipes = hydrateSummaries(recipeIndex.recipes ?? [], catalog);
-  catalog.shards = recipeIndex.shards;
-  catalog.recipeCount = recipeIndex.recipeCount;
-  return catalog;
+
+  const promise = (async () => {
+    if (!catalog.version.recipeIndexPath) {
+      throw new Error(`Dataset ${versionId} has no recipe index.`);
+    }
+    const recipeIndex = await readGzipJson<LoadedRecipeIndex>(
+      publicPathToFile(catalog.version.recipeIndexPath),
+    );
+    catalog.recipes = hydrateSummaries(recipeIndex.recipes ?? [], catalog);
+    catalog.shards = recipeIndex.shards;
+    catalog.recipeCount = recipeIndex.recipeCount;
+    return catalog;
+  })().finally(() => {
+    pendingRecipeIndexLoads.delete(versionId);
+  });
+
+  pendingRecipeIndexLoads.set(versionId, promise);
+  return promise;
 }
 
 async function loadShard(version: DatasetVersion, shard: RecipeIndexShard): Promise<Recipe[]> {
@@ -221,9 +249,23 @@ async function loadShard(version: DatasetVersion, shard: RecipeIndexShard): Prom
   if (cached) {
     return cached;
   }
-  const payload = await readGzipJson<RecipeShardPayload>(publicPathToFile(shard.path));
-  loadedShards.set(key, payload.recipes);
-  return payload.recipes;
+
+  const pending = pendingShardLoads.get(key);
+  if (pending) {
+    return pending;
+  }
+
+  const promise = readGzipJson<RecipeShardPayload>(publicPathToFile(shard.path))
+    .then((payload) => {
+      loadedShards.set(key, payload.recipes);
+      return payload.recipes;
+    })
+    .finally(() => {
+      pendingShardLoads.delete(key);
+    });
+
+  pendingShardLoads.set(key, promise);
+  return promise;
 }
 
 async function readGzipJson<T>(filePath: string): Promise<T> {
@@ -270,6 +312,8 @@ function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
     return catalog.indexes;
   }
   const recipeIndexesByResource = new Map<string, number[]>();
+  const recipeIndexesByResourceAndMap = new Map<string, number[]>();
+  const recipeMapSetsByResource = new Map<string, Set<string>>();
   const recipeMaps: string[] = [];
   const tierIndexes: number[] = [];
   const searchText: string[] = [];
@@ -284,15 +328,37 @@ function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
     iconScores[recipeIndex] = recipeIconScore(recipe);
     for (const output of recipe.outputs) {
       addRecipeIndex(recipeIndexesByResource, getResourceModeKey(output, "recipes"), recipeIndex);
+      addRecipeIndex(
+        recipeIndexesByResourceAndMap,
+        getResourceModeMapKey(output, "recipes", recipe.recipeMap),
+        recipeIndex,
+      );
+      addRecipeMap(
+        recipeMapSetsByResource,
+        getResourceModeKey(output, "recipes"),
+        recipe.recipeMap,
+      );
     }
     for (const input of recipe.inputs) {
       addRecipeIndex(recipeIndexesByResource, getResourceModeKey(input, "uses"), recipeIndex);
+      addRecipeIndex(
+        recipeIndexesByResourceAndMap,
+        getResourceModeMapKey(input, "uses", recipe.recipeMap),
+        recipeIndex,
+      );
+      addRecipeMap(recipeMapSetsByResource, getResourceModeKey(input, "uses"), recipe.recipeMap);
     }
   });
 
+  const recipeMapsByResource = new Map(
+    [...recipeMapSetsByResource.entries()].map(([key, maps]) => [key, [...maps]]),
+  );
+
   catalog.indexes = {
     recipeIndexesByResource,
+    recipeIndexesByResourceAndMap,
     recipeMaps,
+    recipeMapsByResource,
     tierIndexes,
     searchText,
     iconScores,
@@ -310,11 +376,28 @@ function addRecipeIndex(index: Map<string, number[]>, key: string, recipeIndex: 
   }
 }
 
+function addRecipeMap(index: Map<string, Set<string>>, key: string, recipeMap: string) {
+  const existing = index.get(key);
+  if (existing) {
+    existing.add(recipeMap);
+  } else {
+    index.set(key, new Set([recipeMap]));
+  }
+}
+
 function getResourceModeKey(
   resource: Pick<ResourceAmount, "kind" | "id">,
   mode: "recipes" | "uses",
 ) {
   return `${mode}:${resource.kind}:${resource.id}`;
+}
+
+function getResourceModeMapKey(
+  resource: Pick<ResourceAmount, "kind" | "id">,
+  mode: "recipes" | "uses",
+  recipeMap: string,
+) {
+  return `${getResourceModeKey(resource, mode)}:${recipeMap}`;
 }
 
 function buildRecipeSearchText(recipe: RecipeSummary): string {

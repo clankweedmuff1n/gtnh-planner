@@ -411,7 +411,7 @@ export function RecipeBrowser() {
           ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 overflow-hidden p-3">
           {!dataset && isDatasetLoading ? (
             <div className="rounded border border-dashed border-neutral-600 p-4 text-sm text-neutral-300">
               Loading recipe index...
@@ -422,6 +422,11 @@ export function RecipeBrowser() {
             </div>
           ) : (
             <VirtualResourceResultList
+              key={[
+                selectedDatasetVersionId ?? "",
+                activeResource ? `${activeResource.kind}:${activeResource.id}` : "",
+                deferredRecipeSearch.trim().toLowerCase(),
+              ].join("|")}
               resources={visibleResourceResults}
               activeResource={activeResource}
               onBrowse={browseResource}
@@ -542,54 +547,15 @@ function VirtualResourceResultList({
   activeResource?: IndexedResource;
   onBrowse: (resource: IndexedResource, mode: "recipes" | "uses") => void;
 }) {
-  const anchorRef = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState({ scrollTop: 0, height: 560 });
-  const rowHeight = 52;
-  const gap = 8;
-  const itemHeight = rowHeight + gap;
-  const overscan = 6;
-  const startIndex = Math.max(0, Math.floor(viewport.scrollTop / itemHeight) - overscan);
-  const visibleCount = Math.ceil(viewport.height / itemHeight) + overscan * 2;
-  const visibleResources = resources.slice(startIndex, startIndex + visibleCount);
-  const topPadding = startIndex * itemHeight;
-  const bottomPadding = Math.max(
-    0,
-    (resources.length - startIndex - visibleResources.length) * itemHeight,
-  );
-
-  useEffect(() => {
-    const scrollParent = anchorRef.current?.parentElement;
-    if (!scrollParent) {
-      return;
-    }
-
-    let frame = 0;
-    const updateViewport = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        setViewport({
-          scrollTop: scrollParent.scrollTop,
-          height: scrollParent.clientHeight,
-        });
-      });
-    };
-
-    updateViewport();
-    scrollParent.addEventListener("scroll", updateViewport, { passive: true });
-    const resizeObserver = new ResizeObserver(updateViewport);
-    resizeObserver.observe(scrollParent);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      scrollParent.removeEventListener("scroll", updateViewport);
-      resizeObserver.disconnect();
-    };
-  }, [resources.length]);
+  const [page, setPage] = useState(0);
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(resources.length / pageSize));
+  const currentPage = Math.min(page, pageCount - 1);
+  const visibleResources = resources.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   return (
-    <div ref={anchorRef}>
-      <div style={{ height: topPadding }} />
-      <div className="grid grid-cols-1 gap-2">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="grid min-h-0 flex-1 content-start grid-cols-1 gap-2 overflow-hidden">
         {visibleResources.map((resource) => (
           <ResourceResult
             key={`${resource.kind}:${resource.id}`}
@@ -599,7 +565,53 @@ function VirtualResourceResultList({
           />
         ))}
       </div>
-      <div style={{ height: bottomPadding }} />
+      <ResourcePager
+        currentPage={currentPage}
+        pageCount={pageCount}
+        total={resources.length}
+        onPageChange={setPage}
+      />
+    </div>
+  );
+}
+
+function ResourcePager({
+  currentPage,
+  pageCount,
+  total,
+  onPageChange,
+}: {
+  currentPage: number;
+  pageCount: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="mt-2 grid h-8 shrink-0 grid-cols-[32px_minmax(0,1fr)_32px] items-center border border-neutral-700 bg-[#111317] text-center font-mono text-sm text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.08),inset_-1px_-1px_0_rgba(0,0,0,0.45)]">
+      <button
+        type="button"
+        onClick={() => onPageChange(Math.max(0, currentPage - 1))}
+        disabled={currentPage === 0}
+        className="h-full border-r border-neutral-700 bg-[#1b1d21] text-red-400 disabled:opacity-35"
+        aria-label="Previous resource page"
+        title="Previous page"
+      >
+        {"<"}
+      </button>
+      <div className="truncate px-2 [text-shadow:1px_1px_0_#000]">
+        {currentPage + 1}/{pageCount}
+        <span className="ml-2 text-[11px] text-neutral-400">{total}</span>
+      </div>
+      <button
+        type="button"
+        onClick={() => onPageChange(Math.min(pageCount - 1, currentPage + 1))}
+        disabled={currentPage >= pageCount - 1}
+        className="h-full border-l border-neutral-700 bg-[#1b1d21] text-red-400 disabled:opacity-35"
+        aria-label="Next resource page"
+        title="Next page"
+      >
+        {">"}
+      </button>
     </div>
   );
 }

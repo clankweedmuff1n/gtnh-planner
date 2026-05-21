@@ -1,8 +1,15 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { AlertTriangle } from "lucide-react";
 import type { FactoryNode, NodeThroughputResult, Recipe } from "@/lib/model/types";
-import { formatRate, isRecipeInputConsumed, resourceLabel } from "@/lib/model";
+import {
+  formatRate,
+  getRecipePowerTier,
+  isRecipeInputConsumed,
+  isVoltageTierAbove,
+  resourceLabel,
+} from "@/lib/model";
 import { NeiRecipeWindow } from "@/components/nei/NeiRecipeWindow";
 import { makeResourceHandleId } from "./resource-handles";
 import { useFactoryStore } from "@/store/factory-store";
@@ -22,6 +29,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
   const deleteNode = useFactoryStore((state) => state.deleteNode);
   const nodeColorPaintMode = useFactoryStore((state) => state.nodeColorPaintMode);
+  const maxTierFilter = useFactoryStore((state) => state.maxTierFilter);
   const pendingResourceConnection = useFactoryStore((state) => state.pendingResourceConnection);
   const utilization = result?.utilization ?? 0;
   const utilizationPercent = Number.isFinite(utilization) ? utilization * 100 : 999;
@@ -29,14 +37,18 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const color = getStatusColor(status);
   const isSearchHighlighted = recipeContainsSearchResource(recipe, recipeSearch);
   const nodeColor = projectNode.colorTag ? GT_NODE_COLORS[projectNode.colorTag] : undefined;
+  const recipePowerTier = getRecipePowerTier(recipe);
+  const exceedsMaxTier =
+    maxTierFilter !== "all" && isVoltageTierAbove(recipePowerTier, maxTierFilter);
 
   return (
     <div
       className={[
-        "group min-w-[368px] w-max border-2 border-[#f4f4f4] bg-[#c6c6c6] font-mono text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]",
+        "group relative min-w-[368px] w-max border-2 border-[#f4f4f4] bg-[#c6c6c6] font-mono text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]",
         nodeColorPaintMode !== undefined ? "cursor-crosshair" : "",
         selected ? "ring-2 ring-cyan-300" : "",
         isSearchHighlighted ? "ring-4 ring-sky-300" : "",
+        exceedsMaxTier ? "ring-4 ring-red-500" : "",
         nodeColor ? "" : color.ring,
       ].join(" ")}
       style={
@@ -49,6 +61,14 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           : undefined
       }
     >
+      {exceedsMaxTier ? (
+        <div className="pointer-events-none absolute -right-3 -top-3 z-40 flex max-w-[210px] items-center gap-2 border-4 border-red-700 bg-[#facc15] px-2 py-1 font-mono text-[13px] font-black uppercase leading-tight text-red-950 shadow-[4px_4px_0_rgba(0,0,0,0.45)] [text-shadow:1px_1px_0_rgba(255,255,255,0.45)]">
+          <AlertTriangle className="h-7 w-7 shrink-0 fill-red-700 text-red-950" />
+          <span>
+            /!\ {recipePowerTier} required, max {maxTierFilter}
+          </span>
+        </div>
+      ) : null}
       <div className="px-2 pb-2 pt-1">
         <div className="mb-1 grid grid-cols-[24px_minmax(0,1fr)_24px] items-center">
           <button

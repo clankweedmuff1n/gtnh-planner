@@ -11,6 +11,7 @@ import type {
   FactoryNodeColorTag,
   FactoryProject,
   FactoryStorage,
+  MachineTier,
   Recipe,
   ResourceAmount,
   ResourceKind,
@@ -30,6 +31,7 @@ interface FactoryStore {
   isDatasetLoading: boolean;
   datasetError?: string;
   recipeSearch: string;
+  maxTierFilter: TierFilter;
   recipeBrowserResource?: RecipeBrowserResource;
   recipeBrowserMode: RecipeBrowserMode;
   recipeResourceHistory: RecipeBrowserResource[];
@@ -47,6 +49,7 @@ interface FactoryStore {
   setDatasetLoading: (isLoading: boolean) => void;
   setDatasetError: (error?: string) => void;
   setRecipeSearch: (query: string) => void;
+  setMaxTierFilter: (tier: TierFilter) => void;
   hydrateResourceHistory: (history: RecipeBrowserResource[]) => void;
   browseResource: (resource: RecipeBrowserResource, mode?: RecipeBrowserMode) => void;
   clearResourceBrowser: () => void;
@@ -116,6 +119,7 @@ interface FactoryStore {
 const initialProject = createEmptyProject();
 
 export type RecipeBrowserMode = "recipes" | "uses";
+export type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
 
 export interface RecipeBrowserResource {
   kind: ResourceKind;
@@ -146,6 +150,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   isDatasetLoading: false,
   datasetError: undefined,
   recipeSearch: "",
+  maxTierFilter: "all",
   recipeBrowserResource: undefined,
   recipeBrowserMode: "recipes",
   recipeResourceHistory: [],
@@ -217,6 +222,9 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   setRecipeSearch: (query) => {
     set({ recipeSearch: query });
+  },
+  setMaxTierFilter: (tier) => {
+    set({ maxTierFilter: tier });
   },
   hydrateResourceHistory: (history) => {
     set({ recipeResourceHistory: normalizeResourceHistory(history) });

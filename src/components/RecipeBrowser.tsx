@@ -1,15 +1,7 @@
 "use client";
 
 import { Archive, GitBranchPlus, Plus, Search, X } from "lucide-react";
-import {
-  memo,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
 import { getRecipeDatasetRecipe, queryRecipeDatasetRecipes } from "@/lib/datasets/browser-loader";
@@ -19,8 +11,8 @@ import type {
   RecipeSummary,
 } from "@/lib/datasets/types";
 import { getResourceKey, GT_VOLTAGE_TIERS, primaryOutput, resourceLabel } from "@/lib/model";
-import type { MachineTier } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
+import type { TierFilter } from "@/store/factory-store";
 import type { Recipe, ResourceAmount, ResourceKey } from "@/lib/model/types";
 import { MinecraftTooltip } from "./nei/MinecraftTooltip";
 import { NeiRecipeWindow } from "./nei/NeiRecipeWindow";
@@ -34,18 +26,19 @@ export function RecipeBrowser() {
   const isDatasetLoading = useFactoryStore((state) => state.isDatasetLoading);
   const projectRecipes = useFactoryStore((state) => state.project.recipes);
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
+  const maxTier = useFactoryStore((state) => state.maxTierFilter);
   const browserResource = useFactoryStore((state) => state.recipeBrowserResource);
   const browserMode = useFactoryStore((state) => state.recipeBrowserMode);
   const resourceHistory = useFactoryStore((state) => state.recipeResourceHistory);
   const selectedRecipeId = useFactoryStore((state) => state.selectedRecipeId);
   const setRecipeSearch = useFactoryStore((state) => state.setRecipeSearch);
+  const setMaxTier = useFactoryStore((state) => state.setMaxTierFilter);
   const browseResource = useFactoryStore((state) => state.browseResource);
   const clearResourceBrowser = useFactoryStore((state) => state.clearResourceBrowser);
   const selectRecipe = useFactoryStore((state) => state.selectRecipe);
   const addNodeForRecipe = useFactoryStore((state) => state.addNodeForRecipeObject);
   const addResourceStorage = useFactoryStore((state) => state.addResourceStorage);
   const [selectedRecipeMap, setSelectedRecipeMap] = useState("all");
-  const [maxTier, setMaxTier] = useState<TierFilter>("all");
   const [filteredRecipes, setFilteredRecipes] = useState<RecipeSummary[]>([]);
   const [queryTotal, setQueryTotal] = useState(0);
   const [availableRecipeMaps, setAvailableRecipeMaps] = useState<string[]>([]);
@@ -512,8 +505,6 @@ interface RecipeMapTab {
   label: string;
   icon?: Pick<ResourceAmount, "kind" | "id" | "amount" | "displayName" | "iconPath" | "iconAtlas">;
 }
-
-type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
 
 interface RecipeQueryCacheEntry {
   recipes: RecipeSummary[];

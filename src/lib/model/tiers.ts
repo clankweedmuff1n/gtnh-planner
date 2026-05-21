@@ -30,3 +30,15 @@ export function getVoltageTierForEuT(euT: number): Exclude<MachineTier, "DEMO"> 
 export function getRecipePowerTier(recipe: Pick<Recipe, "eut">): Exclude<MachineTier, "DEMO"> {
   return getVoltageTierForEuT(recipe.eut);
 }
+
+export function getVoltageTierIndex(tier: Exclude<MachineTier, "DEMO">): number {
+  const index = GT_VOLTAGE_TIERS.findIndex((entry) => entry.tier === tier);
+  return index === -1 ? GT_VOLTAGE_TIERS.length - 1 : index;
+}
+
+export function isVoltageTierAbove(
+  tier: Exclude<MachineTier, "DEMO">,
+  maxTier: Exclude<MachineTier, "DEMO">,
+): boolean {
+  return getVoltageTierIndex(tier) > getVoltageTierIndex(maxTier);
+}

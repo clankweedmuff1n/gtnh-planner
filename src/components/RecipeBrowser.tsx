@@ -223,8 +223,9 @@ export function RecipeBrowser() {
   const handleAddRecipe = useCallback(
     async (recipeId: string) => {
       addNodeForRecipe(await getFullRecipe(recipeId));
+      clearResourceBrowser();
     },
-    [addNodeForRecipe, getFullRecipe],
+    [addNodeForRecipe, clearResourceBrowser, getFullRecipe],
   );
 
   useEffect(() => {
@@ -1055,6 +1056,7 @@ function RecipeResultCard({
   return (
     <article
       onClick={onSelect}
+      onDoubleClick={() => void onAdd()}
       className={[
         "relative cursor-pointer transition",
         selected ? "ring-1 ring-cyan-400" : "",

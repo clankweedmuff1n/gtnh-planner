@@ -605,7 +605,7 @@ function VirtualResourceResultList({
 }) {
   const [page, setPage] = useState(0);
   const [, startPageTransition] = useTransition();
-  const pageSize = 8;
+  const pageSize = 6;
   const pageCount = Math.max(1, Math.ceil(resources.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);
   const visibleResources = resources.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -708,7 +708,7 @@ function ResourceCanvasPage({
   const [, startBrowseTransition] = useTransition();
   const [, forceRedraw] = useState(0);
   const rowHeight = 62;
-  const height = 8 * rowHeight;
+  const height = 6 * rowHeight;
 
   useEffect(() => {
     const canvas = canvasRef.current;

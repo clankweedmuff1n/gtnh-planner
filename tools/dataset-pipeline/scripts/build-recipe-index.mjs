@@ -22,7 +22,11 @@ await fs.rm(shardDir, { recursive: true, force: true });
 await fs.mkdir(shardDir, { recursive: true });
 
 const shards = [];
-for (let start = 0, shardIndex = 0; start < dataset.recipes.length; start += shardSize, shardIndex += 1) {
+for (
+  let start = 0, shardIndex = 0;
+  start < dataset.recipes.length;
+  start += shardSize, shardIndex += 1
+) {
   const end = Math.min(dataset.recipes.length, start + shardSize);
   const fileName = `shard-${String(shardIndex).padStart(4, "0")}.json.gz`;
   const publicPath = `/datasets/gtnh/${versionId}/recipes-shards/${fileName}`;
@@ -54,6 +58,7 @@ const recipeIndex = {
   recipes: dataset.recipes.map(toRecipeSummary),
 };
 
+const recipeLookupIndex = buildRecipeLookupIndex(recipeIndex);
 const resourceCatalog = {
   schemaVersion: 1,
   datasetVersionId: versionId,
@@ -70,12 +75,135 @@ const resourceCatalog = {
 
 const resourceIndexPath = path.join(datasetOutDir, "resource-index.json.gz");
 const indexPath = path.join(datasetOutDir, "recipe-index.json.gz");
+const lookupIndexPath = path.join(datasetOutDir, "recipe-lookup-index.json.gz");
 await fs.writeFile(resourceIndexPath, gzipSync(JSON.stringify(resourceCatalog), { level: 9 }));
 await fs.writeFile(indexPath, gzipSync(JSON.stringify(recipeIndex), { level: 9 }));
+await fs.writeFile(lookupIndexPath, gzipSync(JSON.stringify(recipeLookupIndex), { level: 9 }));
 
 console.log(
-  `Wrote resource catalog, recipe index with ${recipeIndex.recipes.length} summaries, and ${shards.length} shard(s).`,
+  `Wrote resource catalog, recipe index with ${recipeIndex.recipes.length} summaries, compact lookup index, and ${shards.length} shard(s).`,
 );
+
+function buildRecipeLookupIndex(recipeIndex) {
+  const recipeMaps = [
+    ...new Set((recipeIndex.recipes ?? []).map((recipe) => recipe.recipeMap).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b));
+  const recipeMapIds = new Map(recipeMaps.map((recipeMap, index) => [recipeMap, index]));
+  const recipeIds = [];
+  const tierIndexes = [];
+  const iconScores = [];
+  const entries = new Map();
+
+  recipeIndex.recipes.forEach((recipe, recipeIndex) => {
+    const recipeMapId = recipeMapIds.get(recipe.recipeMap);
+    if (recipeMapId === undefined) {
+      return;
+    }
+
+    recipeIds[recipeIndex] = recipe.id;
+    tierIndexes[recipeIndex] = tierIndex(recipe);
+    iconScores[recipeIndex] = recipeIconScore(recipe);
+
+    for (const output of recipe.outputs ?? []) {
+      addLookupRecipe(entries, output, "recipes", recipeMapId, recipeIndex);
+    }
+    for (const input of recipe.inputs ?? []) {
+      addLookupRecipe(entries, input, "uses", recipeMapId, recipeIndex);
+    }
+  });
+
+  for (const recipesByMap of entries.values()) {
+    for (const recipeIndexes of recipesByMap.values()) {
+      recipeIndexes.sort((left, right) => iconScores[right] - iconScores[left] || left - right);
+    }
+  }
+
+  return {
+    schemaVersion: 1,
+    datasetVersionId: recipeIndex.datasetVersionId,
+    recipeCount: recipeIndex.recipeCount,
+    shards: recipeIndex.shards,
+    recipeMaps,
+    recipeIds,
+    tierIndexes,
+    entries: [...entries.entries()].map(([key, recipesByMap]) => [
+      key,
+      [...recipesByMap.entries()],
+    ]),
+  };
+}
+
+function addLookupRecipe(entries, resource, mode, recipeMapId, recipeIndex) {
+  const key = `${mode}:${resource.kind}:${resource.id}`;
+  let recipesByMap = entries.get(key);
+  if (!recipesByMap) {
+    recipesByMap = new Map();
+    entries.set(key, recipesByMap);
+  }
+
+  let recipeIndexes = recipesByMap.get(recipeMapId);
+  if (!recipeIndexes) {
+    recipeIndexes = [];
+    recipesByMap.set(recipeMapId, recipeIndexes);
+  }
+
+  recipeIndexes.push(recipeIndex);
+}
+
+function recipeIconScore(recipe) {
+  return [...(recipe.inputs ?? []), ...(recipe.outputs ?? [])].reduce(
+    (score, resource) => score + (resource.iconPath || resource.iconAtlas ? 1 : 0),
+    0,
+  );
+}
+
+function tierIndex(recipe) {
+  const tiers = [
+    "ULV",
+    "LV",
+    "MV",
+    "HV",
+    "EV",
+    "IV",
+    "LuV",
+    "ZPM",
+    "UV",
+    "UHV",
+    "UEV",
+    "UIV",
+    "UMV",
+    "UXV",
+    "OpV",
+    "MAX",
+  ];
+  const explicitTierIndex = tiers.indexOf(recipe.minimumTier);
+  if (explicitTierIndex !== -1) {
+    return explicitTierIndex;
+  }
+
+  const eut = Math.abs(Number(recipe.eut) || 0);
+  const voltages = [
+    8,
+    32,
+    128,
+    512,
+    2048,
+    8192,
+    32768,
+    131072,
+    524288,
+    2097152,
+    8388608,
+    33554432,
+    134217728,
+    536870912,
+    Number.MAX_SAFE_INTEGER,
+  ];
+  return Math.max(
+    0,
+    voltages.findIndex((voltage) => eut <= voltage),
+  );
+}
 
 function toRecipeSummary(recipe, index) {
   return {

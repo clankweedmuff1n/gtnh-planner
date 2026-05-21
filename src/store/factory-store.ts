@@ -233,9 +233,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
     set({ recipeResourceHistory: normalizeResourceHistory(history) });
   },
   browseResource: (resource, mode = "recipes") => {
+    let nextHistory: RecipeBrowserResource[] | undefined;
     set((state) => {
       const recipeResourceHistory = updateResourceHistory(state.recipeResourceHistory, resource);
-      saveResourceHistory(recipeResourceHistory);
+      nextHistory = recipeResourceHistory;
 
       return {
         recipeBrowserResource: resource,
@@ -244,6 +245,11 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         selectedNodeId: resource.anchorNodeId,
       };
     });
+
+    const historyToSave = nextHistory;
+    if (historyToSave) {
+      scheduleIdleBrowserWork(() => saveResourceHistory(historyToSave));
+    }
   },
   clearResourceBrowser: () => {
     set({
@@ -1277,6 +1283,23 @@ function saveResourceHistory(history: RecipeBrowserResource[]) {
   } catch {
     // Best effort cache: failing to persist quick access should not block browsing.
   }
+}
+
+function scheduleIdleBrowserWork(callback: () => void) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const scheduler = window as Window & {
+    requestIdleCallback?: (handler: () => void, options?: { timeout: number }) => number;
+  };
+
+  if (scheduler.requestIdleCallback) {
+    scheduler.requestIdleCallback(callback, { timeout: 1000 });
+    return;
+  }
+
+  queueMicrotask(callback);
 }
 
 function normalizeResourceHistory(value: unknown): RecipeBrowserResource[] {

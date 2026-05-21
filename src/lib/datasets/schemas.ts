@@ -51,6 +51,7 @@ export const datasetVersionSchema = z.object({
   recipeDatasetPath: z.string(),
   resourceIndexPath: z.string().optional(),
   recipeIndexPath: z.string().optional(),
+  recipeLookupIndexPath: z.string().optional(),
   checksumSha256: z.string().optional(),
   sourceInfo: datasetSourceInfoSchema,
 });

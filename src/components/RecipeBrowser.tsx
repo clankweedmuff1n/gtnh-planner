@@ -340,7 +340,7 @@ export function RecipeBrowser() {
     const cacheKey = getRecipeQueryKey(activeRecipeMap, recipePage);
     const cached = getCachedRecipeQuery(recipeQueryCacheRef.current, cacheKey);
     if (cached) {
-      return deferStateUpdate(() => {
+      return scheduleAfterPaint(() => {
         setFilteredRecipes(cached.recipes);
         setQueryTotal(cached.total);
         setAvailableRecipeMaps(cached.recipeMaps);
@@ -358,58 +358,61 @@ export function RecipeBrowser() {
       }
     });
 
-    queryRecipeDatasetRecipes(
-      datasetManifestUrl ?? DEFAULT_DATASET_MANIFEST_URL,
-      selectedDatasetVersion,
-      {
-        query,
-        resource: activeResource
-          ? {
-              kind: activeResource.kind,
-              id: activeResource.id,
-            }
-          : undefined,
-        mode: browserMode,
-        recipeMap: activeRecipeMap || undefined,
-        maxTier,
-        offset: recipePage * RECIPE_QUERY_LIMIT,
-        limit: RECIPE_QUERY_LIMIT,
-      },
-    )
-      .then((result) => {
-        if (cancelled) {
-          return;
-        }
-        setCachedRecipeQuery(recipeQueryCacheRef.current, cacheKey, result);
-        const effectiveRecipeMap = activeRecipeMap || result.recipeMaps[0] || "";
-        if (effectiveRecipeMap !== activeRecipeMap && recipePage === 0) {
-          setCachedRecipeQuery(
-            recipeQueryCacheRef.current,
-            getRecipeQueryKey(effectiveRecipeMap, 0),
-            result,
-          );
-        }
-        trimRecipeQueryCache(recipeQueryCacheRef.current);
-        setFilteredRecipes(result.recipes);
-        setQueryTotal(result.total);
-        setAvailableRecipeMaps(result.recipeMaps);
-        setRecipeMapIcons(result.recipeMapIcons ?? {});
-        setRecipeQueryLoading(false);
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-        setFilteredRecipes([]);
-        setQueryTotal(0);
-        setAvailableRecipeMaps([]);
-        setRecipeMapIcons({});
-        setRecipeQueryError(error instanceof Error ? error.message : "Recipe query failed.");
-        setRecipeQueryLoading(false);
-      });
+    const cancelAfterPaint = scheduleAfterPaint(() => {
+      void queryRecipeDatasetRecipes(
+        datasetManifestUrl ?? DEFAULT_DATASET_MANIFEST_URL,
+        selectedDatasetVersion,
+        {
+          query,
+          resource: activeResource
+            ? {
+                kind: activeResource.kind,
+                id: activeResource.id,
+              }
+            : undefined,
+          mode: browserMode,
+          recipeMap: activeRecipeMap || undefined,
+          maxTier,
+          offset: recipePage * RECIPE_QUERY_LIMIT,
+          limit: RECIPE_QUERY_LIMIT,
+        },
+      )
+        .then((result) => {
+          if (cancelled) {
+            return;
+          }
+          setCachedRecipeQuery(recipeQueryCacheRef.current, cacheKey, result);
+          const effectiveRecipeMap = activeRecipeMap || result.recipeMaps[0] || "";
+          if (effectiveRecipeMap !== activeRecipeMap && recipePage === 0) {
+            setCachedRecipeQuery(
+              recipeQueryCacheRef.current,
+              getRecipeQueryKey(effectiveRecipeMap, 0),
+              result,
+            );
+          }
+          trimRecipeQueryCache(recipeQueryCacheRef.current);
+          setFilteredRecipes(result.recipes);
+          setQueryTotal(result.total);
+          setAvailableRecipeMaps(result.recipeMaps);
+          setRecipeMapIcons(result.recipeMapIcons ?? {});
+          setRecipeQueryLoading(false);
+        })
+        .catch((error) => {
+          if (cancelled) {
+            return;
+          }
+          setFilteredRecipes([]);
+          setQueryTotal(0);
+          setAvailableRecipeMaps([]);
+          setRecipeMapIcons({});
+          setRecipeQueryError(error instanceof Error ? error.message : "Recipe query failed.");
+          setRecipeQueryLoading(false);
+        });
+    });
 
     return () => {
       cancelled = true;
+      cancelAfterPaint();
     };
   }, [
     activeRecipeMap,
@@ -422,7 +425,6 @@ export function RecipeBrowser() {
     recipePage,
     selectedDatasetVersion,
   ]);
-
   return (
     <>
       <aside className="relative flex h-full min-h-[360px] flex-col border-r border-neutral-800 bg-[#25272c] text-neutral-100">
@@ -784,8 +786,7 @@ function ResourceResultPage({
       role="listbox"
     >
       {resources.map((resource) => {
-        const active =
-          activeResource?.kind === resource.kind && activeResource.id === resource.id;
+        const active = activeResource?.kind === resource.kind && activeResource.id === resource.id;
 
         return (
           <button
@@ -1361,9 +1362,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
           scale={2}
           compact
           className="mx-auto"
-          onSlotClick={
-            onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined
-          }
+          onSlotClick={onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined}
         />
       </div>
       {primary ? (
@@ -1421,6 +1420,31 @@ function deferStateUpdate(callback: () => void) {
 
   return () => {
     cancelled = true;
+  };
+}
+
+function scheduleAfterPaint(callback: () => void) {
+  if (typeof window === "undefined") {
+    callback();
+    return () => undefined;
+  }
+
+  let cancelled = false;
+  let firstFrame = 0;
+  let secondFrame = 0;
+
+  firstFrame = window.requestAnimationFrame(() => {
+    secondFrame = window.requestAnimationFrame(() => {
+      if (!cancelled) {
+        callback();
+      }
+    });
+  });
+
+  return () => {
+    cancelled = true;
+    window.cancelAnimationFrame(firstFrame);
+    window.cancelAnimationFrame(secondFrame);
   };
 }
 

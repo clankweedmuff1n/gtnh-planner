@@ -37,6 +37,7 @@ export interface DatasetVersion {
   recipeDatasetPath: string;
   resourceIndexPath?: string;
   recipeIndexPath?: string;
+  recipeLookupIndexPath?: string;
   checksumSha256?: string;
   sourceInfo: DatasetSourceInfo;
 }

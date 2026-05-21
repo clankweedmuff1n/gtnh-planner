@@ -6,7 +6,6 @@ import {
   Controls,
   ConnectionMode,
   EdgeLabelRenderer,
-  MarkerType,
   ReactFlow,
   applyNodeChanges,
   getSmoothStepPath,
@@ -44,6 +43,9 @@ const nodeTypes = {
 const edgeTypes = {
   resourceEdge: ResourceEdge,
 } satisfies EdgeTypes;
+
+const DEFAULT_ITEM_EDGE_COLOR = "#8b8f98";
+const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
 
 type ResourceEdgeData = {
   resource: Pick<
@@ -176,12 +178,8 @@ export function FactoryFlow() {
           : targetStorage
             ? `${targetStorage.kind}:${targetStorage.resourceId}`
             : undefined;
-        const edgeColor = edgeResult?.isLimited
-          ? "#dc2626"
-          : edge.resourceKind === "fluid"
-            ? "#0284c7"
-            : "#0f766e";
         const resource = getEdgeResource(project, edge);
+        const edgeColor = getInitialResourceColor(resource);
         const isStorageEdgeActive =
           !isStorageEdge || hoveredStorageResourceKey === storageResourceKey;
         const isSearchEdgeActive = edgeMatchesSearch(edge, resource, recipeSearch);
@@ -204,10 +202,6 @@ export function FactoryFlow() {
             isLimited: edgeResult?.isLimited === true,
             isStorageEdge,
             showLabel: isStorageEdge ? showStorageEdge : true,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: edgeColor,
           },
           style: {
             stroke: edgeColor,
@@ -472,11 +466,15 @@ function ResourceEdge({
   targetX,
   targetY,
   targetPosition,
-  markerEnd,
   style,
   selected,
   data,
 }: EdgeProps<ResourceFlowEdge>) {
+  const resourceColor = useResourceEdgeColor(
+    data?.resource,
+    data?.color ?? DEFAULT_ITEM_EDGE_COLOR,
+  );
+  const edgeColor = resourceColor;
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -494,10 +492,19 @@ function ResourceEdge({
     <>
       <BaseEdge
         path={edgePath}
-        markerEnd={markerEnd}
         style={{
           ...style,
+          stroke: edgeColor,
           strokeWidth: selected ? 5 : style?.strokeWidth,
+          filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
+        }}
+      />
+      <polygon
+        points={getArrowHeadPoints(targetX, targetY, targetPosition)}
+        fill={edgeColor}
+        stroke="#252525"
+        strokeWidth={selected ? 1.4 : 0.8}
+        style={{
           filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
         }}
       />
@@ -509,7 +516,7 @@ function ResourceEdge({
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: "all",
               color: data.isLimited ? "#fecaca" : "#f8fafc",
-              borderColor: data.color,
+              borderColor: edgeColor,
               boxShadow: selected ? "0 0 0 2px rgba(34,211,238,0.9)" : undefined,
             }}
             title={`${data.resource.displayName ?? data.resource.id}: ${rate}`}
@@ -527,6 +534,229 @@ function ResourceEdge({
       ) : null}
     </>
   );
+}
+
+const sampledResourceColorCache = new Map<string, string>();
+const pendingResourceColorCache = new Map<string, Promise<string>>();
+
+function useResourceEdgeColor(
+  resource: ResourceEdgeData["resource"] | undefined,
+  fallbackColor: string,
+) {
+  const initialColor = resource ? getInitialResourceColor(resource) : fallbackColor;
+  const key = getResourceIconColorKey(resource);
+  const [sampledColor, setSampledColor] = useState<{
+    key: string;
+    color: string;
+  }>();
+
+  useEffect(() => {
+    if (!resource || !key) {
+      return;
+    }
+
+    let cancelled = false;
+    const cachedColor = sampledResourceColorCache.get(key);
+    let pendingColor: Promise<string> | undefined = cachedColor
+      ? Promise.resolve(cachedColor)
+      : pendingResourceColorCache.get(key);
+
+    if (!pendingColor) {
+      pendingColor = sampleResourceIconColor(resource)
+        .then((sampledColor) => {
+          sampledResourceColorCache.set(key, sampledColor);
+          pendingResourceColorCache.delete(key);
+          return sampledColor;
+        })
+        .catch(() => {
+          pendingResourceColorCache.delete(key);
+          return initialColor;
+        });
+      pendingResourceColorCache.set(key, pendingColor);
+    }
+
+    pendingColor.then((sampledColor) => {
+      if (!cancelled) {
+        setSampledColor({ key, color: sampledColor });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialColor, key, resource]);
+
+  if (sampledColor && sampledColor.key === key) {
+    return sampledColor.color;
+  }
+
+  return initialColor;
+}
+
+function getInitialResourceColor(resource: ResourceEdgeData["resource"]) {
+  return (
+    resource.iconAtlas?.dominantColor ??
+    (resource.kind === "fluid" ? DEFAULT_FLUID_EDGE_COLOR : DEFAULT_ITEM_EDGE_COLOR)
+  );
+}
+
+function getResourceIconColorKey(resource: ResourceEdgeData["resource"] | undefined) {
+  if (!resource) {
+    return undefined;
+  }
+
+  if (resource.iconAtlas) {
+    return [
+      "atlas",
+      resource.iconAtlas.imagePath,
+      resource.iconAtlas.x,
+      resource.iconAtlas.y,
+      resource.iconAtlas.width,
+      resource.iconAtlas.height,
+    ].join(":");
+  }
+
+  return resource.iconPath ? `path:${resource.iconPath}` : undefined;
+}
+
+async function sampleResourceIconColor(resource: ResourceEdgeData["resource"]) {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return getInitialResourceColor(resource);
+  }
+
+  const iconAtlas = resource.iconAtlas;
+  const sourcePath = iconAtlas?.imagePath ?? resource.iconPath;
+  if (!sourcePath) {
+    return getInitialResourceColor(resource);
+  }
+
+  const image = await loadImage(sourcePath);
+  const canvas = document.createElement("canvas");
+  const sampleSize = 32;
+  canvas.width = sampleSize;
+  canvas.height = sampleSize;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    return getInitialResourceColor(resource);
+  }
+
+  context.imageSmoothingEnabled = false;
+  if (iconAtlas) {
+    context.drawImage(
+      image,
+      iconAtlas.x,
+      iconAtlas.y,
+      iconAtlas.width,
+      iconAtlas.height,
+      0,
+      0,
+      sampleSize,
+      sampleSize,
+    );
+  } else {
+    context.drawImage(image, 0, 0, sampleSize, sampleSize);
+  }
+
+  return getDominantImageDataColor(context.getImageData(0, 0, sampleSize, sampleSize).data);
+}
+
+function loadImage(sourcePath: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = new URL(sourcePath, window.location.origin).toString();
+  });
+}
+
+function getDominantImageDataColor(data: Uint8ClampedArray) {
+  const buckets = new Map<number, { weight: number; red: number; green: number; blue: number }>();
+
+  for (let index = 0; index < data.length; index += 4) {
+    const alpha = data[index + 3];
+    if (alpha < 24) {
+      continue;
+    }
+
+    const red = data[index];
+    const green = data[index + 1];
+    const blue = data[index + 2];
+    const { hue, saturation, lightness } = rgbToHsl(red, green, blue);
+    if (lightness < 0.05 || lightness > 0.96) {
+      continue;
+    }
+
+    const bucket = Math.round(hue / 12) * 12;
+    const weight = (alpha / 255) * (0.35 + saturation * 1.65);
+    const current = buckets.get(bucket) ?? { weight: 0, red: 0, green: 0, blue: 0 };
+    current.weight += weight;
+    current.red += red * weight;
+    current.green += green * weight;
+    current.blue += blue * weight;
+    buckets.set(bucket, current);
+  }
+
+  const dominant = [...buckets.values()].sort((a, b) => b.weight - a.weight)[0];
+  if (!dominant || dominant.weight <= 0) {
+    return DEFAULT_ITEM_EDGE_COLOR;
+  }
+
+  return rgbToHex(
+    Math.round(dominant.red / dominant.weight),
+    Math.round(dominant.green / dominant.weight),
+    Math.round(dominant.blue / dominant.weight),
+  );
+}
+
+function rgbToHsl(red: number, green: number, blue: number) {
+  const r = red / 255;
+  const g = green / 255;
+  const b = blue / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+
+  if (max === min) {
+    return { hue: 0, saturation: 0, lightness };
+  }
+
+  const delta = max - min;
+  const saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+  let hue = 0;
+
+  if (max === r) {
+    hue = (g - b) / delta + (g < b ? 6 : 0);
+  } else if (max === g) {
+    hue = (b - r) / delta + 2;
+  } else {
+    hue = (r - g) / delta + 4;
+  }
+
+  return { hue: hue * 60, saturation, lightness };
+}
+
+function rgbToHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue]
+    .map((value) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function getArrowHeadPoints(targetX: number, targetY: number, targetPosition: unknown) {
+  const length = 11;
+  const width = 6;
+
+  switch (String(targetPosition)) {
+    case "right":
+      return `${targetX},${targetY} ${targetX + length},${targetY - width} ${targetX + length},${targetY + width}`;
+    case "top":
+      return `${targetX},${targetY} ${targetX - width},${targetY - length} ${targetX + width},${targetY - length}`;
+    case "bottom":
+      return `${targetX},${targetY} ${targetX - width},${targetY + length} ${targetX + width},${targetY + length}`;
+    case "left":
+    default:
+      return `${targetX},${targetY} ${targetX - length},${targetY - width} ${targetX - length},${targetY + width}`;
+  }
 }
 
 function isCompatibleResourceConnection(connection: Connection | Edge): boolean {

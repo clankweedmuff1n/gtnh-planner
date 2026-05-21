@@ -10,6 +10,10 @@ export const resourceIconAtlasRefSchema = z.object({
   y: z.number().int().min(0),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  dominantColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
 });
 export const factoryNodeColorTagSchema = z.enum([
   "white",

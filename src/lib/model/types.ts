@@ -15,6 +15,7 @@ export interface ResourceIconAtlasRef {
   y: number;
   width: number;
   height: number;
+  dominantColor?: string;
 }
 
 export type MachineTier =

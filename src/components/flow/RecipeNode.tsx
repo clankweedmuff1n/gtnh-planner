@@ -142,6 +142,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
             scale={2}
             compact
             className={nodeColor ? "recipe-node-nei-tint" : undefined}
+            canvasClassName={nodeColor ? "recipe-node-canvas-tint" : undefined}
             getSlotConnectionAttributes={(slot) => {
               if (slot.side === "input" && !isRecipeInputConsumed(slot.resource)) {
                 return undefined;
@@ -216,7 +217,10 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         </div>
 
         <div
-          className="mt-1 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-1 text-[12px] leading-4 text-black"
+          className={[
+            "mt-1 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-1 text-[12px] leading-4 text-black",
+            nodeColor ? "recipe-node-stat-grid" : "",
+          ].join(" ")}
           style={nodeColor ? { backgroundColor: nodeColor.panel } : undefined}
         >
           <MachineCountStat

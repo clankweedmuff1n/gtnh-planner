@@ -134,3 +134,20 @@ textarea {
 .recipe-node-tinted-area .recipe-node-nei-tint > div > div {
   background: color-mix(in srgb, var(--recipe-node-tint) 24%, #c6c6c6);
 }
+
+.recipe-node-canvas-tint::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--recipe-node-tint-header) 28%, transparent);
+}
+
+.recipe-node-stat-grid > div {
+  background: color-mix(in srgb, var(--recipe-node-tint) 54%, #b6b6b6);
+  border-color: color-mix(in srgb, var(--recipe-node-tint-border) 42%, #777);
+}
+
+.recipe-node-stat-grid input {
+  background: color-mix(in srgb, var(--recipe-node-tint) 18%, #d8d8d8);
+}

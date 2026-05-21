@@ -45,6 +45,7 @@ export function NeiRecipeCanvas({
   const height = getCanvasHeight(renderLayout.frames, renderLayout.logoY) * renderScale;
   const slotSize = layout.slotSize * renderScale;
   const renderedIconPixelSize = iconPixelSize ?? slotSize;
+  const logoX = Math.min(layout.logo.x, layout.canvas.width - 20);
 
   return (
     <div
@@ -105,7 +106,7 @@ export function NeiRecipeCanvas({
       <div
         className="absolute"
         style={{
-          left: layout.logo.x * renderScale,
+          left: logoX * renderScale,
           top: renderLayout.logoY * renderScale,
           width: 17 * renderScale,
           height: 17 * renderScale,

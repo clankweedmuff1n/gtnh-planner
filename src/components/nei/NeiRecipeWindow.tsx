@@ -13,6 +13,7 @@ interface NeiRecipeWindowProps {
   recipe: Recipe;
   scale?: number;
   className?: string;
+  canvasClassName?: string;
   compact?: boolean;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
@@ -23,6 +24,7 @@ export function NeiRecipeWindow({
   recipe,
   scale = 2,
   className = "",
+  canvasClassName = "",
   compact = false,
   renderHandle,
   getSlotConnectionAttributes,
@@ -55,6 +57,7 @@ export function NeiRecipeWindow({
             scale={scale}
             slotPixelSize={compact ? QUICK_SLOT_PIXEL_SIZE : undefined}
             iconPixelSize={compact ? QUICK_SLOT_ICON_PIXEL_SIZE : undefined}
+            className={canvasClassName}
             renderHandle={renderHandle}
             getSlotConnectionAttributes={getSlotConnectionAttributes}
             onSlotClick={onSlotClick}

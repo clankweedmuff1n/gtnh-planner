@@ -949,12 +949,7 @@ function getSlotEdgeEndpointFromDom(
   }
 
   const slotRect = slotElement.getBoundingClientRect();
-  const screenX =
-    slotElement.dataset.resourceEdgeAnchor === "true"
-      ? slotRect.left + slotRect.width / 2
-      : String(position) === "left"
-        ? slotRect.left
-        : slotRect.right;
+  const screenX = String(position) === "left" ? slotRect.left : slotRect.right;
   const screenY = slotRect.top + slotRect.height / 2;
   return screenToFlowPosition({ x: screenX, y: screenY });
 }

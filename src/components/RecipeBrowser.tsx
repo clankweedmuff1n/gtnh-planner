@@ -460,14 +460,20 @@ function ResourceHistoryPanel({
     mode: "recipes" | "uses",
   ) => void;
 }) {
+  const { containerRef, visibleSlotCount } = useVisibleResourceHistorySlots();
+  const visibleResources = resources.slice(0, visibleSlotCount);
+
   if (resources.length === 0) {
     return null;
   }
 
   return (
     <div className="pointer-events-auto z-20 h-[58px] shrink-0 overflow-hidden border-t border-neutral-700 bg-[#111317] p-2 shadow-[0_-8px_18px_rgba(0,0,0,0.22)]">
-      <div className="flex flex-nowrap gap-2 overflow-hidden">
-        {resources.map((resource) => (
+      <div
+        ref={containerRef}
+        className="grid min-w-0 grid-flow-col auto-cols-[40px] gap-2 overflow-hidden"
+      >
+        {visibleResources.map((resource) => (
           <button
             key={`${resource.kind}:${resource.id}`}
             type="button"
@@ -491,6 +497,32 @@ function ResourceHistoryPanel({
       </div>
     </div>
   );
+}
+
+function useVisibleResourceHistorySlots() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [visibleSlotCount, setVisibleSlotCount] = useState(1);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const updateVisibleSlotCount = () => {
+      const slotSize = 40;
+      const gap = 8;
+      const width = container.clientWidth;
+      setVisibleSlotCount(Math.max(1, Math.floor((width + gap) / (slotSize + gap))));
+    };
+
+    updateVisibleSlotCount();
+    const observer = new ResizeObserver(updateVisibleSlotCount);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  return { containerRef, visibleSlotCount };
 }
 
 interface IndexedResource extends Pick<

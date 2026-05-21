@@ -54,6 +54,7 @@ const connectionLineStyle = {
 
 const DEFAULT_ITEM_EDGE_COLOR = "#8b8f98";
 const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
+const RECIPE_SLOT_EDGE_OFFSET = 20;
 
 type ResourceEdgeData = {
   resource: Pick<
@@ -67,6 +68,8 @@ type ResourceEdgeData = {
   isLimited: boolean;
   isStorageEdge: boolean;
   showLabel: boolean;
+  sourceSlotEndpoint: boolean;
+  targetSlotEndpoint: boolean;
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -195,6 +198,8 @@ export function FactoryFlow() {
             : undefined;
         const resource = getEdgeResource(project, edge);
         const edgeColor = getInitialResourceColor(resource);
+        const sourceHandle = parseResourceHandleId(edge.sourceHandle);
+        const targetHandle = parseResourceHandleId(edge.targetHandle);
         const isStorageEdgeActive =
           !isStorageEdge || hoveredStorageResourceKey === storageResourceKey;
         const isSearchEdgeActive = edgeMatchesSearch(edge, resource, recipeSearch);
@@ -219,6 +224,8 @@ export function FactoryFlow() {
             isLimited: edgeResult?.isLimited === true,
             isStorageEdge,
             showLabel: true,
+            sourceSlotEndpoint: Boolean(sourceHandle && !sourceStorage),
+            targetSlotEndpoint: Boolean(targetHandle && !targetStorage),
           },
           style: {
             stroke: edgeColor,
@@ -288,7 +295,10 @@ export function FactoryFlow() {
   );
 
   const handleConnectStart = useCallback(
-    (event: MouseEvent | TouchEvent, params: { nodeId: string | null; handleId: string | null }) => {
+    (
+      event: MouseEvent | TouchEvent,
+      params: { nodeId: string | null; handleId: string | null },
+    ) => {
       connectCompletedRef.current = false;
       lastConnectionPointerRef.current = getClientPosition(event);
       draggedResourceRef.current =
@@ -676,18 +686,18 @@ function ResourceEdge({
     data?.color ?? DEFAULT_ITEM_EDGE_COLOR,
   );
   const edgeColor = resourceColor;
+  const visualSourceX = getSlotEdgeX(sourceX, sourcePosition, data?.sourceSlotEndpoint);
+  const visualTargetX = getSlotEdgeX(targetX, targetPosition, data?.targetSlotEndpoint);
   const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
+    sourceX: visualSourceX,
     sourceY,
     sourcePosition,
-    targetX,
+    targetX: visualTargetX,
     targetY,
     targetPosition,
   });
 
-  const rate = data?.isLimited
-    ? `${data.transferred}/${data.demand}${data.unit}`
-    : `${data?.demand}${data?.unit}`;
+  const rate = formatEdgeRateLabel(data);
 
   return (
     <>
@@ -701,7 +711,7 @@ function ResourceEdge({
         }}
       />
       <polygon
-        points={getArrowHeadPoints(targetX, targetY, targetPosition)}
+        points={getArrowHeadPoints(visualTargetX, targetY, targetPosition)}
         fill={edgeColor}
         stroke="#252525"
         strokeWidth={selected ? 1.4 : 0.8}
@@ -778,6 +788,57 @@ function ResourceConnectionLine({
       <circle cx={toX} cy={toY} r={6} fill={color} stroke="#052e36" strokeWidth={2} />
     </g>
   );
+}
+
+function getSlotEdgeX(x: number, position: unknown, isRecipeSlotEndpoint?: boolean) {
+  if (!isRecipeSlotEndpoint) {
+    return x;
+  }
+
+  switch (String(position)) {
+    case "right":
+      return x + RECIPE_SLOT_EDGE_OFFSET;
+    case "left":
+      return x - RECIPE_SLOT_EDGE_OFFSET;
+    default:
+      return x;
+  }
+}
+
+function formatEdgeRateLabel(data: ResourceEdgeData | undefined) {
+  if (!data) {
+    return "";
+  }
+
+  if (data.isLimited && data.transferred !== undefined) {
+    return `${formatEdgeRate(data.transferred, data.unit)} / ${formatEdgeRate(
+      data.demand,
+      data.unit,
+    )}`;
+  }
+
+  return formatEdgeRate(data.demand, data.unit);
+}
+
+function formatEdgeRate(valueText: string, unit: string) {
+  const value = Number(valueText);
+  if (!Number.isFinite(value)) {
+    return `${valueText} ${unit}`.trim();
+  }
+
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (unit === "L/s" && abs >= 1000) {
+    return `${sign}${trimEdgeNumber(abs / 1000)} kL/s`;
+  }
+
+  return `${trimEdgeNumber(value)}${unit}`;
+}
+
+function trimEdgeNumber(value: number) {
+  const abs = Math.abs(value);
+  const digits = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  return value.toFixed(digits).replace(/\.?0+$/, "");
 }
 
 function isPointerOverFlowHandle(event: MouseEvent | TouchEvent) {

@@ -866,7 +866,7 @@ function RecipeMapTabBar({
   return (
     <div
       className={[
-        "absolute left-1 right-1 top-0 grid h-[102px] items-start border-2 border-[#f4f4f4] bg-[#c6c6c6] p-1 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]",
+        "grid h-[102px] shrink-0 items-start border-b-2 border-[#777] bg-[#c6c6c6] p-1 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_0_0_#555]",
         hasOverflow ? "grid-cols-[42px_minmax(0,1fr)_42px]" : "grid-cols-[minmax(0,1fr)]",
       ].join(" ")}
     >
@@ -1003,7 +1003,7 @@ function RecipeBookOverlay({
     <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center px-3 py-4 lg:left-[360px] lg:right-[440px]">
       <section
         ref={panelRef}
-        className="pointer-events-auto relative flex flex-col pt-[104px] font-mono"
+        className="pointer-events-auto relative flex flex-col font-mono"
         aria-label="Recipe book"
         style={{
           transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
@@ -1011,14 +1011,14 @@ function RecipeBookOverlay({
           height: `min(${panelSize.height}px, calc(100vh - 32px))`,
         }}
       >
-        <RecipeMapTabBar
-          activeRecipeMap={activeRecipeMap}
-          tabs={recipeMapTabs}
-          onRecipeMapChange={onRecipeMapChange}
-          onRecipeMapHover={onRecipeMapHover}
-        />
-
         <div className="relative flex min-h-0 flex-1 flex-col border-2 border-[#f4f4f4] bg-[#c6c6c6] text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]">
+          <RecipeMapTabBar
+            activeRecipeMap={activeRecipeMap}
+            tabs={recipeMapTabs}
+            onRecipeMapChange={onRecipeMapChange}
+            onRecipeMapHover={onRecipeMapHover}
+          />
+
           <div className="grid grid-cols-[24px_minmax(0,1fr)_24px] items-center px-2 pt-2">
             <div />
             <div

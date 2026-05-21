@@ -19,7 +19,7 @@ import {
   type OnSelectionChangeParams,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import { X } from "lucide-react";
+import { Paintbrush, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatRate, isRecipeInputConsumed } from "@/lib/model";
 import type {
@@ -31,7 +31,7 @@ import type {
 import { useFactoryStore } from "@/store/factory-store";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
 import { RecipeNode, type RecipeFlowNode } from "./RecipeNode";
-import { GT_NODE_COLOR_PALETTE } from "./node-colors";
+import { GT_NODE_COLORS, GT_NODE_COLOR_PALETTE } from "./node-colors";
 import { parseResourceHandleId } from "./resource-handles";
 import { StorageNode, type StorageFlowNode } from "./StorageNode";
 
@@ -427,34 +427,64 @@ function PaintToolbar({
   paintMode?: FactoryNodeColorTag | null;
   onPaintModeChange: (tag: FactoryNodeColorTag | null | undefined) => void;
 }) {
+  const activeColor = paintMode ? GT_NODE_COLORS[paintMode] : undefined;
+
   return (
-    <div className="nodrag absolute bottom-12 right-3 z-20 grid w-[156px] grid-cols-5 gap-1 border-2 border-[#252525] bg-[#c6c6c6] p-1 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]">
+    <div className="nodrag group absolute bottom-12 right-3 z-20">
       <button
         type="button"
-        onClick={() => onPaintModeChange(paintMode === null ? undefined : null)}
+        onClick={() => {
+          if (paintMode !== undefined) {
+            onPaintModeChange(undefined);
+          }
+        }}
         className={[
-          "flex h-7 w-7 items-center justify-center border-2 bg-[#7d7d7d] text-white shadow-[inset_1px_1px_0_#d8d8d8,inset_-1px_-1px_0_#404040]",
-          paintMode === null ? "border-white" : "border-[#252525]",
+          "relative z-10 flex h-9 w-9 items-center justify-center border-2 border-[#252525] bg-[#7d7d7d] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040]",
+          paintMode !== undefined ? "ring-2 ring-cyan-300" : "",
         ].join(" ")}
-        title="Erase colors"
-        aria-label="Erase colors"
+        title={paintMode !== undefined ? "Stop painting" : "Paint nodes"}
+        aria-label={paintMode !== undefined ? "Stop painting" : "Paint nodes"}
       >
-        <X className="h-3.5 w-3.5" />
+        {paintMode === undefined ? (
+          <Paintbrush className="h-4 w-4" />
+        ) : paintMode === null ? (
+          <X className="h-4 w-4" />
+        ) : (
+          <span
+            className="h-5 w-5 border-2 border-[#252525] shadow-[inset_1px_1px_0_rgba(255,255,255,0.45),inset_-1px_-1px_0_rgba(0,0,0,0.45)]"
+            style={{ backgroundColor: activeColor?.swatch }}
+          />
+        )}
       </button>
-      {GT_NODE_COLOR_PALETTE.map((entry) => (
+
+      <div className="pointer-events-none absolute bottom-0 right-10 grid w-[156px] translate-x-2 grid-cols-5 gap-1 border-2 border-[#252525] bg-[#c6c6c6] p-1 opacity-0 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555] transition-[opacity,transform] duration-100 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100">
         <button
-          key={entry.tag}
           type="button"
-          onClick={() => onPaintModeChange(paintMode === entry.tag ? undefined : entry.tag)}
+          onClick={() => onPaintModeChange(paintMode === null ? undefined : null)}
           className={[
-            "h-7 w-7 border-2 shadow-[inset_1px_1px_0_rgba(255,255,255,0.45),inset_-1px_-1px_0_rgba(0,0,0,0.45)]",
-            paintMode === entry.tag ? "border-white" : "border-[#252525]",
+            "flex h-7 w-7 items-center justify-center border-2 bg-[#7d7d7d] text-white shadow-[inset_1px_1px_0_#d8d8d8,inset_-1px_-1px_0_#404040]",
+            paintMode === null ? "border-white ring-2 ring-cyan-300" : "border-[#252525]",
           ].join(" ")}
-          style={{ backgroundColor: entry.color.swatch }}
-          title={entry.tag}
-          aria-label={`Paint ${entry.tag}`}
-        />
-      ))}
+          title="Erase colors"
+          aria-label="Erase colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+        {GT_NODE_COLOR_PALETTE.map((entry) => (
+          <button
+            key={entry.tag}
+            type="button"
+            onClick={() => onPaintModeChange(paintMode === entry.tag ? undefined : entry.tag)}
+            className={[
+              "h-7 w-7 border-2 shadow-[inset_1px_1px_0_rgba(255,255,255,0.45),inset_-1px_-1px_0_rgba(0,0,0,0.45)]",
+              paintMode === entry.tag ? "border-white ring-2 ring-cyan-300" : "border-[#252525]",
+            ].join(" ")}
+            style={{ backgroundColor: entry.color.swatch }}
+            title={entry.tag}
+            aria-label={`Paint ${entry.tag}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }

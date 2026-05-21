@@ -174,3 +174,50 @@ jobs:
           git commit -m "Update GTNH datasets"
           git pull --rebase origin main
           git push
+
+  deploy:
+    name: Deploy site to exotiserver
+    needs: publish
+    if: ${{ needs.publish.result == 'success' }}
+    runs-on: [self-hosted, Linux, X64, gtnh-export]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Checkout latest published main
+        run: |
+          git fetch origin main
+          git checkout --detach origin/main
+          git log -1 --oneline
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Build and activate release
+        run: |
+          set -euo pipefail
+          release_sha="$(git rev-parse --short=10 HEAD)"
+          app_root="$HOME/apps/gtnh-factory-flow"
+          release_dir="$app_root/releases/$release_sha"
+
+          rm -rf "$release_dir"
+          mkdir -p "$release_dir"
+          git archive --format=tar HEAD | tar -xf - -C "$release_dir"
+
+          cd "$release_dir"
+          npm install
+          npm run build
+
+          ln -sfn "$release_dir" "$app_root/current.next"
+          mv -Tf "$app_root/current.next" "$app_root/current"
+          systemctl --user restart gtnh-factory-flow.service
+          systemctl --user --no-pager --full status gtnh-factory-flow.service
+
+          find "$app_root/releases" -mindepth 1 -maxdepth 1 -type d ! -name "$release_sha" -printf '%T@ %p\n' \
+            | sort -nr \
+            | tail -n +4 \
+            | cut -d' ' -f2- \
+            | xargs -r rm -rf

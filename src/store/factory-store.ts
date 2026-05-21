@@ -171,6 +171,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   setDataset: (dataset) => {
     set((state) => ({
       dataset,
+      project: refreshProjectResourceIcons(state.project, dataset),
+      recipeResourceHistory: refreshResourceHistoryIcons(state.recipeResourceHistory, dataset),
+      recipeBrowserResource: state.recipeBrowserResource
+        ? refreshBrowserResourceIcon(state.recipeBrowserResource, dataset)
+        : undefined,
+      pendingResourceConnection: state.pendingResourceConnection
+        ? refreshPendingResourceConnectionIcon(state.pendingResourceConnection, dataset)
+        : undefined,
       selectedDatasetVersionId: dataset.datasetVersionId,
       selectedRecipeId: state.selectedRecipeId ?? dataset.recipes[0]?.id,
       datasetError: undefined,
@@ -1033,6 +1041,115 @@ function isStoredRecipeBrowserResource(value: unknown): value is RecipeBrowserRe
     (resource.iconPath === undefined || typeof resource.iconPath === "string") &&
     (resource.iconAtlas === undefined || typeof resource.iconAtlas === "object")
   );
+}
+
+type IconResource = Pick<
+  ResourceAmount,
+  "kind" | "id" | "displayName" | "iconPath" | "iconAtlas"
+>;
+
+function refreshProjectResourceIcons(project: FactoryProject, dataset: RecipeDataset): FactoryProject {
+  const iconsByResource = getDatasetIconLookup(dataset);
+
+  return {
+    ...project,
+    recipes: project.recipes.map((recipe) => ({
+      ...recipe,
+      inputs: recipe.inputs.map((input) => refreshResourceIcon(input, iconsByResource)),
+      outputs: recipe.outputs.map((output) => refreshResourceIcon(output, iconsByResource)),
+    })),
+    storages: project.storages?.map((storage) =>
+      refreshStorageIcon(storage, iconsByResource),
+    ),
+  };
+}
+
+function refreshResourceHistoryIcons(
+  history: RecipeBrowserResource[],
+  dataset: RecipeDataset,
+): RecipeBrowserResource[] {
+  const iconsByResource = getDatasetIconLookup(dataset);
+  return history.map((resource) => refreshBrowserResourceIcon(resource, dataset, iconsByResource));
+}
+
+function refreshBrowserResourceIcon(
+  resource: RecipeBrowserResource,
+  dataset: RecipeDataset,
+  iconsByResource = getDatasetIconLookup(dataset),
+): RecipeBrowserResource {
+  return refreshResourceIcon(resource, iconsByResource);
+}
+
+function refreshPendingResourceConnectionIcon(
+  resource: PendingResourceConnection,
+  dataset: RecipeDataset,
+): PendingResourceConnection {
+  const indexed = getDatasetIconLookup(dataset).get(`${resource.kind}:${resource.resourceId}`);
+  if (!indexed) {
+    return isLegacyRenderedIconPath(resource.iconPath) ? { ...resource, iconPath: undefined } : resource;
+  }
+
+  return {
+    ...resource,
+    displayName: resource.displayName ?? indexed.displayName,
+    iconPath: indexed.iconPath,
+    iconAtlas: indexed.iconAtlas,
+  };
+}
+
+function refreshStorageIcon(
+  storage: FactoryStorage,
+  iconsByResource: Map<string, IconResource>,
+): FactoryStorage {
+  const indexed = iconsByResource.get(`${storage.kind}:${storage.resourceId}`);
+  if (!indexed) {
+    return isLegacyRenderedIconPath(storage.iconPath) ? { ...storage, iconPath: undefined } : storage;
+  }
+
+  return {
+    ...storage,
+    displayName: storage.displayName ?? indexed.displayName,
+    iconPath: indexed.iconPath,
+    iconAtlas: indexed.iconAtlas,
+  };
+}
+
+function refreshResourceIcon<T extends IconResource>(
+  resource: T,
+  iconsByResource: Map<string, IconResource>,
+): T {
+  const indexed = iconsByResource.get(getResourceKey(resource));
+  if (!indexed) {
+    return isLegacyRenderedIconPath(resource.iconPath) ? { ...resource, iconPath: undefined } : resource;
+  }
+
+  return {
+    ...resource,
+    displayName: resource.displayName ?? indexed.displayName,
+    iconPath: indexed.iconPath,
+    iconAtlas: indexed.iconAtlas,
+  };
+}
+
+function getDatasetIconLookup(dataset: RecipeDataset): Map<string, IconResource> {
+  const iconsByResource = new Map<string, IconResource>();
+  for (const resource of [...dataset.resources, ...(dataset.resourceIndex ?? [])]) {
+    if (!resource.iconPath && !resource.iconAtlas) {
+      continue;
+    }
+
+    const key = getResourceKey(resource);
+    const existing = iconsByResource.get(key);
+    if (!existing || (!existing.iconAtlas && resource.iconAtlas)) {
+      iconsByResource.set(key, resource);
+    }
+  }
+
+  return iconsByResource;
+}
+
+function isLegacyRenderedIconPath(iconPath: string | undefined): boolean {
+  return typeof iconPath === "string" && iconPath.includes("/textures/rendered/");
 }
 
 function createId(prefix: string): string {

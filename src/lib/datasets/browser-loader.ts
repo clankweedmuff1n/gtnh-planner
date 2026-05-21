@@ -212,7 +212,7 @@ function getDatasetWorker(): Worker {
 
 function getDatasetCacheKey(version: DatasetVersion): string {
   return [
-    "worker-v2",
+    "worker-v3",
     version.id,
     version.recipeDatasetPath,
     version.checksumSha256,

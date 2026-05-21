@@ -102,11 +102,15 @@ function enrichResource<T extends ResourceAmount>(
     ...indexed,
     ...resource,
     displayName: resource.displayName ?? indexed.displayName,
-    iconPath: resource.iconPath ?? indexed.iconPath,
+    iconPath: isLegacyRenderedIconPath(resource.iconPath) ? indexed.iconPath : (resource.iconPath ?? indexed.iconPath),
     iconAtlas: resource.iconAtlas ?? indexed.iconAtlas,
     tooltip: resource.tooltip ?? indexed.tooltip,
     modId: resource.modId ?? indexed.modId,
   };
+}
+
+function isLegacyRenderedIconPath(iconPath: string | undefined): boolean {
+  return typeof iconPath === "string" && iconPath.includes("/textures/rendered/");
 }
 
 function buildRecipeMapSlotCapacities(recipes: Recipe[]): Map<string, RecipeMapSlotCapacity> {

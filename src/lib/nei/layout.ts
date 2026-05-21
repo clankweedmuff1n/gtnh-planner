@@ -39,12 +39,7 @@ export interface NeiOverflowGroup {
   resourceCount: number;
 }
 
-export type NeiProgressTexture =
-  | "arrow"
-  | "arrow_multiple"
-  | "assemblyline_1"
-  | "assemblyline_2"
-  | "assemblyline_3";
+export type NeiProgressTexture = string;
 
 export interface NeiProgressBar {
   x: number;
@@ -234,9 +229,69 @@ export function getNeiRecipeLayout(recipe: Recipe): NeiRecipeLayout {
       fluidInputs: fluidInputs.length,
       fluidOutputs: fluidOutputs.length,
     }),
-    progressBars: definition.progressBars ?? DEFAULT_PROGRESS_BARS,
+    progressBars: getProgressBarsForRecipeMap(recipeMap, definition.progressBars),
     logo: definition.logo ?? { x: 152, y: 63 },
   };
+}
+
+function getProgressBarsForRecipeMap(
+  recipeMap: string,
+  progressBars = DEFAULT_PROGRESS_BARS,
+): NeiProgressBar[] {
+  const texture = getProgressTextureForRecipeMap(recipeMap);
+  return progressBars.map((bar) => ({
+    ...bar,
+    texture: bar.texture === "arrow" ? texture : bar.texture,
+  }));
+}
+
+function getProgressTextureForRecipeMap(recipeMap: string): NeiProgressTexture {
+  const normalized = recipeMap.toLowerCase();
+  const exact: Record<string, NeiProgressTexture> = {
+    assembler: "assemble",
+    canner: "canner",
+    centrifuge: "macerate",
+    "chemical bath": "bath",
+    "circuit assembler": "circuit_assembler",
+    clarifier: "clarifier",
+    compressor: "compress",
+    "cutting machine": "cut",
+    extractor: "extract",
+    extruder: "extrude",
+    "fluid canner": "canner",
+    "forge hammer": "hammer",
+    lathe: "lathe",
+    macerator: "macerate",
+    mixer: "mixer",
+    "ore washer": "bath",
+    ozonation: "ozonation",
+    "ph neutralization": "phneutralization",
+    sifter: "sift",
+    wiremill: "wiremill",
+    "zhuhai - fishing port": "fishing",
+  };
+
+  const exactMatch = exact[normalized];
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  if (normalized.includes("assembler")) return "assemble";
+  if (normalized.includes("bath") || normalized.includes("washer")) return "bath";
+  if (normalized.includes("bend")) return "bending";
+  if (normalized.includes("cann")) return "canner";
+  if (normalized.includes("compress")) return "compress";
+  if (normalized.includes("cut")) return "cut";
+  if (normalized.includes("extract")) return "extract";
+  if (normalized.includes("extrud")) return "extrude";
+  if (normalized.includes("hammer")) return "hammer";
+  if (normalized.includes("lathe")) return "lathe";
+  if (normalized.includes("macerat") || normalized.includes("mill")) return "macerate";
+  if (normalized.includes("mix")) return "mixer";
+  if (normalized.includes("sift")) return "sift";
+  if (normalized.includes("wire")) return "wiremill";
+
+  return "arrow";
 }
 
 function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLayoutDefinition {

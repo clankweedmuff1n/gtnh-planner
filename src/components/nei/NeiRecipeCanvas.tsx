@@ -389,7 +389,7 @@ function ProgressTexture({
         top: bar.y * scale,
         width: bar.width * scale,
         height: bar.height * scale,
-        backgroundImage: "url('/nei/gregtech/gui/progressbar/arrow.png')",
+        backgroundImage: `url('/nei/gregtech/gui/progressbar/${bar.texture}.png')`,
         backgroundPosition: "top left",
         backgroundSize: "100% 200%",
         imageRendering: "pixelated",

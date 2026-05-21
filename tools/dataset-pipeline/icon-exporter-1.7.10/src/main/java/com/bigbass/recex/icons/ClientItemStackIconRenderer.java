@@ -72,7 +72,7 @@ public final class ClientItemStackIconRenderer {
             if (!outFile.isFile()) {
                 BufferedImage image = renderStackToImage(renderStack);
                 applyMissingItemTint(renderStack, image);
-                image = renderWithEmptyCellBaseIfNeeded(renderStack, image);
+                image = renderWithContainerBaseIfNeeded(renderStack, image);
                 if (!imageHasVisiblePixels(image) || missingTextureRatio(image) > 0.5D) {
                     ICONS_BY_STACK_KEY.put(key, "");
                     return null;
@@ -175,19 +175,17 @@ public final class ClientItemStackIconRenderer {
         return imageFromRgbaBuffer(buffer);
     }
 
-    private static BufferedImage renderWithEmptyCellBaseIfNeeded(ItemStack stack, BufferedImage overlay) {
-        if (!shouldRenderEmptyCellBase(stack)) {
+    private static BufferedImage renderWithContainerBaseIfNeeded(ItemStack stack, BufferedImage overlay) {
+        if (!shouldRenderContainerBase(stack)) {
             return overlay;
         }
 
         try {
-            Item emptyCellItem = (Item) Item.itemRegistry.getObject("IC2:itemCellEmpty");
-            if (emptyCellItem == null) {
+            BufferedImage base = renderContainerBaseImage(stack);
+            if (base == null) {
                 return overlay;
             }
 
-            ItemStack emptyCell = new ItemStack(emptyCellItem, 1, 0);
-            BufferedImage base = renderStackToImage(emptyCell);
             BufferedImage combined = new BufferedImage(overlay.getWidth(), overlay.getHeight(), BufferedImage.TYPE_INT_ARGB);
             Graphics2D graphics = combined.createGraphics();
             try {
@@ -202,16 +200,20 @@ public final class ClientItemStackIconRenderer {
         }
     }
 
-    static BufferedImage renderEmptyCellBaseImage() throws Exception {
-        Item emptyCellItem = (Item) Item.itemRegistry.getObject("IC2:itemCellEmpty");
-        if (emptyCellItem == null) {
-            return null;
+    private static BufferedImage renderContainerBaseImage(ItemStack stack) throws Exception {
+        if (isCapsuleStack(stack)) {
+            ItemStack capsuleBase = new ItemStack(stack.getItem(), 1, 0);
+            BufferedImage capsuleImage = renderStackToImage(capsuleBase);
+            if (imageHasVisiblePixels(capsuleImage) && missingTextureRatio(capsuleImage) <= 0.5D) {
+                return capsuleImage;
+            }
         }
 
-        return renderStackToImage(new ItemStack(emptyCellItem, 1, 0));
+        Item emptyCellItem = (Item) Item.itemRegistry.getObject("IC2:itemCellEmpty");
+        return emptyCellItem == null ? null : renderStackToImage(new ItemStack(emptyCellItem, 1, 0));
     }
 
-    private static boolean shouldRenderEmptyCellBase(ItemStack stack) {
+    private static boolean shouldRenderContainerBase(ItemStack stack) {
         String displayName;
         try {
             displayName = String.valueOf(stack.getDisplayName());
@@ -219,14 +221,27 @@ public final class ClientItemStackIconRenderer {
             return false;
         }
 
-        if (!displayName.endsWith(" Cell") || "Empty Cell".equals(displayName)) {
+        if (
+            (!displayName.endsWith(" Cell") && !displayName.endsWith(" Capsule"))
+                || "Empty Cell".equals(displayName)
+                || "Empty Capsule".equals(displayName)
+        ) {
             return false;
         }
 
         String registryName = String.valueOf(Item.itemRegistry.getNameForObject(stack.getItem()));
         return registryName.startsWith("gregtech:")
             || registryName.startsWith("IC2:")
-            || registryName.startsWith("miscutils:");
+            || registryName.startsWith("miscutils:")
+            || registryName.startsWith("bartworks:");
+    }
+
+    private static boolean isCapsuleStack(ItemStack stack) {
+        try {
+            return String.valueOf(stack.getDisplayName()).endsWith(" Capsule");
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static final class IconExportScreen extends GuiScreen {

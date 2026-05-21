@@ -1,6 +1,5 @@
 package com.bigbass.recex.icons;
 
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -56,7 +55,6 @@ public final class ClientFluidStackIconRenderer {
 
             if (!outFile.isFile()) {
                 BufferedImage image = renderFluidToImage(stack);
-                image = renderWithEmptyCellBase(image);
                 if (!ClientItemStackIconRenderer.imageHasVisiblePixels(image)) {
                     ICONS_BY_FLUID_KEY.put(key, "");
                     return null;
@@ -152,30 +150,6 @@ public final class ClientFluidStackIconRenderer {
         }
 
         return ClientItemStackIconRenderer.imageFromRgbaBuffer(buffer);
-    }
-
-    private static BufferedImage renderWithEmptyCellBase(BufferedImage fluidOverlay) {
-        try {
-            BufferedImage base = ClientItemStackIconRenderer.renderEmptyCellBaseImage();
-            if (base == null) {
-                return fluidOverlay;
-            }
-
-            BufferedImage combined =
-                new BufferedImage(fluidOverlay.getWidth(), fluidOverlay.getHeight(), BufferedImage.TYPE_INT_ARGB);
-            Graphics2D graphics = combined.createGraphics();
-            try {
-                graphics.drawImage(base, 0, 0, null);
-                int scale = Math.max(1, fluidOverlay.getWidth() / GUI_ICON_CANVAS_SIZE);
-                graphics.setClip(14 * scale, 10 * scale, 4 * scale, 13 * scale);
-                graphics.drawImage(fluidOverlay, 0, 0, null);
-            } finally {
-                graphics.dispose();
-            }
-            return combined;
-        } catch (Throwable ignored) {
-            return fluidOverlay;
-        }
     }
 
     private static IIcon fluidIcon(FluidStack stack) {

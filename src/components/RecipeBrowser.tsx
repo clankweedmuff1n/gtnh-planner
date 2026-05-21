@@ -1,16 +1,7 @@
 "use client";
 
 import { Archive, GitBranchPlus, Plus, Search, X } from "lucide-react";
-import {
-  memo,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { PointerEvent, RefObject } from "react";
 import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
 import {
@@ -74,8 +65,6 @@ export function RecipeBrowser() {
   const [recipeQueryError, setRecipeQueryError] = useState<string | undefined>();
   const recipeQueryCacheRef = useRef<Map<string, RecipeQueryCacheEntry>>(new Map());
   const resourceQueryCacheRef = useRef<Map<string, ResourceQueryCacheEntry>>(new Map());
-  const deferredRecipeSearch = useDeferredValue(recipeSearch);
-  const [, startSearchTransition] = useTransition();
 
   const activeResource = useMemo(() => {
     if (!browserResource) {
@@ -115,7 +104,7 @@ export function RecipeBrowser() {
       selectedDatasetVersion
         ? getRecipeQueryCacheKey({
             versionId: getDatasetVersionCacheKey(selectedDatasetVersion),
-            query: deferredRecipeSearch.trim(),
+            query: recipeSearch.trim(),
             resource: activeResource,
             mode: browserMode,
             recipeMap,
@@ -124,7 +113,7 @@ export function RecipeBrowser() {
             limit: RECIPE_QUERY_LIMIT,
           })
         : "",
-    [activeResource, browserMode, deferredRecipeSearch, maxTier, selectedDatasetVersion],
+    [activeResource, browserMode, maxTier, recipeSearch, selectedDatasetVersion],
   );
 
   const getResourceQueryKey = useCallback(
@@ -132,12 +121,12 @@ export function RecipeBrowser() {
       selectedDatasetVersion
         ? getResourceQueryCacheKey({
             versionId: getDatasetVersionCacheKey(selectedDatasetVersion),
-            query: deferredRecipeSearch.trim(),
+            query: recipeSearch.trim(),
             offset: page * resourcePageSize,
             limit: resourcePageSize,
           })
         : "",
-    [deferredRecipeSearch, resourcePageSize, selectedDatasetVersion],
+    [recipeSearch, resourcePageSize, selectedDatasetVersion],
   );
 
   const prefetchRecipeMap = useCallback(
@@ -146,7 +135,7 @@ export function RecipeBrowser() {
         return;
       }
 
-      const query = deferredRecipeSearch.trim();
+      const query = recipeSearch.trim();
       if (!activeResource && query.length < 2) {
         return;
       }
@@ -182,9 +171,9 @@ export function RecipeBrowser() {
       activeResource,
       browserMode,
       datasetManifestUrl,
-      deferredRecipeSearch,
       getRecipeQueryKey,
       maxTier,
+      recipeSearch,
       selectedDatasetVersion,
     ],
   );
@@ -218,7 +207,7 @@ export function RecipeBrowser() {
 
   useEffect(() => {
     return deferStateUpdate(() => setResourcePage(0));
-  }, [deferredRecipeSearch, selectedDatasetVersion?.id]);
+  }, [recipeSearch, selectedDatasetVersion?.id]);
 
   useEffect(() => {
     const maxPage = Math.max(0, Math.ceil(resourceTotal / resourcePageSize) - 1);
@@ -238,7 +227,7 @@ export function RecipeBrowser() {
       });
     }
 
-    const query = deferredRecipeSearch.trim();
+    const query = recipeSearch.trim();
     const cacheKey = getResourceQueryKey(resourcePage);
     const cached = getCachedResourceQuery(resourceQueryCacheRef.current, cacheKey);
     if (cached) {
@@ -253,6 +242,8 @@ export function RecipeBrowser() {
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) {
+        setResourceResults([]);
+        setResourceTotal(0);
         setResourceQueryLoading(true);
         setResourceQueryError(undefined);
       }
@@ -292,8 +283,8 @@ export function RecipeBrowser() {
     };
   }, [
     datasetManifestUrl,
-    deferredRecipeSearch,
     getResourceQueryKey,
+    recipeSearch,
     resourcePage,
     resourcePageSize,
     selectedDatasetVersion,
@@ -305,8 +296,8 @@ export function RecipeBrowser() {
     activeResource?.id,
     activeResource?.kind,
     browserMode,
-    deferredRecipeSearch,
     maxTier,
+    recipeSearch,
     selectedDatasetVersion?.id,
     selectedRecipeMap,
   ]);
@@ -327,7 +318,7 @@ export function RecipeBrowser() {
       });
     }
 
-    const query = deferredRecipeSearch.trim();
+    const query = recipeSearch.trim();
     if (!activeResource && query.length < 2) {
       return deferStateUpdate(() => {
         setFilteredRecipes([]);
@@ -353,6 +344,7 @@ export function RecipeBrowser() {
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) {
+        setFilteredRecipes([]);
         setRecipeQueryLoading(true);
         setRecipeQueryError(undefined);
       }
@@ -417,9 +409,9 @@ export function RecipeBrowser() {
     activeResource,
     browserMode,
     datasetManifestUrl,
-    deferredRecipeSearch,
     getRecipeQueryKey,
     maxTier,
+    recipeSearch,
     recipePage,
     selectedDatasetVersion,
   ]);
@@ -433,7 +425,7 @@ export function RecipeBrowser() {
               value={recipeSearch}
               onChange={(event) => {
                 const value = event.target.value;
-                startSearchTransition(() => setRecipeSearch(value));
+                setRecipeSearch(value);
               }}
               placeholder="Search item or fluid..."
               className="min-w-0 flex-1 bg-transparent outline-none"
@@ -441,7 +433,7 @@ export function RecipeBrowser() {
             {recipeSearch ? (
               <button
                 type="button"
-                onClick={() => startSearchTransition(() => setRecipeSearch(""))}
+                onClick={() => setRecipeSearch("")}
                 title="Clear search"
                 aria-label="Clear search"
                 className="text-neutral-500 hover:text-neutral-200"

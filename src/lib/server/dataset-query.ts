@@ -125,7 +125,7 @@ export async function queryDatasetResources(
     if (!resource || (!resource.iconPath && !resource.iconAtlas)) {
       continue;
     }
-    if (query && !indexes.searchText[resourceIndex]?.includes(query)) {
+    if (query && !resourceSearchTextMatches(indexes.searchText[resourceIndex] ?? "", query)) {
       continue;
     }
     matches.push(resourceIndex);
@@ -726,6 +726,24 @@ function normalizeResourceSearchText(resource: DatasetResourceIndexEntry): strin
   return normalizeText(
     [resource.displayName, resource.id, resource.kind].filter(Boolean).join(" "),
   );
+}
+
+function resourceSearchTextMatches(searchText: string, query: string): boolean {
+  const queryTokens = splitSearchTokens(query);
+  if (queryTokens.length === 0) {
+    return true;
+  }
+
+  const resourceTokens = splitSearchTokens(searchText);
+  return queryTokens.every((queryToken) =>
+    resourceTokens.some((resourceToken) => resourceToken.startsWith(queryToken)),
+  );
+}
+
+function splitSearchTokens(value: string): string[] {
+  return normalizeText(value)
+    .split(/[^a-z0-9]+/i)
+    .filter(Boolean);
 }
 
 function buildRecipeMapIconMap(

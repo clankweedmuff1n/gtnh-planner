@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { ResourceAmount, ResourceKind } from "@/lib/model/types";
+import { MinecraftTooltip } from "./MinecraftTooltip";
 
 interface ResourceIconProps {
   resource?: Pick<
@@ -13,6 +14,7 @@ interface ResourceIconProps {
   showName?: boolean;
   bare?: boolean;
   className?: string;
+  tooltip?: boolean;
 }
 
 const sizeClasses = {
@@ -28,12 +30,11 @@ export function ResourceIcon({
   showName = false,
   bare = false,
   className = "",
+  tooltip = true,
 }: ResourceIconProps) {
   const title = resource?.tooltip?.join("\n") ?? resource?.displayName ?? resource?.id;
-
-  return (
+  const icon = (
     <div
-      title={title}
       className={[
         "relative flex shrink-0 items-center justify-center overflow-hidden",
         bare
@@ -58,9 +59,7 @@ export function ResourceIcon({
         />
       ) : null}
 
-      {resource && showAmount ? (
-        <AmountLabel resource={resource} />
-      ) : null}
+      {resource && showAmount ? <AmountLabel resource={resource} /> : null}
 
       {resource?.consumed === false ? (
         <span className="absolute left-0 top-0 font-mono text-[8px] font-black leading-none text-[#ffff55] drop-shadow-[1px_1px_0_#000]">
@@ -74,6 +73,16 @@ export function ResourceIcon({
         </span>
       ) : null}
     </div>
+  );
+
+  if (!tooltip) {
+    return icon;
+  }
+
+  return (
+    <MinecraftTooltip label={title}>
+      {icon}
+    </MinecraftTooltip>
   );
 }
 

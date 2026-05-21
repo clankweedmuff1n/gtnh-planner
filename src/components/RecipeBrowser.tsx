@@ -10,6 +10,7 @@ import { getResourceKey, GT_VOLTAGE_TIERS, primaryOutput, resourceLabel } from "
 import type { MachineTier } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
 import type { Recipe, ResourceAmount, ResourceKey } from "@/lib/model/types";
+import { MinecraftTooltip } from "./nei/MinecraftTooltip";
 import { NeiRecipeWindow } from "./nei/NeiRecipeWindow";
 import { ResourceIcon } from "./nei/ResourceIcon";
 
@@ -354,7 +355,6 @@ function ResourceHistoryPanel({
               event.preventDefault();
               onBrowse(resource, "uses");
             }}
-            title={resourceLabel(resource)}
             aria-label={resourceLabel(resource)}
             className="h-10 w-10 shrink-0 border border-neutral-600 bg-[#2b2d32] p-0 hover:border-cyan-400"
           >
@@ -427,38 +427,60 @@ function RecipeMapTabBar({
   onRecipeMapChange: (recipeMap: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateOverflow = () => {
+      setHasOverflow(element.scrollWidth > element.clientWidth + 2);
+    };
+
+    updateOverflow();
+    const resizeObserver = new ResizeObserver(updateOverflow);
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, [tabs]);
 
   const scrollTabs = (direction: -1 | 1) => {
     scrollRef.current?.scrollBy({ left: direction * 184, behavior: "smooth" });
   };
 
   return (
-    <div className="absolute left-1 right-1 top-0 grid h-[42px] grid-cols-[24px_minmax(0,1fr)_24px] items-start">
-      <NeiTabArrow direction="left" onClick={() => scrollTabs(-1)} />
+    <div
+      className={[
+        "absolute left-1 right-1 top-0 grid h-[42px] items-start",
+        hasOverflow ? "grid-cols-[24px_minmax(0,1fr)_24px]" : "grid-cols-[minmax(0,1fr)]",
+      ].join(" ")}
+    >
+      {hasOverflow ? <NeiTabArrow direction="left" onClick={() => scrollTabs(-1)} /> : null}
       <div
         ref={scrollRef}
         className="nei-tab-strip flex h-[42px] gap-1 overflow-x-auto overflow-y-hidden px-1"
       >
         {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onRecipeMapChange(tab.id)}
-            title={tab.label}
-            aria-label={tab.label}
-            className={neiTabClass(activeRecipeMap === tab.id)}
-          >
-            {tab.icon ? (
-              <ResourceIcon resource={tab.icon} size="sm" showAmount={false} bare />
-            ) : (
-              <span className="text-[12px] font-bold leading-none text-white [text-shadow:1px_1px_0_#000]">
-                ?
-              </span>
-            )}
-          </button>
+          <MinecraftTooltip key={tab.id} label={tab.label}>
+            <button
+              type="button"
+              onClick={() => onRecipeMapChange(tab.id)}
+              aria-label={tab.label}
+              className={neiTabClass(activeRecipeMap === tab.id)}
+            >
+              {tab.icon ? (
+                <ResourceIcon resource={tab.icon} size="sm" showAmount={false} bare tooltip={false} />
+              ) : (
+                <span className="text-[12px] font-bold leading-none text-white [text-shadow:1px_1px_0_#000]">
+                  ?
+                </span>
+              )}
+            </button>
+          </MinecraftTooltip>
         ))}
       </div>
-      <NeiTabArrow direction="right" onClick={() => scrollTabs(1)} />
+      {hasOverflow ? <NeiTabArrow direction="right" onClick={() => scrollTabs(1)} /> : null}
     </div>
   );
 }

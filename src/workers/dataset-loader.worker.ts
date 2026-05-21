@@ -54,8 +54,28 @@ type WorkerResponse =
       error: string;
     };
 
+interface CachedQueryResult {
+  recipeIndexes: number[];
+  total: number;
+  recipeMaps: string[];
+}
+
+interface RecipeWorkerIndexes {
+  cacheKey: string;
+  allRecipeIndexes: number[];
+  recipeIndexesByResource: Map<string, number[]>;
+  recipeMaps: string[];
+  tierIndexes: number[];
+  searchText: string[];
+  iconScores: number[];
+  queryCache: Map<string, CachedQueryResult>;
+}
+
+const MAX_QUERY_CACHE_ENTRIES = 160;
+
 let loadedDataset: RecipeDataset | undefined;
 let loadedDatasetCacheKey: string | undefined;
+let loadedIndexes: RecipeWorkerIndexes | undefined;
 let loadingDataset:
   | {
       cacheKey: string;
@@ -75,6 +95,7 @@ async function handleRequest(request: WorkerRequest) {
         request.expectedVersionId,
         request.cacheKey,
       );
+      ensureRecipeIndexes(loadedDataset, request.cacheKey);
       postMessage({
         id: request.id,
         ok: true,
@@ -85,8 +106,9 @@ async function handleRequest(request: WorkerRequest) {
     }
 
     loadedDataset = await ensureDataset(request.datasetUrl, request.expectedVersionId, request.cacheKey);
+    ensureRecipeIndexes(loadedDataset, request.cacheKey);
 
-    const result = queryRecipes(loadedDataset.recipes, request);
+    const result = queryRecipes(loadedDataset, request);
     postMessage({
       id: request.id,
       ok: true,
@@ -126,6 +148,7 @@ async function ensureDataset(
     const dataset = await loadingDataset.promise;
     loadedDataset = dataset;
     loadedDatasetCacheKey = cacheKey;
+    loadedIndexes = undefined;
     return dataset;
   } finally {
     if (loadingDataset?.cacheKey === cacheKey) {
@@ -178,30 +201,36 @@ function summarizeDataset(dataset: RecipeDataset): DatasetSummary {
 }
 
 function queryRecipes(
-  recipes: Recipe[],
+  dataset: RecipeDataset,
   request: Extract<WorkerRequest, { type: "queryRecipes" }>,
 ): { recipes: Recipe[]; total: number; recipeMaps: string[] } {
+  const indexes = ensureRecipeIndexes(dataset, request.cacheKey);
+  const cacheKey = getQueryCacheKey(request);
+  const cached = indexes.queryCache.get(cacheKey);
+  if (cached) {
+    indexes.queryCache.delete(cacheKey);
+    indexes.queryCache.set(cacheKey, cached);
+    return materializeQueryResult(dataset, cached);
+  }
+
   const query = normalizeText(request.query);
   const activeMap = request.recipeMap || undefined;
-  const resultsWithIcons: Array<{ recipe: Recipe; iconScore: number }> = [];
-  const resultsWithoutIcons: Recipe[] = [];
+  const resultsWithIcons: Array<{ recipeIndex: number; iconScore: number }> = [];
+  const resultsWithoutIcons: number[] = [];
   const recipeMaps = new Set<string>();
+  const candidates = getCandidateRecipeIndexes(indexes, request);
   let total = 0;
 
-  for (const recipe of recipes) {
-    const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
-    if (request.resource && !recipeHasResource(recipe, request.resource, request.mode)) {
+  for (const recipeIndex of candidates) {
+    if (!recipeMatchesTierIndex(indexes, recipeIndex, request.maxTier)) {
       continue;
     }
 
-    if (!recipeMatchesTier(recipe, request.maxTier)) {
+    if (!request.resource && query && !indexes.searchText[recipeIndex]?.includes(query)) {
       continue;
     }
 
-    if (!request.resource && query && !recipeMatchesQuery(recipe, query)) {
-      continue;
-    }
-
+    const recipeMap = indexes.recipeMaps[recipeIndex];
     if (recipeMap) {
       recipeMaps.add(recipeMap);
     }
@@ -215,24 +244,145 @@ function queryRecipes(
       continue;
     }
 
-    const iconScore = recipeIconScore(recipe);
+    const iconScore = indexes.iconScores[recipeIndex] ?? 0;
     if (iconScore > 0) {
-      resultsWithIcons.push({ recipe, iconScore });
+      resultsWithIcons.push({ recipeIndex, iconScore });
     } else {
-      resultsWithoutIcons.push(recipe);
+      resultsWithoutIcons.push(recipeIndex);
     }
   }
 
-  return {
-    recipes: [
+  const result: CachedQueryResult = {
+    recipeIndexes: [
       ...resultsWithIcons
         .sort((left, right) => right.iconScore - left.iconScore)
-        .map((entry) => entry.recipe),
+        .map((entry) => entry.recipeIndex),
       ...resultsWithoutIcons,
     ].slice(0, request.limit),
     total,
     recipeMaps: [...recipeMaps].sort((a, b) => a.localeCompare(b)),
   };
+  rememberQuery(indexes, cacheKey, result);
+  return materializeQueryResult(dataset, result);
+}
+
+function materializeQueryResult(
+  dataset: RecipeDataset,
+  result: CachedQueryResult,
+): { recipes: Recipe[]; total: number; recipeMaps: string[] } {
+  return {
+    recipes: result.recipeIndexes
+      .map((recipeIndex) => dataset.recipes[recipeIndex])
+      .filter((recipe): recipe is Recipe => Boolean(recipe)),
+    total: result.total,
+    recipeMaps: result.recipeMaps,
+  };
+}
+
+function rememberQuery(indexes: RecipeWorkerIndexes, key: string, result: CachedQueryResult) {
+  indexes.queryCache.set(key, result);
+  if (indexes.queryCache.size <= MAX_QUERY_CACHE_ENTRIES) {
+    return;
+  }
+
+  const oldestKey = indexes.queryCache.keys().next().value;
+  if (oldestKey) {
+    indexes.queryCache.delete(oldestKey);
+  }
+}
+
+function getCandidateRecipeIndexes(
+  indexes: RecipeWorkerIndexes,
+  request: Extract<WorkerRequest, { type: "queryRecipes" }>,
+): number[] {
+  if (!request.resource) {
+    return indexes.allRecipeIndexes;
+  }
+
+  return indexes.recipeIndexesByResource.get(getResourceModeKey(request.resource, request.mode)) ?? [];
+}
+
+function ensureRecipeIndexes(dataset: RecipeDataset, cacheKey: string): RecipeWorkerIndexes {
+  if (loadedIndexes?.cacheKey === cacheKey) {
+    return loadedIndexes;
+  }
+
+  const recipeIndexesByResource = new Map<string, number[]>();
+  const recipeMaps: string[] = [];
+  const tierIndexes: number[] = [];
+  const searchText: string[] = [];
+  const iconScores: number[] = [];
+  const allRecipeIndexes: number[] = [];
+
+  dataset.recipes.forEach((recipe, recipeIndex) => {
+    allRecipeIndexes.push(recipeIndex);
+    recipeMaps[recipeIndex] = recipe.source?.recipeMap ?? recipe.machineType;
+    tierIndexes[recipeIndex] = getTierIndex(getRecipeTier(recipe));
+    searchText[recipeIndex] = buildRecipeSearchText(recipe);
+    iconScores[recipeIndex] = recipeIconScore(recipe);
+
+    for (const output of recipe.outputs) {
+      addRecipeIndex(recipeIndexesByResource, getResourceModeKey(output, "recipes"), recipeIndex);
+    }
+
+    for (const input of recipe.inputs) {
+      addRecipeIndex(recipeIndexesByResource, getResourceModeKey(input, "uses"), recipeIndex);
+    }
+  });
+
+  loadedIndexes = {
+    cacheKey,
+    allRecipeIndexes,
+    recipeIndexesByResource,
+    recipeMaps,
+    tierIndexes,
+    searchText,
+    iconScores,
+    queryCache: new Map(),
+  };
+  return loadedIndexes;
+}
+
+function addRecipeIndex(index: Map<string, number[]>, key: string, recipeIndex: number) {
+  const existing = index.get(key);
+  if (existing) {
+    existing.push(recipeIndex);
+  } else {
+    index.set(key, [recipeIndex]);
+  }
+}
+
+function getResourceModeKey(
+  resource: Pick<ResourceAmount, "kind" | "id">,
+  mode: "recipes" | "uses",
+) {
+  return `${mode}:${resource.kind}:${resource.id}`;
+}
+
+function getQueryCacheKey(request: Extract<WorkerRequest, { type: "queryRecipes" }>) {
+  return [
+    normalizeText(request.query),
+    request.resource ? `${request.resource.kind}:${request.resource.id}` : "",
+    request.mode,
+    request.recipeMap ?? "",
+    request.maxTier,
+    request.limit,
+  ].join("|");
+}
+
+function buildRecipeSearchText(recipe: Recipe): string {
+  return normalizeText(
+    [
+      recipe.name,
+      recipe.machineType,
+      recipe.source?.recipeMap,
+      recipe.source?.rawRecipeId,
+      ...recipe.inputs.map((input) => input.displayName ?? input.id),
+      ...recipe.outputs.map((output) => output.displayName ?? output.id),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 }
 
 async function readDatasetResponseText(response: Response, datasetUrl: string): Promise<string> {
@@ -276,36 +426,16 @@ function buildDatasetResourceIndex(dataset: RecipeDataset): DatasetResourceIndex
   return [...index.values()];
 }
 
-function recipeHasResource(
-  recipe: Recipe,
-  resource: Pick<ResourceAmount, "kind" | "id">,
-  mode: "recipes" | "uses",
-): boolean {
-  const resources = mode === "recipes" ? recipe.outputs : recipe.inputs;
-  return resources.some((entry) => entry.kind === resource.kind && entry.id === resource.id);
-}
-
-function recipeMatchesQuery(recipe: Recipe, query: string): boolean {
-  return [
-    recipe.name,
-    recipe.machineType,
-    recipe.source?.recipeMap,
-    recipe.source?.rawRecipeId,
-    ...recipe.inputs.map((input) => input.displayName ?? input.id),
-    ...recipe.outputs.map((output) => output.displayName ?? output.id),
-  ]
-    .filter(Boolean)
-    .some((value) => normalizeText(value ?? "").includes(query));
-}
-
-function recipeMatchesTier(recipe: Recipe, maxTier: TierFilter) {
+function recipeMatchesTierIndex(
+  indexes: RecipeWorkerIndexes,
+  recipeIndex: number,
+  maxTier: TierFilter,
+) {
   if (maxTier === "all") {
     return true;
   }
 
-  const maxIndex = getTierIndex(maxTier);
-  const recipeIndex = getTierIndex(getRecipeTier(recipe));
-  return recipeIndex <= maxIndex;
+  return (indexes.tierIndexes[recipeIndex] ?? GT_VOLTAGE_TIERS.length - 1) <= getTierIndex(maxTier);
 }
 
 function getRecipeTier(recipe: Recipe): Exclude<MachineTier, "DEMO"> {

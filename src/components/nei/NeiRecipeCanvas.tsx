@@ -16,6 +16,8 @@ const SLOT_SIZE = 18;
 interface NeiRecipeCanvasProps {
   recipe: Recipe;
   scale?: number;
+  slotPixelSize?: number;
+  iconPixelSize?: number;
   className?: string;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
@@ -24,6 +26,8 @@ interface NeiRecipeCanvasProps {
 export function NeiRecipeCanvas({
   recipe,
   scale = 2,
+  slotPixelSize,
+  iconPixelSize,
   className = "",
   renderHandle,
   onSlotClick,
@@ -34,9 +38,11 @@ export function NeiRecipeCanvas({
     () => getRenderLayout(layout.frames, layout.logo.y, layout.overflowGroups, expandedGroups),
     [expandedGroups, layout.frames, layout.logo.y, layout.overflowGroups],
   );
-  const width = layout.canvas.width * scale;
-  const height = getCanvasHeight(renderLayout.frames, renderLayout.logoY) * scale;
-  const slotSize = layout.slotSize * scale;
+  const renderScale = slotPixelSize ? slotPixelSize / layout.slotSize : scale;
+  const width = layout.canvas.width * renderScale;
+  const height = getCanvasHeight(renderLayout.frames, renderLayout.logoY) * renderScale;
+  const slotSize = layout.slotSize * renderScale;
+  const renderedIconPixelSize = iconPixelSize ?? slotSize;
 
   return (
     <div
@@ -50,7 +56,7 @@ export function NeiRecipeCanvas({
       }}
     >
       {layout.progressBars.slice(0, 1).map((bar, index) => (
-        <ProgressTexture key={`${bar.x}-${bar.y}-${index}`} bar={bar} scale={scale} />
+        <ProgressTexture key={`${bar.x}-${bar.y}-${index}`} bar={bar} scale={renderScale} />
       ))}
 
       {renderLayout.frames.map((frame) => (
@@ -58,14 +64,15 @@ export function NeiRecipeCanvas({
           key={`${frame.side}-${frame.kind}-${frame.slotIndex}-${frame.action ?? "slot"}`}
           className="nodrag absolute"
           style={{
-            left: frame.x * scale,
-            top: frame.y * scale,
+            left: frame.x * renderScale,
+            top: frame.y * renderScale,
             width: slotSize,
             height: slotSize,
           }}
         >
           <NeiSlotFrameView
             frame={frame}
+            iconPixelSize={renderedIconPixelSize}
             renderHandle={renderHandle}
             onSlotClick={onSlotClick}
             onOverflowClick={
@@ -95,10 +102,10 @@ export function NeiRecipeCanvas({
       <div
         className="absolute"
         style={{
-          left: layout.logo.x * scale,
-          top: renderLayout.logoY * scale,
-          width: 17 * scale,
-          height: 17 * scale,
+          left: layout.logo.x * renderScale,
+          top: renderLayout.logoY * renderScale,
+          width: 17 * renderScale,
+          height: 17 * renderScale,
           backgroundImage: "url('/nei/gregtech/gui/picture/gt_logo_17x17_transparent.png')",
           backgroundSize: "100% 100%",
           imageRendering: "pixelated",
@@ -272,12 +279,14 @@ function getGroupKey(group: Pick<NeiSlotFrame, "side" | "kind">) {
 
 function NeiSlotFrameView({
   frame,
+  iconPixelSize,
   renderHandle,
   onSlotClick,
   onOverflowClick,
   onCollapseClick,
 }: {
   frame: RenderFrame;
+  iconPixelSize: number;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
   onOverflowClick?: () => void;
@@ -350,6 +359,7 @@ function NeiSlotFrameView({
           size="md"
           showName={false}
           className="!h-full !w-full"
+          iconPixelSize={iconPixelSize}
           bare
         />
       ) : null}

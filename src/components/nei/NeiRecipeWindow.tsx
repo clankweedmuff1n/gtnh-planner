@@ -6,6 +6,9 @@ import { formatRate, getRecipePowerTier } from "@/lib/model";
 import type { NeiPositionedSlot } from "@/lib/nei/layout";
 import { NeiRecipeCanvas } from "./NeiRecipeCanvas";
 
+const QUICK_SLOT_PIXEL_SIZE = 40;
+const QUICK_SLOT_ICON_PIXEL_SIZE = 64;
+
 interface NeiRecipeWindowProps {
   recipe: Recipe;
   scale?: number;
@@ -48,6 +51,8 @@ export function NeiRecipeWindow({
           <NeiRecipeCanvas
             recipe={recipe}
             scale={scale}
+            slotPixelSize={compact ? QUICK_SLOT_PIXEL_SIZE : undefined}
+            iconPixelSize={compact ? QUICK_SLOT_ICON_PIXEL_SIZE : undefined}
             renderHandle={renderHandle}
             onSlotClick={onSlotClick}
           />

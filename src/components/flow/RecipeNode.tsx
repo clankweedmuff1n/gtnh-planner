@@ -47,6 +47,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
       style={
         nodeColor
           ? {
+              backgroundColor: nodeColor.panel,
               borderColor: nodeColor.border,
               boxShadow: `inset 2px 2px 0 #ffffff, inset -2px -2px 0 #555, 0 0 0 2px ${nodeColor.shadow}`,
             }

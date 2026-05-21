@@ -159,6 +159,7 @@ export function FactoryFlow() {
   const [flowNodes, setFlowNodes] = useState<Array<RecipeFlowNode | StorageFlowNode>>(
     () => nodesFromProject,
   );
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
   const [isNodeDragging, setNodeDragging] = useState(false);
   const draggingNodeRef = useRef(false);
@@ -463,9 +464,21 @@ export function FactoryFlow() {
           return;
         }
 
-        if (selectedEdgeIds.length > 0) {
+        if (selectedEdgeIds.length > 0 || selectedNodeIds.length > 0) {
           selectedEdgeIds.forEach((edgeId) => deleteEdge(edgeId));
+          selectedNodeIds.forEach((nodeId) => {
+            if (project.nodes.some((node) => node.id === nodeId)) {
+              deleteNode(nodeId);
+              return;
+            }
+
+            if ((project.storages ?? []).some((storage) => storage.id === nodeId)) {
+              deleteStorage(nodeId);
+            }
+          });
           setSelectedEdgeIds([]);
+          setSelectedNodeIds([]);
+          selectNode(undefined);
           return;
         }
 
@@ -508,13 +521,18 @@ export function FactoryFlow() {
     project.storages,
     selectNode,
     selectedEdgeIds,
+    selectedNodeIds,
     selectedNodeId,
     setNodeColorPaintMode,
   ]);
 
-  const handleSelectionChange = useCallback(({ edges: selectedEdges }: OnSelectionChangeParams) => {
-    setSelectedEdgeIds(selectedEdges.map((edge) => edge.id));
-  }, []);
+  const handleSelectionChange = useCallback(
+    ({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
+      setSelectedNodeIds(selectedNodes.map((node) => node.id));
+      setSelectedEdgeIds(selectedEdges.map((edge) => edge.id));
+    },
+    [],
+  );
 
   const handleNodeClick = useCallback(
     (_: unknown, node: Node) => {

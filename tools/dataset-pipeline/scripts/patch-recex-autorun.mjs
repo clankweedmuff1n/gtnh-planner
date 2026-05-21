@@ -24,6 +24,7 @@ source = source.replace(
   "import com.bigbass.recex.proxy.CommonProxy;",
   [
     "import com.bigbass.recex.proxy.CommonProxy;",
+    "import com.bigbass.recex.icons.ClientItemStackIconRenderer;",
     "import com.bigbass.recex.recipes.RecipeExporter;",
     "",
     "import cpw.mods.fml.common.FMLCommonHandler;",
@@ -138,13 +139,25 @@ source = source.replace(
             try {
                 log.info("RecEx autorun export started from " + trigger + ".");
                 RecipeExporter.getInst().run();
-                log.info("RecEx autorun export finished.");
+                log.info("RecEx autorun recipe export finished.");
             } catch (Throwable t) {
                 log.error("RecEx autorun export failed.", t);
                 FMLCommonHandler.instance().exitJava(2, false);
                 return;
             }
 
+            if (Boolean.getBoolean("recex.renderIcons") && FMLCommonHandler.instance().getSide().isClient()) {
+                ClientItemStackIconRenderer.exportQueuedIconsThen(new Runnable() {
+                    @Override
+                    public void run() {
+                        log.info("RecEx autorun export finished.");
+                        FMLCommonHandler.instance().exitJava(0, false);
+                    }
+                });
+                return;
+            }
+
+            log.info("RecEx autorun export finished.");
             FMLCommonHandler.instance().exitJava(0, false);
         };
 

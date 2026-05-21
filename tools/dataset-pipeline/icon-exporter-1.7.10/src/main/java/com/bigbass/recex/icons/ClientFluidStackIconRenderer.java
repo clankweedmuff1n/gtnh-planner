@@ -2,8 +2,13 @@ package com.bigbass.recex.icons;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -12,6 +17,7 @@ import javax.imageio.ImageIO;
 import com.bigbass.recex.RecipeExporterMod;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.shader.Framebuffer;
@@ -23,11 +29,14 @@ import org.lwjgl.opengl.GL11;
 
 public final class ClientFluidStackIconRenderer {
 
-    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 1024);
+    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 256);
     private static final int GUI_ICON_CANVAS_SIZE = 32;
     private static final int GUI_ITEM_SIZE = 16;
+    private static final int ICON_EXPORT_BATCH_SIZE = Integer.getInteger("recex.iconExportBatchSize", 64);
+    private static final int ICON_PROGRESS_EVERY = Integer.getInteger("recex.iconProgressEvery", 256);
     private static final int MAX_RENDER_WARNINGS = Integer.getInteger("recex.maxFluidIconRenderWarnings", 50);
     private static final Map<String, String> ICONS_BY_FLUID_KEY = new LinkedHashMap<String, String>();
+    private static final Map<String, FluidStack> PENDING_FLUIDS_BY_KEY = new LinkedHashMap<String, FluidStack>();
     private static int renderWarnings;
 
     private ClientFluidStackIconRenderer() {}
@@ -43,26 +52,10 @@ public final class ClientFluidStackIconRenderer {
             return value != null && value.length() > 0 ? value : null;
         }
 
-        File outDir = ClientItemStackIconRenderer.iconDir();
-        if (!outDir.exists() && !outDir.mkdirs()) {
-            ICONS_BY_FLUID_KEY.put(key, "");
-            return null;
-        }
-
         try {
             String filename = safeName(stack) + "-" + sha1(key).substring(0, 12) + ".png";
-            File outFile = new File(outDir, filename);
-
-            if (!outFile.isFile()) {
-                BufferedImage image = renderFluidToImage(stack);
-                if (!ClientItemStackIconRenderer.imageHasVisiblePixels(image)) {
-                    ICONS_BY_FLUID_KEY.put(key, "");
-                    return null;
-                }
-                ImageIO.write(image, "png", outFile);
-            }
-
             ICONS_BY_FLUID_KEY.put(key, filename);
+            PENDING_FLUIDS_BY_KEY.put(key, stack.copy());
             return filename;
         } catch (Throwable t) {
             ICONS_BY_FLUID_KEY.put(key, "");
@@ -71,6 +64,145 @@ public final class ClientFluidStackIconRenderer {
         } finally {
             ClientItemStackIconRenderer.resetTessellator();
         }
+    }
+
+    public static void exportQueuedIconsThen(Runnable afterExport) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft == null) {
+            afterExport.run();
+            return;
+        }
+
+        minecraft.displayGuiScreen(new QueuedFluidIconExportScreen(afterExport));
+    }
+
+    private static final class QueuedFluidIconExportScreen extends GuiScreen {
+
+        private final Runnable afterExport;
+        private final Iterator<Map.Entry<String, FluidStack>> iterator;
+        private final int total;
+        private int processed;
+        private int rendered;
+        private int cacheHits;
+        private int skipped;
+        private boolean finished;
+
+        private QueuedFluidIconExportScreen(Runnable afterExport) {
+            this.afterExport = afterExport;
+            this.iterator = PENDING_FLUIDS_BY_KEY.entrySet().iterator();
+            this.total = PENDING_FLUIDS_BY_KEY.size();
+            RecipeExporterMod.log.info(
+                "GTNH 1.7.10 fluid icon batch started: "
+                    + total
+                    + " queued, size "
+                    + ICON_SIZE
+                    + "px, batch "
+                    + ICON_EXPORT_BATCH_SIZE
+                    + "."
+            );
+        }
+
+        @Override
+        public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+            if (finished) {
+                return;
+            }
+
+            int batch = 0;
+            while (batch < ICON_EXPORT_BATCH_SIZE && iterator.hasNext()) {
+                Map.Entry<String, FluidStack> entry = iterator.next();
+                processed++;
+                batch++;
+                try {
+                    MaterializedFluidIconResult result = materializeIcon(entry.getKey(), entry.getValue());
+                    if (result == MaterializedFluidIconResult.RENDERED) {
+                        rendered++;
+                    } else if (result == MaterializedFluidIconResult.CACHE_HIT) {
+                        cacheHits++;
+                    } else {
+                        skipped++;
+                    }
+                } catch (Throwable t) {
+                    skipped++;
+                    ICONS_BY_FLUID_KEY.put(entry.getKey(), "");
+                    warnRenderFailure(entry.getValue(), t);
+                }
+
+                if (processed % ICON_PROGRESS_EVERY == 0 || processed == total) {
+                    RecipeExporterMod.log.info(
+                        "GTNH fluid icon progress "
+                            + processed
+                            + "/"
+                            + total
+                            + " (rendered "
+                            + rendered
+                            + ", cache "
+                            + cacheHits
+                            + ", skipped "
+                            + skipped
+                            + ")."
+                    );
+                }
+            }
+
+            if (!iterator.hasNext()) {
+                finished = true;
+                writeIconMap();
+                RecipeExporterMod.log.info(
+                    "GTNH fluid icon batch finished: rendered "
+                        + rendered
+                        + ", cache "
+                        + cacheHits
+                        + ", skipped "
+                        + skipped
+                        + "."
+                );
+                afterExport.run();
+            }
+        }
+    }
+
+    private enum MaterializedFluidIconResult {
+        RENDERED,
+        CACHE_HIT,
+        SKIPPED
+    }
+
+    private static MaterializedFluidIconResult materializeIcon(String key, FluidStack stack) throws Exception {
+        String filename = ICONS_BY_FLUID_KEY.get(key);
+        if (filename == null || filename.length() == 0) {
+            return MaterializedFluidIconResult.SKIPPED;
+        }
+
+        File outDir = ClientItemStackIconRenderer.iconDir();
+        if (!outDir.exists() && !outDir.mkdirs()) {
+            return MaterializedFluidIconResult.SKIPPED;
+        }
+
+        File outFile = new File(outDir, filename);
+        if (outFile.isFile()) {
+            return MaterializedFluidIconResult.SKIPPED;
+        }
+
+        File cachedFile = ClientItemStackIconRenderer.cacheFile(filename);
+        if (cachedFile.isFile()) {
+            Files.copy(cachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return MaterializedFluidIconResult.CACHE_HIT;
+        }
+
+        BufferedImage image = renderFluidToImage(stack);
+        if (!ClientItemStackIconRenderer.imageHasVisiblePixels(image)) {
+            ICONS_BY_FLUID_KEY.put(key, "");
+            return MaterializedFluidIconResult.SKIPPED;
+        }
+
+        ImageIO.write(image, "png", outFile);
+        File cacheDir = ClientItemStackIconRenderer.cacheDir();
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs();
+        }
+        ImageIO.write(image, "png", cachedFile);
+        return MaterializedFluidIconResult.RENDERED;
     }
 
     private static BufferedImage renderFluidToImage(FluidStack stack) throws Exception {
@@ -208,5 +340,40 @@ public final class ClientFluidStackIconRenderer {
             builder.append(String.format("%02x", b & 255));
         }
         return builder.toString();
+    }
+
+    private static void writeIconMap() {
+        File file = new File(ClientItemStackIconRenderer.iconDir(), "fluid-icon-map.json");
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter(file);
+            writer.write("{\n");
+            int index = 0;
+            for (Map.Entry<String, String> entry : ICONS_BY_FLUID_KEY.entrySet()) {
+                if (index > 0) {
+                    writer.write(",\n");
+                }
+                writer.write("  \"" + jsonEscape(entry.getKey()) + "\": \"" + jsonEscape(entry.getValue()) + "\"");
+                index++;
+            }
+            writer.write("\n}\n");
+        } catch (IOException e) {
+            RecipeExporterMod.log.warn("Could not write GTNH fluid icon map.", e);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    private static String jsonEscape(String value) {
+        return String.valueOf(value)
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r");
     }
 }

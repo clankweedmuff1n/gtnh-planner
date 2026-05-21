@@ -12,8 +12,9 @@ export GTNH_EXPORT_PACK_KIND="${GTNH_EXPORT_PACK_KIND:-client}"
 export GTNH_EXPORT_TIMEOUT_SECONDS="${GTNH_EXPORT_TIMEOUT_SECONDS:-21600}"
 export GTNH_EXPORT_MAX_MEMORY="${GTNH_EXPORT_MAX_MEMORY:-6G}"
 export GTNH_RENDER_STACK_ICONS="${GTNH_RENDER_STACK_ICONS:-true}"
-export GTNH_ICON_EXPORT_BATCH_SIZE="${GTNH_ICON_EXPORT_BATCH_SIZE:-16}"
-export GTNH_ATLAS_ICON_SIZE="${GTNH_ATLAS_ICON_SIZE:-1024}"
+export GTNH_ICON_EXPORT_BATCH_SIZE="${GTNH_ICON_EXPORT_BATCH_SIZE:-64}"
+export GTNH_ATLAS_ICON_SIZE="${GTNH_ATLAS_ICON_SIZE:-256}"
+export GTNH_ICON_CACHE_DIR="${GTNH_ICON_CACHE_DIR:-$(pwd)/.pipeline/icon-cache/$GTNH_ATLAS_ICON_SIZE}"
 
 mkdir -p "$GTNH_DATASET_OUT_DIR" "$GTNH_RAW_EXPORT_DIR" "$GTNH_INSTANCE_DIR"
 
@@ -34,6 +35,7 @@ echo "Pack kind: $GTNH_EXPORT_PACK_KIND"
 echo "GTNH 1.7.10 icon exporter: $GTNH_RENDER_STACK_ICONS"
 echo "Icon export batch size: $GTNH_ICON_EXPORT_BATCH_SIZE"
 echo "Atlas icon size: $GTNH_ATLAS_ICON_SIZE"
+echo "Shared icon cache: $GTNH_ICON_CACHE_DIR"
 
 node tools/dataset-pipeline/scripts/download-gtnh-pack.mjs "$pack_archive"
 
@@ -75,6 +77,7 @@ cat > "$instance_root/eula.txt" <<'EOF'
 eula=true
 EOF
 mkdir -p "$rendered_icon_dir"
+mkdir -p "$GTNH_ICON_CACHE_DIR"
 
 if [[ -f "$instance_root/server.properties" ]]; then
   sed -i 's/^online-mode=.*/online-mode=false/' "$instance_root/server.properties"
@@ -82,7 +85,7 @@ fi
 
 export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Drecex.autorun=true"
 if [[ "$GTNH_RENDER_STACK_ICONS" == "true" ]]; then
-  export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Drecex.renderIcons=true -Drecex.iconDir=$rendered_icon_dir -Drecex.iconSize=$GTNH_ATLAS_ICON_SIZE -Drecex.iconExportBatchSize=$GTNH_ICON_EXPORT_BATCH_SIZE -Djava.awt.headless=false"
+  export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Drecex.renderIcons=true -Drecex.iconDir=$rendered_icon_dir -Drecex.iconCacheDir=$GTNH_ICON_CACHE_DIR -Drecex.iconSize=$GTNH_ATLAS_ICON_SIZE -Drecex.iconExportBatchSize=$GTNH_ICON_EXPORT_BATCH_SIZE -Djava.awt.headless=false"
 fi
 export _JAVA_OPTIONS="${_JAVA_OPTIONS:-} -Xms4G -Xmx${GTNH_EXPORT_MAX_MEMORY}"
 
@@ -122,8 +125,12 @@ while (( SECONDS < deadline )); do
     sleep 5
     next_size="$(stat -c%s "$raw_recex_json")"
     if [[ "$current_size" == "$next_size" ]]; then
-      echo "Detected completed RecEx export: $raw_recex_json"
-      break
+      if [[ "$GTNH_RENDER_STACK_ICONS" == "true" ]]; then
+        echo "Detected stable RecEx JSON; waiting for queued icon batch and client shutdown: $raw_recex_json"
+      else
+        echo "Detected completed RecEx export: $raw_recex_json"
+        break
+      fi
     fi
   fi
 
@@ -132,6 +139,10 @@ while (( SECONDS < deadline )); do
     wait "$runtime_pid"
     runtime_exit=$?
     set -e
+    if [[ -n "$raw_recex_json" && "$runtime_exit" == "0" ]]; then
+      echo "GTNH runtime exited after completing RecEx export and icon batch."
+      break
+    fi
     echo "GTNH runtime process exited with code $runtime_exit before producing a RecEx export." >&2
     exit "$runtime_exit"
   fi

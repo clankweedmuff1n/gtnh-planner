@@ -162,7 +162,7 @@ async function buildIconAtlas(datasetPath, datasetOutDir) {
         stdio: "inherit",
         env: {
           ...process.env,
-          GTNH_ATLAS_ICON_SIZE: process.env.GTNH_ATLAS_ICON_SIZE ?? "1024",
+          GTNH_ATLAS_ICON_SIZE: process.env.GTNH_ATLAS_ICON_SIZE ?? "256",
           GTNH_ATLAS_MAX_SIZE: process.env.GTNH_ATLAS_MAX_SIZE ?? "8192",
         },
       },

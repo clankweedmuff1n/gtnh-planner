@@ -13,7 +13,7 @@ if (!datasetPath || !datasetOutDir) {
 const datasetVersionId = path.basename(datasetOutDir);
 const renderedDir = path.join(datasetOutDir, "textures", "rendered");
 const atlasDir = path.join(datasetOutDir, "textures", "atlas");
-const cellSize = positiveIntEnv("GTNH_ATLAS_ICON_SIZE", 1024);
+const cellSize = positiveIntEnv("GTNH_ATLAS_ICON_SIZE", 256);
 const maxAtlasSize = positiveIntEnv("GTNH_ATLAS_MAX_SIZE", 8192);
 const removeRenderedIcons = process.env.GTNH_ATLAS_KEEP_RENDERED !== "true";
 

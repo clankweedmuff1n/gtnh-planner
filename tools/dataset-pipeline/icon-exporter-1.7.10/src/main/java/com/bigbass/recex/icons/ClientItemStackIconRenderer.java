@@ -9,7 +9,10 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -32,11 +35,14 @@ import org.lwjgl.opengl.GL12;
 
 public final class ClientItemStackIconRenderer {
 
-    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 1024);
+    private static final int ICON_SIZE = Integer.getInteger("recex.iconSize", 256);
     private static final int GUI_ICON_CANVAS_SIZE = 32;
     private static final int GUI_ITEM_SIZE = 16;
+    private static final int ICON_EXPORT_BATCH_SIZE = Integer.getInteger("recex.iconExportBatchSize", 64);
+    private static final int ICON_PROGRESS_EVERY = Integer.getInteger("recex.iconProgressEvery", 256);
     private static final int MAX_RENDER_WARNINGS = Integer.getInteger("recex.maxIconRenderWarnings", 50);
     private static final Map<String, String> ICONS_BY_STACK_KEY = new LinkedHashMap<String, String>();
+    private static final Map<String, ItemStack> PENDING_STACKS_BY_KEY = new LinkedHashMap<String, ItemStack>();
     private static final RenderItem RENDER_ITEM = new RenderItem();
     private static int renderWarnings;
 
@@ -57,30 +63,12 @@ public final class ClientItemStackIconRenderer {
             return value != null && value.length() > 0 ? value : null;
         }
 
-        File outDir = iconDir();
-        if (!outDir.exists() && !outDir.mkdirs()) {
-            ICONS_BY_STACK_KEY.put(key, "");
-            return null;
-        }
-
         try {
             ItemStack renderStack = stack.copy();
             renderStack.stackSize = 1;
             String filename = safeName(renderStack) + "-" + sha1(key).substring(0, 12) + ".png";
-            File outFile = new File(outDir, filename);
-
-            if (!outFile.isFile()) {
-                BufferedImage image = renderStackToImage(renderStack);
-                applyMissingItemTint(renderStack, image);
-                image = renderWithContainerBaseIfNeeded(renderStack, image);
-                if (!imageHasVisiblePixels(image) || missingTextureRatio(image) > 0.5D) {
-                    ICONS_BY_STACK_KEY.put(key, "");
-                    return null;
-                }
-                ImageIO.write(image, "png", outFile);
-            }
-
             ICONS_BY_STACK_KEY.put(key, filename);
+            PENDING_STACKS_BY_KEY.put(key, renderStack);
             return filename;
         } catch (Throwable t) {
             ICONS_BY_STACK_KEY.put(key, "");
@@ -102,6 +90,16 @@ public final class ClientItemStackIconRenderer {
 
         RecipeExporterMod.log.info("GTNH 1.7.10 icon exporter is ready for on-demand ItemStack rendering.");
         minecraft.displayGuiScreen(new IconExportScreen(afterExport));
+    }
+
+    public static void exportQueuedIconsThen(Runnable afterExport) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        if (minecraft == null) {
+            afterExport.run();
+            return;
+        }
+
+        minecraft.displayGuiScreen(new QueuedIconExportScreen(afterExport));
     }
 
     static BufferedImage renderStackToImage(ItemStack stack) throws Exception {
@@ -264,6 +262,142 @@ public final class ClientItemStackIconRenderer {
             mc.displayGuiScreen(null);
             afterExport.run();
         }
+    }
+
+    private static final class QueuedIconExportScreen extends GuiScreen {
+
+        private final Runnable afterExport;
+        private final Iterator<Map.Entry<String, ItemStack>> iterator;
+        private final int total;
+        private int processed;
+        private int rendered;
+        private int cacheHits;
+        private int skipped;
+        private boolean finished;
+
+        private QueuedIconExportScreen(Runnable afterExport) {
+            this.afterExport = afterExport;
+            this.iterator = PENDING_STACKS_BY_KEY.entrySet().iterator();
+            this.total = PENDING_STACKS_BY_KEY.size();
+            RecipeExporterMod.log.info(
+                "GTNH 1.7.10 item icon batch started: "
+                    + total
+                    + " queued, size "
+                    + ICON_SIZE
+                    + "px, batch "
+                    + ICON_EXPORT_BATCH_SIZE
+                    + "."
+            );
+        }
+
+        @Override
+        public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+            if (finished) {
+                return;
+            }
+
+            int batch = 0;
+            while (batch < ICON_EXPORT_BATCH_SIZE && iterator.hasNext()) {
+                Map.Entry<String, ItemStack> entry = iterator.next();
+                processed++;
+                batch++;
+                try {
+                    MaterializedIconResult result = materializeIcon(entry.getKey(), entry.getValue());
+                    if (result == MaterializedIconResult.RENDERED) {
+                        rendered++;
+                    } else if (result == MaterializedIconResult.CACHE_HIT) {
+                        cacheHits++;
+                    } else {
+                        skipped++;
+                    }
+                } catch (Throwable t) {
+                    skipped++;
+                    ICONS_BY_STACK_KEY.put(entry.getKey(), "");
+                    warnRenderFailure(entry.getValue(), t);
+                }
+
+                if (processed % ICON_PROGRESS_EVERY == 0 || processed == total) {
+                    RecipeExporterMod.log.info(
+                        "GTNH item icon progress "
+                            + processed
+                            + "/"
+                            + total
+                            + " (rendered "
+                            + rendered
+                            + ", cache "
+                            + cacheHits
+                            + ", skipped "
+                            + skipped
+                            + ")."
+                    );
+                }
+            }
+
+            if (!iterator.hasNext()) {
+                finished = true;
+                writeIconMap();
+                RecipeExporterMod.log.info(
+                    "GTNH item icon batch finished: rendered "
+                        + rendered
+                        + ", cache "
+                        + cacheHits
+                        + ", skipped "
+                        + skipped
+                        + "."
+                );
+                ClientFluidStackIconRenderer.exportQueuedIconsThen(new Runnable() {
+                    @Override
+                    public void run() {
+                        mc.displayGuiScreen(null);
+                        afterExport.run();
+                    }
+                });
+            }
+        }
+    }
+
+    private enum MaterializedIconResult {
+        RENDERED,
+        CACHE_HIT,
+        SKIPPED
+    }
+
+    private static MaterializedIconResult materializeIcon(String key, ItemStack stack) throws Exception {
+        String filename = ICONS_BY_STACK_KEY.get(key);
+        if (filename == null || filename.length() == 0) {
+            return MaterializedIconResult.SKIPPED;
+        }
+
+        File outDir = iconDir();
+        if (!outDir.exists() && !outDir.mkdirs()) {
+            return MaterializedIconResult.SKIPPED;
+        }
+
+        File outFile = new File(outDir, filename);
+        if (outFile.isFile()) {
+            return MaterializedIconResult.SKIPPED;
+        }
+
+        File cachedFile = cacheFile(filename);
+        if (cachedFile.isFile()) {
+            Files.copy(cachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return MaterializedIconResult.CACHE_HIT;
+        }
+
+        BufferedImage image = renderStackToImage(stack);
+        applyMissingItemTint(stack, image);
+        image = renderWithContainerBaseIfNeeded(stack, image);
+        if (!imageHasVisiblePixels(image) || missingTextureRatio(image) > 0.5D) {
+            ICONS_BY_STACK_KEY.put(key, "");
+            return MaterializedIconResult.SKIPPED;
+        }
+        ImageIO.write(image, "png", outFile);
+        File cacheDir = cacheDir();
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs();
+        }
+        ImageIO.write(image, "png", cachedFile);
+        return MaterializedIconResult.RENDERED;
     }
 
     static BufferedImage imageFromRgbaBuffer(ByteBuffer buffer) {
@@ -465,6 +599,18 @@ public final class ClientItemStackIconRenderer {
             return new File(configured);
         }
         return new File(Minecraft.getMinecraft().mcDataDir, "RecEx-Rendered-Icons");
+    }
+
+    static File cacheDir() {
+        String configured = System.getProperty("recex.iconCacheDir");
+        if (configured != null && configured.trim().length() > 0) {
+            return new File(configured);
+        }
+        return new File(iconDir(), ".cache-" + ICON_SIZE);
+    }
+
+    static File cacheFile(String filename) {
+        return new File(cacheDir(), filename);
     }
 
     static void resetTessellator() {

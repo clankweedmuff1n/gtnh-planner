@@ -32,7 +32,8 @@ It currently:
 - Runs `tools/dataset-pipeline/scripts/run-gtnh-recex-export.sh` by default.
 - Expects the exporter to write `recipes.json` to `$GTNH_DATASET_OUT_DIR`.
 - Launches the GTNH client by default, patches RecEx with a Forge 1.7.10 icon exporter,
-  and stores real `ItemStack` PNGs in `$GTNH_DATASET_OUT_DIR/textures/rendered`.
+  and stores only actually referenced `ItemStack`/`FluidStack` PNGs in
+  `$GTNH_DATASET_OUT_DIR/textures/rendered`.
 - Extracts matched real PNG textures from the selected GTNH mods for any remaining
   resources into `$GTNH_DATASET_OUT_DIR/textures`.
 - Rebuilds `public/datasets/gtnh/datasets.manifest.json` from generated datasets.
@@ -70,20 +71,22 @@ copied under `/datasets/gtnh/<version>/textures/` and referenced through `iconPa
 
 Before the static scan runs, the default RecEx patch installs
 `tools/dataset-pipeline/icon-exporter-1.7.10`, a small Forge 1.7.10 client-side exporter
-inspired by IconExporter. When `GTNH_RENDER_STACK_ICONS=true`, it opens a temporary GUI
-screen after the GTNH client has loaded, enumerates the item registry and creative-tab
-variants, renders their actual in-game GUI icons, filters blank and Minecraft
-missing-texture outputs, and builds an in-memory `ItemStack` key to PNG filename map.
-RecEx then references this precomputed map while exporting recipes instead of rendering
-icons opportunistically inside the recipe loop.
+inspired by IconExporter. When `GTNH_RENDER_STACK_ICONS=true`, the recipe export only
+queues icon keys while writing RecEx JSON. After the recipe JSON is complete, the client
+opens a temporary GUI screen, renders just those queued item/fluid icons in batches,
+filters blank and Minecraft missing-texture outputs, reuses a shared cache across
+stable/daily when the rendered filename key matches, then the Node pipeline packs the
+referenced PNGs into atlases.
 
 Useful knobs:
 
 - `GTNH_RENDER_STACK_ICONS=true|false` enables the Forge 1.7.10 exporter.
-- `GTNH_ICON_EXPORT_BATCH_SIZE=16` controls how many icons are rendered per client frame.
-- `GTNH_ATLAS_ICON_SIZE=1024` controls the rendered icon size and atlas cell size.
-- `GTNH_ATLAS_MAX_SIZE=8192` controls each atlas page size. At 1024px cells this stores
-  64 icons per page.
+- `GTNH_ICON_EXPORT_BATCH_SIZE=64` controls how many icons are rendered per client frame.
+- `GTNH_ATLAS_ICON_SIZE=256` controls the rendered icon size and atlas cell size.
+- `GTNH_ICON_CACHE_DIR=.pipeline/icon-cache/<size>` stores rendered icons reused between
+  stable and daily when the item/fluid key resolves to the same filename.
+- `GTNH_ATLAS_MAX_SIZE=8192` controls each atlas page size. At 256px cells this stores
+  1024 icons per page.
 - `GTNH_ATLAS_KEEP_RENDERED=true` keeps the intermediate per-icon PNGs for debugging.
   The default removes them after `textures/atlas/*.png` has been written.
 - `GTNH_RENDERED_ICON_DIR` is set by the runner and receives PNGs plus `icon-map.json`.

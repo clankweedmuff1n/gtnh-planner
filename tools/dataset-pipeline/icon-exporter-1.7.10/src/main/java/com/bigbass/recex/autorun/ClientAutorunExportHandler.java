@@ -1,8 +1,6 @@
 package com.bigbass.recex.autorun;
 
 import com.bigbass.recex.RecipeExporterMod;
-import com.bigbass.recex.icons.ClientItemStackIconRenderer;
-
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import net.minecraft.client.Minecraft;
@@ -30,16 +28,6 @@ public final class ClientAutorunExportHandler {
 
         started = true;
         RecipeExporterMod.log.info("RecEx autorun client tick handler is ready after " + ticks + " ticks.");
-
-        if (Boolean.getBoolean("recex.renderIcons")) {
-            ClientItemStackIconRenderer.exportRegistryIconsThen(new Runnable() {
-                @Override
-                public void run() {
-                    RecipeExporterMod.requestAutorunExport("client-icon-exporter-complete");
-                }
-            });
-            return;
-        }
 
         RecipeExporterMod.requestAutorunExport("client-proxy-tick");
     }

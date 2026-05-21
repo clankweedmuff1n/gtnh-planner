@@ -157,7 +157,10 @@ export async function queryRecipeDatasetRecipes(
 export const loadRecipeDatasetVersion = initRecipeDatasetVersion;
 
 function getVersionedDatasetUrl(manifestUrl: string, version: DatasetVersion): string {
-  const datasetUrl = new URL(resolveDatasetUrl(manifestUrl, version.recipeDatasetPath));
+  const datasetUrl = new URL(
+    resolveDatasetUrl(manifestUrl, version.recipeDatasetPath),
+    window.location.origin,
+  );
   datasetUrl.searchParams.set(
     "datasetVersion",
     version.checksumSha256 ?? version.publishedAt ?? version.id,

@@ -9,6 +9,8 @@ import {
   ReactFlow,
   applyNodeChanges,
   getSmoothStepPath,
+  useReactFlow,
+  useStore,
   type Connection,
   type ConnectionLineComponentProps,
   type Edge,
@@ -55,6 +57,7 @@ const connectionLineStyle = {
 
 const DEFAULT_ITEM_EDGE_COLOR = "#8b8f98";
 const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
+const RECIPE_SLOT_EDGE_OFFSET = 20;
 type ResourceEdgeData = {
   resource: Pick<
     ResourceAmount,
@@ -306,12 +309,19 @@ export function FactoryFlow() {
       event: MouseEvent | TouchEvent,
       params: { nodeId: string | null; handleId: string | null },
     ) => {
+      const eventHandle =
+        event.target instanceof Element
+          ? readResourceHandleElement(
+              event.target.closest<HTMLElement>("[data-resource-handle='true']"),
+            )
+          : undefined;
+      const nodeId = params.nodeId ?? eventHandle?.nodeId;
+      const handleId = params.handleId ?? eventHandle?.handleId;
+
       connectCompletedRef.current = false;
       lastConnectionPointerRef.current = getClientPosition(event);
       draggedResourceRef.current =
-        params.nodeId && params.handleId
-          ? getDraggedResourceForHandle(project, params.nodeId, params.handleId)
-          : undefined;
+        nodeId && handleId ? getDraggedResourceForHandle(project, nodeId, handleId) : undefined;
     },
     [project],
   );
@@ -327,6 +337,10 @@ export function FactoryFlow() {
         getResourceHandleAtPointer(event) ??
         getStorageHandleAtPosition(clientPosition, draggedResource) ??
         getStorageHandleAtPointer(event, draggedResource);
+
+      if (connectCompletedRef.current) {
+        return;
+      }
 
       if (draggedResource && targetHandle) {
         if (isCompatibleDraggedResourceTarget(draggedResource, targetHandle)) {
@@ -675,9 +689,13 @@ function ResourceEdge({
   sourceX,
   sourceY,
   sourcePosition,
+  source,
+  sourceHandleId,
   targetX,
   targetY,
   targetPosition,
+  target,
+  targetHandleId,
   style,
   selected,
   data,
@@ -686,13 +704,38 @@ function ResourceEdge({
     data?.resource,
     data?.color ?? DEFAULT_ITEM_EDGE_COLOR,
   );
+  const viewportTransform = useStore((state) => state.transform);
+  const { screenToFlowPosition } = useReactFlow<
+    RecipeFlowNode | StorageFlowNode,
+    ResourceFlowEdge
+  >();
   const edgeColor = resourceColor;
+  const visualSource = getSlotEdgeEndpoint({
+    nodeId: source,
+    handleId: sourceHandleId,
+    position: sourcePosition,
+    fallbackX: sourceX,
+    fallbackY: sourceY,
+    isRecipeSlotEndpoint: data?.sourceSlotEndpoint,
+    screenToFlowPosition,
+    viewportTransform,
+  });
+  const visualTarget = getSlotEdgeEndpoint({
+    nodeId: target,
+    handleId: targetHandleId,
+    position: targetPosition,
+    fallbackX: targetX,
+    fallbackY: targetY,
+    isRecipeSlotEndpoint: data?.targetSlotEndpoint,
+    screenToFlowPosition,
+    viewportTransform,
+  });
   const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
+    sourceX: visualSource.x,
+    sourceY: visualSource.y,
     sourcePosition,
-    targetX,
-    targetY,
+    targetX: visualTarget.x,
+    targetY: visualTarget.y,
     targetPosition,
   });
 
@@ -710,7 +753,7 @@ function ResourceEdge({
         }}
       />
       <polygon
-        points={getArrowHeadPoints(targetX, targetY, targetPosition)}
+        points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
         fill={edgeColor}
         stroke="#252525"
         strokeWidth={selected ? 1.4 : 0.8}
@@ -787,6 +830,72 @@ function ResourceConnectionLine({
       <circle cx={toX} cy={toY} r={6} fill={color} stroke="#052e36" strokeWidth={2} />
     </g>
   );
+}
+
+function getSlotEdgeEndpoint({
+  nodeId,
+  handleId,
+  position,
+  fallbackX,
+  fallbackY,
+  isRecipeSlotEndpoint,
+  screenToFlowPosition,
+  viewportTransform: _viewportTransform,
+}: {
+  nodeId: string;
+  handleId?: string | null;
+  position: unknown;
+  fallbackX: number;
+  fallbackY: number;
+  isRecipeSlotEndpoint?: boolean;
+  screenToFlowPosition: (clientPosition: { x: number; y: number }) => { x: number; y: number };
+  viewportTransform: [number, number, number];
+}) {
+  void _viewportTransform;
+
+  if (!isRecipeSlotEndpoint) {
+    return { x: fallbackX, y: fallbackY };
+  }
+
+  const domEndpoint = getSlotEdgeEndpointFromDom(nodeId, handleId, position, screenToFlowPosition);
+  if (domEndpoint) {
+    return domEndpoint;
+  }
+
+  switch (String(position)) {
+    case "right":
+      return { x: fallbackX + RECIPE_SLOT_EDGE_OFFSET, y: fallbackY };
+    case "left":
+      return { x: fallbackX - RECIPE_SLOT_EDGE_OFFSET, y: fallbackY };
+    default:
+      return { x: fallbackX, y: fallbackY };
+  }
+}
+
+function getSlotEdgeEndpointFromDom(
+  nodeId: string,
+  handleId: string | null | undefined,
+  position: unknown,
+  screenToFlowPosition: (clientPosition: { x: number; y: number }) => { x: number; y: number },
+) {
+  if (!handleId || typeof document === "undefined") {
+    return undefined;
+  }
+
+  const slotElement = [
+    ...document.querySelectorAll<HTMLElement>("[data-resource-handle='true']"),
+  ].find(
+    (element) =>
+      element.dataset.resourceNodeId === nodeId && element.dataset.resourceHandleId === handleId,
+  );
+  if (!slotElement) {
+    return undefined;
+  }
+
+  const slotRect = slotElement.getBoundingClientRect();
+  const screenX = String(position) === "left" ? slotRect.left : slotRect.right;
+  const screenY = slotRect.top + slotRect.height / 2;
+  return screenToFlowPosition({ x: screenX, y: screenY });
 }
 
 function formatEdgeRateLabel(data: ResourceEdgeData | undefined) {

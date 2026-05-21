@@ -135,6 +135,7 @@ jobs:
           cp public/datasets/gtnh/${{ matrix.id }}/recipes.json.gz .pipeline/dataset-artifact/${{ matrix.id }}/recipes.json.gz
           cp public/datasets/gtnh/${{ matrix.id }}/resource-index.json.gz .pipeline/dataset-artifact/${{ matrix.id }}/resource-index.json.gz
           cp public/datasets/gtnh/${{ matrix.id }}/recipe-index.json.gz .pipeline/dataset-artifact/${{ matrix.id }}/recipe-index.json.gz
+          cp public/datasets/gtnh/${{ matrix.id }}/recipe-lookup-index.json.gz .pipeline/dataset-artifact/${{ matrix.id }}/recipe-lookup-index.json.gz
           if [ -d public/datasets/gtnh/${{ matrix.id }}/recipes-shards ]; then
             cp -R public/datasets/gtnh/${{ matrix.id }}/recipes-shards .pipeline/dataset-artifact/${{ matrix.id }}/recipes-shards
           fi

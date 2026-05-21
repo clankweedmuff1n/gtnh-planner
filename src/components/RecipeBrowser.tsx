@@ -1218,7 +1218,7 @@ function RecipePagePager({
   );
 }
 
-const RecipeResultCard = memo(function RecipeResultCard({
+function RecipeResultCard({
   recipe,
   selected,
   onSelectRecipe,
@@ -1281,7 +1281,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
       ) : null}
     </article>
   );
-});
+}
 
 function summaryToPreviewRecipe(summary: RecipeSummary): Recipe {
   return {

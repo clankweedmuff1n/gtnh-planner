@@ -35,7 +35,7 @@ export function NeiRecipeCanvas({
   onSlotClick,
 }: NeiRecipeCanvasProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
-  const layout = useMemo(() => getNeiRecipeLayout(recipe), [recipe]);
+  const layout = getNeiRecipeLayout(recipe);
   const renderLayout = useMemo(
     () => getRenderLayout(layout.frames, layout.logo.y, layout.overflowGroups, expandedGroups),
     [expandedGroups, layout.frames, layout.logo.y, layout.overflowGroups],

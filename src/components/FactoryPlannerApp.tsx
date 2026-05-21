@@ -10,7 +10,6 @@ import { initRecipeDatasetVersion } from "@/lib/datasets/browser-loader";
 import { parseFactoryProjectJson } from "@/lib/import-export";
 import { LOCAL_STORAGE_KEY, loadResourceHistory, useFactoryStore } from "@/store/factory-store";
 import { FactoryFlow } from "./flow/FactoryFlow";
-import { InspectorPanel } from "./InspectorPanel";
 import { RecipeBrowser } from "./RecipeBrowser";
 import { TopBar } from "./TopBar";
 
@@ -160,10 +159,9 @@ export function FactoryPlannerApp() {
           {notice}
         </div>
       ) : null}
-      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)_440px]">
+      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)]">
         <RecipeBrowser />
         <FactoryFlow />
-        <InspectorPanel />
       </main>
     </div>
   );

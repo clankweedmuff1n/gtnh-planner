@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, GitBranchPlus, Plus, Search, X } from "lucide-react";
+import { GitBranchPlus, Plus, Search, X } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { PointerEvent, RefObject } from "react";
 import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
@@ -47,7 +47,6 @@ export function RecipeBrowser() {
   const clearResourceBrowser = useFactoryStore((state) => state.clearResourceBrowser);
   const selectRecipe = useFactoryStore((state) => state.selectRecipe);
   const addNodeForRecipe = useFactoryStore((state) => state.addNodeForRecipeObject);
-  const addResourceStorage = useFactoryStore((state) => state.addResourceStorage);
   const [selectedRecipeMap, setSelectedRecipeMap] = useState("all");
   const [recipePage, setRecipePage] = useState(0);
   const [filteredRecipes, setFilteredRecipes] = useState<RecipeSummary[]>([]);
@@ -512,10 +511,6 @@ export function RecipeBrowser() {
           selectedRecipeId={selectedRecipeId}
           onAdd={handleAddRecipe}
           onAddConnected={undefined}
-          onClose={clearResourceBrowser}
-          onAddStorage={() => {
-            addResourceStorage(activeResource);
-          }}
           onBrowseResource={(resource, mode) =>
             browseResource(
               {
@@ -871,14 +866,14 @@ function RecipeMapTabBar({
   return (
     <div
       className={[
-        "absolute left-1 right-1 top-0 grid h-[102px] items-start",
+        "absolute left-1 right-1 top-0 grid h-[102px] items-start border-2 border-[#f4f4f4] bg-[#c6c6c6] p-1 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]",
         hasOverflow ? "grid-cols-[42px_minmax(0,1fr)_42px]" : "grid-cols-[minmax(0,1fr)]",
       ].join(" ")}
     >
       {hasOverflow ? <NeiTabArrow direction="left" onClick={() => scrollTabs(-1)} /> : null}
       <div
         ref={scrollRef}
-        className="nei-tab-strip flex h-[102px] gap-2 overflow-x-auto overflow-y-hidden px-1"
+        className="nei-tab-strip flex h-[88px] gap-2 overflow-x-auto overflow-y-hidden px-1"
       >
         {tabs.map((tab) => (
           <MinecraftTooltip key={tab.id} label={tab.label}>
@@ -930,8 +925,6 @@ function RecipeBookOverlay({
   selectedRecipeId,
   onAdd,
   onAddConnected,
-  onClose,
-  onAddStorage,
   onBrowseResource,
   onRecipeMapChange,
   onRecipeMapHover,
@@ -946,8 +939,6 @@ function RecipeBookOverlay({
   selectedRecipeId?: string;
   onAdd: (recipeId: string) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
-  onClose: () => void;
-  onAddStorage: () => void;
   onBrowseResource: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
   onRecipeMapChange: (recipeMap: string) => void;
   onRecipeMapHover: (recipeMap: string) => void;
@@ -956,7 +947,7 @@ function RecipeBookOverlay({
   const panelRef = useRef<HTMLElement>(null);
   const initialPanelSize = getInitialRecipeBookSize();
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [panelSize, setPanelSize] = useState(initialPanelSize);
+  const [panelSize] = useState(initialPanelSize);
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -964,24 +955,11 @@ function RecipeBookOverlay({
     originX: number;
     originY: number;
   } | null>(null);
-  const resizeRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    width: number;
-    height: number;
-  } | null>(null);
-  const [isClosing, setIsClosing] = useState(false);
   const [bookSearch, setBookSearch] = useState("");
   const displayedRecipes = useMemo(
     () => filterRecipesByIngredientName(filteredRecipes, bookSearch),
     [bookSearch, filteredRecipes],
   );
-
-  const closeImmediately = () => {
-    setIsClosing(true);
-    window.setTimeout(onClose, 0);
-  };
 
   const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0) {
@@ -1019,44 +997,8 @@ function RecipeBookOverlay({
     if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null;
     }
-    if (resizeRef.current?.pointerId === event.pointerId) {
-      resizeRef.current = null;
-    }
   };
 
-  const handleResizePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    resizeRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      width: panelSize.width,
-      height: panelSize.height,
-    };
-  };
-
-  const handleResizePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    const resize = resizeRef.current;
-    if (!resize || resize.pointerId !== event.pointerId) {
-      return;
-    }
-
-    setPanelSize(
-      clampPanelSize({
-        width: resize.width + event.clientX - resize.startX,
-        height: resize.height + event.clientY - resize.startY,
-      }),
-    );
-  };
-
-  if (isClosing) {
-    return null;
-  }
   return (
     <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center px-3 py-4 lg:left-[360px] lg:right-[440px]">
       <section
@@ -1077,16 +1019,6 @@ function RecipeBookOverlay({
         />
 
         <div className="relative flex min-h-0 flex-1 flex-col border-2 border-[#f4f4f4] bg-[#c6c6c6] text-[#202020] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555]">
-          <button
-            type="button"
-            onClick={closeImmediately}
-            className="absolute -right-8 top-0 z-20 h-8 w-8 border-2 border-[#252525] bg-[#7d7d7d] text-[18px] leading-5 text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] [text-shadow:1px_1px_0_#000]"
-            title="Close"
-            aria-label="Close recipe book"
-          >
-            x
-          </button>
-
           <div className="grid grid-cols-[24px_minmax(0,1fr)_24px] items-center px-2 pt-2">
             <div />
             <div
@@ -1098,18 +1030,7 @@ function RecipeBookOverlay({
             >
               {activeRecipeMap || filteredRecipes[0]?.machineType || resourceLabel(activeResource)}
             </div>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onAddStorage();
-              }}
-              className="nodrag h-8 w-8 border-2 border-[#252525] bg-[#7d7d7d] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:bg-[#9b9b9b]"
-              title={`Add ${activeResource.kind === "fluid" ? "super tank" : "drawer"}`}
-              aria-label={`Add ${activeResource.kind === "fluid" ? "super tank" : "drawer"}`}
-            >
-              <Archive className="mx-auto h-4 w-4" />
-            </button>
+            <div />
           </div>
 
           <div className="px-3 pt-2">
@@ -1162,18 +1083,6 @@ function RecipeBookOverlay({
               />
             )}
           </div>
-          <button
-            type="button"
-            onPointerDown={handleResizePointerDown}
-            onPointerMove={handleResizePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            className="absolute bottom-1 right-1 h-5 w-5 cursor-nwse-resize border-2 border-[#252525] bg-[#8f8f8f] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040]"
-            title="Resize recipe book"
-            aria-label="Resize recipe book"
-          >
-            <span className="absolute bottom-0.5 right-0.5 h-2 w-2 border-b-2 border-r-2 border-white opacity-80" />
-          </button>
         </div>
       </section>
     </div>
@@ -1204,14 +1113,20 @@ function VirtualRecipeResultList({
   const anchorRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ scrollTop: 0, height: 360 });
   const rowHeight = 246;
+  const columnCount = 2;
   const overscan = 1;
-  const startIndex = Math.max(0, Math.floor(viewport.scrollTop / rowHeight) - overscan);
-  const visibleCount = Math.ceil(viewport.height / rowHeight) + overscan * 2;
-  const visibleRecipes = recipes.slice(startIndex, startIndex + visibleCount);
-  const topPadding = startIndex * rowHeight;
+  const rowCount = Math.ceil(recipes.length / columnCount);
+  const startRow = Math.max(0, Math.floor(viewport.scrollTop / rowHeight) - overscan);
+  const visibleRowCount = Math.ceil(viewport.height / rowHeight) + overscan * 2;
+  const visibleStartIndex = startRow * columnCount;
+  const visibleRecipes = recipes.slice(
+    visibleStartIndex,
+    visibleStartIndex + visibleRowCount * columnCount,
+  );
+  const topPadding = startRow * rowHeight;
   const bottomPadding = Math.max(
     0,
-    (recipes.length - startIndex - visibleRecipes.length) * rowHeight,
+    (rowCount - startRow - Math.ceil(visibleRecipes.length / columnCount)) * rowHeight,
   );
 
   useEffect(() => {
@@ -1251,7 +1166,7 @@ function VirtualRecipeResultList({
       }
     >
       <div style={{ height: topPadding }} />
-      <div className="grid grid-cols-1 items-start gap-2">
+      <div className="grid grid-cols-2 items-start gap-3">
         {visibleRecipes.map((recipe) => (
           <RecipeResultCard
             key={recipe.id}
@@ -1312,7 +1227,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
           {onAddConnected ? <GitBranchPlus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </button>
       </div>
-      <div className="overflow-x-auto pb-1 pr-9">
+      <div className="overflow-hidden pb-1 pr-9">
         <NeiRecipeWindow
           recipe={previewRecipe}
           scale={2}
@@ -1416,16 +1331,6 @@ function scheduleAfterPaint(callback: () => void) {
     cancelled = true;
     window.cancelAnimationFrame(firstFrame);
     window.cancelAnimationFrame(secondFrame);
-  };
-}
-
-function clampPanelSize(size: { width: number; height: number }) {
-  const maxWidth = typeof window === "undefined" ? 960 : Math.max(420, window.innerWidth - 24);
-  const maxHeight = typeof window === "undefined" ? 900 : Math.max(360, window.innerHeight - 32);
-
-  return {
-    width: clamp(size.width, 420, maxWidth),
-    height: clamp(size.height, 360, maxHeight),
   };
 }
 

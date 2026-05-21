@@ -86,6 +86,7 @@ export function FactoryFlow() {
   const cancelResourceConnection = useFactoryStore((state) => state.cancelResourceConnection);
   const nodeColorPaintMode = useFactoryStore((state) => state.nodeColorPaintMode);
   const setNodeColorPaintMode = useFactoryStore((state) => state.setNodeColorPaintMode);
+  const setFlowViewportCenter = useFactoryStore((state) => state.setFlowViewportCenter);
   const hoveredStorageResourceKey = useFactoryStore((state) => state.hoveredStorageResourceKey);
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
 
@@ -136,6 +137,7 @@ export function FactoryFlow() {
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
   const draggingNodeRef = useRef(false);
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
+  const boardRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance<
     RecipeFlowNode | StorageFlowNode,
     ResourceFlowEdge
@@ -315,11 +317,29 @@ export function FactoryFlow() {
     [reconnectEdge],
   );
 
+  const updateFlowViewportCenter = useCallback(() => {
+    const instance = flowInstanceRef.current;
+    const board = boardRef.current;
+    if (!instance || !board) {
+      return;
+    }
+
+    const rect = board.getBoundingClientRect();
+    setFlowViewportCenter(
+      instance.screenToFlowPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      }),
+    );
+  }, [setFlowViewportCenter]);
+
   const handleInit = useCallback(
     (instance: ReactFlowInstance<RecipeFlowNode | StorageFlowNode, ResourceFlowEdge>) => {
       flowInstanceRef.current = instance;
+      window.requestAnimationFrame(updateFlowViewportCenter);
+      window.setTimeout(updateFlowViewportCenter, 120);
     },
-    [],
+    [updateFlowViewportCenter],
   );
 
   useEffect(() => {
@@ -392,7 +412,10 @@ export function FactoryFlow() {
   const fitViewOptions = useMemo(() => ({ padding: 0.18 }), []);
 
   return (
-    <div className="factory-flow-board relative h-full min-h-[520px] overflow-hidden border-x border-neutral-200 bg-neutral-100">
+    <div
+      ref={boardRef}
+      className="factory-flow-board relative h-full min-h-[520px] overflow-hidden border-x border-neutral-200 bg-neutral-100"
+    >
       <ReactFlow
         nodes={flowNodes}
         edges={edges}
@@ -403,6 +426,7 @@ export function FactoryFlow() {
         onConnectEnd={handleConnectEnd}
         onReconnect={handleReconnect}
         onInit={handleInit}
+        onMoveEnd={updateFlowViewportCenter}
         isValidConnection={isCompatibleResourceConnection}
         connectionMode={ConnectionMode.Loose}
         connectionRadius={18}

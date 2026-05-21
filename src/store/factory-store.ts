@@ -38,6 +38,7 @@ interface FactoryStore {
   pendingResourceConnection?: PendingResourceConnection;
   nodeColorPaintMode?: FactoryNodeColorTag | null;
   hoveredStorageResourceKey?: string;
+  flowViewportCenter?: FactoryNode["position"];
   selectedNodeId?: string;
   selectedRecipeId?: string;
   lastResult: ThroughputResult;
@@ -58,6 +59,7 @@ interface FactoryStore {
   cancelResourceConnection: () => void;
   setNodeColorPaintMode: (colorTag?: FactoryNodeColorTag | null) => void;
   setHoveredStorageResourceKey: (key?: string) => void;
+  setFlowViewportCenter: (position: FactoryNode["position"]) => void;
   recalculate: () => void;
   selectNode: (nodeId?: string) => void;
   selectRecipe: (recipeId?: string) => void;
@@ -346,6 +348,9 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   setHoveredStorageResourceKey: (key) => {
     set({ hoveredStorageResourceKey: key });
+  },
+  setFlowViewportCenter: (position) => {
+    set({ flowViewportCenter: position });
   },
   recalculate: () => {
     const { project } = get();
@@ -783,6 +788,12 @@ function findRecipeForPlanning(state: FactoryStore, recipeId: string): Recipe | 
 
 function addRecipeNodeToState(state: FactoryStore, recipe: Recipe): Partial<FactoryStore> {
   const index = state.project.nodes.length;
+  const viewportPosition = state.flowViewportCenter
+    ? {
+        x: state.flowViewportCenter.x - 220,
+        y: state.flowViewportCenter.y - 160,
+      }
+    : undefined;
   const node: FactoryNode = {
     id: createId("node"),
     recipeId: recipe.id,
@@ -790,7 +801,7 @@ function addRecipeNodeToState(state: FactoryStore, recipe: Recipe): Partial<Fact
     parallel: 1,
     overclockTier: recipe.minimumTier,
     enabled: true,
-    position: {
+    position: viewportPosition ?? {
       x: 100 + index * 90,
       y: 120 + (index % 4) * 90,
     },

@@ -1,11 +1,12 @@
 "use client";
 
 import { Archive, GitBranchPlus, Plus, Search, X } from "lucide-react";
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { mergeDatasetAndProjectRecipes } from "@/lib/datasets";
+import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
+import { queryRecipeDatasetRecipes } from "@/lib/datasets/browser-loader";
 import type { DatasetResource, DatasetResourceIndexEntry } from "@/lib/datasets/types";
-import { getRecipePowerTier, getResourceKey, GT_VOLTAGE_TIERS, primaryOutput, resourceLabel } from "@/lib/model";
+import { getResourceKey, GT_VOLTAGE_TIERS, primaryOutput, resourceLabel } from "@/lib/model";
 import type { MachineTier } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
 import type { Recipe, ResourceAmount, ResourceKey } from "@/lib/model/types";
@@ -14,6 +15,10 @@ import { ResourceIcon } from "./nei/ResourceIcon";
 
 export function RecipeBrowser() {
   const dataset = useFactoryStore((state) => state.dataset);
+  const datasetManifest = useFactoryStore((state) => state.datasetManifest);
+  const datasetManifestUrl = useFactoryStore((state) => state.datasetManifestUrl);
+  const selectedDatasetVersionId = useFactoryStore((state) => state.selectedDatasetVersionId);
+  const isDatasetLoading = useFactoryStore((state) => state.isDatasetLoading);
   const projectRecipes = useFactoryStore((state) => state.project.recipes);
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
   const browserResource = useFactoryStore((state) => state.recipeBrowserResource);
@@ -24,22 +29,22 @@ export function RecipeBrowser() {
   const browseResource = useFactoryStore((state) => state.browseResource);
   const clearResourceBrowser = useFactoryStore((state) => state.clearResourceBrowser);
   const selectRecipe = useFactoryStore((state) => state.selectRecipe);
-  const addNodeForRecipe = useFactoryStore((state) => state.addNodeForRecipe);
-  const addConnectedNodeForRecipe = useFactoryStore((state) => state.addConnectedNodeForRecipe);
+  const addNodeForRecipe = useFactoryStore((state) => state.addNodeForRecipeObject);
+  const addConnectedNodeForRecipe = useFactoryStore(
+    (state) => state.addConnectedNodeForRecipeObject,
+  );
   const addResourceStorage = useFactoryStore((state) => state.addResourceStorage);
-  const datasetRecipes = dataset?.recipes;
   const [selectedRecipeMap, setSelectedRecipeMap] = useState("all");
   const [maxTier, setMaxTier] = useState<TierFilter>("all");
+  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
+  const [queryTotal, setQueryTotal] = useState(0);
+  const [recipeQueryLoading, setRecipeQueryLoading] = useState(false);
+  const [recipeQueryError, setRecipeQueryError] = useState<string | undefined>();
   const deferredRecipeSearch = useDeferredValue(recipeSearch);
 
-  const recipes = useMemo(
-    () => mergeDatasetAndProjectRecipes(datasetRecipes ?? [], projectRecipes),
-    [datasetRecipes, projectRecipes],
-  );
-
   const resourceIndex = useMemo(
-    () => buildResourceIndex(dataset?.resourceIndex, datasetRecipes ?? [], projectRecipes),
-    [dataset?.resourceIndex, datasetRecipes, projectRecipes],
+    () => buildResourceIndex(dataset?.resourceIndex, dataset?.recipes ?? [], projectRecipes),
+    [dataset?.resourceIndex, dataset?.recipes, projectRecipes],
   );
   const activeResource = useMemo(() => {
     if (!browserResource) {
@@ -90,27 +95,10 @@ export function RecipeBrowser() {
       .slice(0, 96);
   }, [activeResource, deferredRecipeSearch, resourceIndex]);
 
-  const resourceScopedRecipes = useMemo(() => {
-    if (!activeResource) {
-      return recipes;
-    }
-
-    return recipes.filter((recipe) => recipeHasResource(recipe, activeResource, browserMode));
-  }, [activeResource, browserMode, recipes]);
-
-  const scopedRecipes = useMemo(
-    () => resourceScopedRecipes.filter((recipe) => recipeMatchesTier(recipe, maxTier)),
-    [maxTier, resourceScopedRecipes],
-  );
-
   const recipeMaps = useMemo(() => {
-    const maps = dataset?.recipeMaps?.length
-      ? dataset.recipeMaps.filter((map) =>
-          scopedRecipes.some((recipe) => (recipe.source?.recipeMap ?? recipe.machineType) === map),
-        )
-      : [...new Set(scopedRecipes.map((recipe) => recipe.source?.recipeMap ?? recipe.machineType))];
+    const maps = dataset?.recipeMaps?.length ? dataset.recipeMaps : [];
     return maps.filter(Boolean).sort((a, b) => a.localeCompare(b));
-  }, [dataset, scopedRecipes]);
+  }, [dataset]);
 
   const recipeMapTabs = useMemo(
     () => buildRecipeMapTabs(recipeMaps, dataset?.resources ?? []),
@@ -121,41 +109,87 @@ export function RecipeBrowser() {
     ? selectedRecipeMap
     : (recipeMaps[0] ?? "");
 
-  const filteredRecipes = useMemo(() => {
-    const query = deferredRecipeSearch.trim().toLowerCase();
-    const activeMap = activeRecipeMap || undefined;
-    const resultsWithIcons: Array<{ recipe: Recipe; iconScore: number }> = [];
-    const resultsWithoutIcons: Recipe[] = [];
+  const selectedDatasetVersion = useMemo(
+    () => datasetManifest?.versions.find((entry) => entry.id === selectedDatasetVersionId),
+    [datasetManifest?.versions, selectedDatasetVersionId],
+  );
 
-    for (const recipe of scopedRecipes) {
-      const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
-      if (activeMap && recipeMap !== activeMap) {
-        continue;
-      }
-
-      if (!activeResource && query && !recipeMatchesQuery(recipe, query)) {
-        continue;
-      }
-
-      const iconScore = recipeIconScore(recipe);
-      if (iconScore > 0) {
-        resultsWithIcons.push({ recipe, iconScore });
-      } else if (resultsWithoutIcons.length < 240) {
-        resultsWithoutIcons.push(recipe);
-      }
-
-      if (resultsWithIcons.length >= 240) {
-        break;
-      }
+  useEffect(() => {
+    if (!selectedDatasetVersion) {
+      const timeout = window.setTimeout(() => {
+        setFilteredRecipes([]);
+        setQueryTotal(0);
+      }, 0);
+      return () => window.clearTimeout(timeout);
     }
 
-    return [
-      ...resultsWithIcons
-        .sort((left, right) => right.iconScore - left.iconScore)
-        .map((entry) => entry.recipe),
-      ...resultsWithoutIcons,
-    ].slice(0, 240);
-  }, [activeRecipeMap, activeResource, deferredRecipeSearch, scopedRecipes]);
+    const query = deferredRecipeSearch.trim();
+    if (!activeResource && query.length < 2) {
+      const timeout = window.setTimeout(() => {
+        setFilteredRecipes([]);
+        setQueryTotal(0);
+        setRecipeQueryLoading(false);
+        setRecipeQueryError(undefined);
+      }, 0);
+      return () => window.clearTimeout(timeout);
+    }
+
+    let cancelled = false;
+    window.setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+      setRecipeQueryLoading(true);
+      setRecipeQueryError(undefined);
+    }, 0);
+
+    queryRecipeDatasetRecipes(
+      datasetManifestUrl ?? DEFAULT_DATASET_MANIFEST_URL,
+      selectedDatasetVersion,
+      {
+        query,
+        resource: activeResource
+          ? {
+              kind: activeResource.kind,
+              id: activeResource.id,
+            }
+          : undefined,
+        mode: browserMode,
+        recipeMap: activeRecipeMap || undefined,
+        maxTier,
+        limit: 240,
+      },
+    )
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setFilteredRecipes(result.recipes);
+        setQueryTotal(result.total);
+        setRecipeQueryLoading(false);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        setFilteredRecipes([]);
+        setQueryTotal(0);
+        setRecipeQueryError(error instanceof Error ? error.message : "Recipe query failed.");
+        setRecipeQueryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeRecipeMap,
+    activeResource,
+    browserMode,
+    datasetManifestUrl,
+    deferredRecipeSearch,
+    maxTier,
+    selectedDatasetVersion,
+  ]);
 
   return (
     <>
@@ -215,10 +249,13 @@ export function RecipeBrowser() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {recipes.length === 0 ? (
+          {!dataset && isDatasetLoading ? (
             <div className="rounded border border-dashed border-neutral-600 p-4 text-sm text-neutral-300">
-              Recipes are not loaded yet. Use Load recipes in the top bar when you need the NEI
-              browser.
+              Loading recipe index...
+            </div>
+          ) : !dataset ? (
+            <div className="rounded border border-dashed border-neutral-600 p-4 text-sm text-neutral-300">
+              Recipe index is not loaded yet.
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2">
@@ -250,13 +287,16 @@ export function RecipeBrowser() {
           activeRecipeMap={activeRecipeMap}
           activeResource={activeResource}
           filteredRecipes={filteredRecipes}
+          isLoading={recipeQueryLoading}
+          queryError={recipeQueryError}
+          queryTotal={queryTotal}
           recipeMapTabs={recipeMapTabs}
           selectedRecipeId={selectedRecipeId}
           onAdd={addNodeForRecipe}
           onAddConnected={
             activeResource.anchorNodeId
-              ? (recipeId) =>
-                  addConnectedNodeForRecipe(recipeId, activeResource.anchorNodeId!, {
+              ? (recipe) =>
+                  addConnectedNodeForRecipe(recipe, activeResource.anchorNodeId!, {
                     kind: activeResource.kind,
                     id: activeResource.id,
                     displayName: activeResource.displayName,
@@ -441,6 +481,9 @@ function RecipeBookOverlay({
   activeRecipeMap,
   activeResource,
   filteredRecipes,
+  isLoading,
+  queryError,
+  queryTotal,
   recipeMapTabs,
   selectedRecipeId,
   onAdd,
@@ -454,10 +497,13 @@ function RecipeBookOverlay({
   activeRecipeMap: string;
   activeResource: IndexedResource & { anchorNodeId?: string };
   filteredRecipes: Recipe[];
+  isLoading: boolean;
+  queryError?: string;
+  queryTotal: number;
   recipeMapTabs: RecipeMapTab[];
   selectedRecipeId?: string;
-  onAdd: (recipeId: string) => void;
-  onAddConnected?: (recipeId: string) => void;
+  onAdd: (recipe: Recipe) => void;
+  onAddConnected?: (recipe: Recipe) => void;
   onClose: () => void;
   onAddStorage: () => void;
   onBrowseResource: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
@@ -619,20 +665,33 @@ function RecipeBookOverlay({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            {filteredRecipes.length === 0 ? (
+            {queryError ? (
+              <div className="border-2 border-[#777] bg-[#b6b6b6] p-3 text-sm shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
+                {queryError}
+              </div>
+            ) : isLoading && filteredRecipes.length === 0 ? (
+              <div className="border-2 border-[#777] bg-[#b6b6b6] p-3 text-sm shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
+                Loading recipes...
+              </div>
+            ) : filteredRecipes.length === 0 ? (
               <div className="border-2 border-[#777] bg-[#b6b6b6] p-3 text-sm shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
                 No matching recipes.
               </div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(360px,1fr))] items-start gap-2">
+              <div
+                className="grid grid-cols-[repeat(auto-fit,minmax(360px,1fr))] items-start gap-2"
+                title={
+                  queryTotal > filteredRecipes.length ? `${queryTotal} recipes matched` : undefined
+                }
+              >
                 {filteredRecipes.map((recipe) => (
                   <RecipeResultCard
                     key={recipe.id}
                     recipe={recipe}
                     selected={selectedRecipeId === recipe.id}
                     onSelect={() => onSelectRecipe(recipe.id)}
-                    onAdd={() => onAdd(recipe.id)}
-                    onAddConnected={onAddConnected ? () => onAddConnected(recipe.id) : undefined}
+                    onAdd={() => onAdd(recipe)}
+                    onAddConnected={onAddConnected ? () => onAddConnected(recipe) : undefined}
                     onSlotBrowse={onBrowseResource}
                     minimal
                   />
@@ -826,63 +885,6 @@ function resourceMatchesQuery(resource: IndexedResource, query: string): boolean
   return [resource.displayName, resource.id, resource.kind]
     .filter(Boolean)
     .some((value) => value?.toLowerCase().includes(query));
-}
-
-function recipeMatchesTier(recipe: Recipe, maxTier: TierFilter) {
-  if (maxTier === "all") {
-    return true;
-  }
-
-  const maxIndex = getTierIndex(maxTier);
-  const recipeIndex = getTierIndex(getRecipeTier(recipe));
-  return recipeIndex <= maxIndex;
-}
-
-function getRecipeTier(recipe: Recipe): Exclude<MachineTier, "DEMO"> {
-  const declaredTier = recipe.minimumTier;
-  if (isKnownTier(declaredTier)) {
-    return declaredTier;
-  }
-
-  return getRecipePowerTier(recipe);
-}
-
-function isKnownTier(tier: string): tier is Exclude<MachineTier, "DEMO"> {
-  return GT_VOLTAGE_TIERS.some((entry) => entry.tier === tier);
-}
-
-function getTierIndex(tier: Exclude<MachineTier, "DEMO">) {
-  const index = GT_VOLTAGE_TIERS.findIndex((entry) => entry.tier === tier);
-  return index === -1 ? GT_VOLTAGE_TIERS.length - 1 : index;
-}
-
-function recipeHasResource(
-  recipe: Recipe,
-  resource: Pick<ResourceAmount, "kind" | "id">,
-  mode: "recipes" | "uses",
-): boolean {
-  const resources = mode === "recipes" ? recipe.outputs : recipe.inputs;
-  return resources.some((entry) => entry.kind === resource.kind && entry.id === resource.id);
-}
-
-function recipeMatchesQuery(recipe: Recipe, query: string): boolean {
-  return [
-    recipe.name,
-    recipe.machineType,
-    recipe.source?.recipeMap,
-    recipe.source?.rawRecipeId,
-    ...recipe.inputs.map((input) => input.displayName ?? input.id),
-    ...recipe.outputs.map((output) => output.displayName ?? output.id),
-  ]
-    .filter(Boolean)
-    .some((value) => value?.toLowerCase().includes(query));
-}
-
-function recipeIconScore(recipe: Recipe): number {
-  return [...recipe.inputs, ...recipe.outputs].reduce(
-    (score, resource) => score + (resource.iconPath ? 1 : 0),
-    0,
-  );
 }
 
 function buildRecipeMapTabs(recipeMaps: string[], resources: DatasetResource[]): RecipeMapTab[] {

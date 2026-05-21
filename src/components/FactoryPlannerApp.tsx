@@ -6,7 +6,7 @@ import {
   fetchDatasetManifest,
   pickDefaultDatasetVersion,
 } from "@/lib/datasets";
-import { loadRecipeDatasetVersion } from "@/lib/datasets/browser-loader";
+import { initRecipeDatasetVersion } from "@/lib/datasets/browser-loader";
 import { parseFactoryProjectJson } from "@/lib/import-export";
 import { LOCAL_STORAGE_KEY, loadResourceHistory, useFactoryStore } from "@/store/factory-store";
 import { FactoryFlow } from "./flow/FactoryFlow";
@@ -41,11 +41,9 @@ export function FactoryPlannerApp() {
 
       try {
         setDatasetLoading(true);
-        const dataset = await loadRecipeDatasetVersion(manifestUrl, version);
+        const dataset = await initRecipeDatasetVersion(manifestUrl, version);
         setDataset(dataset);
-        setNotice(
-          `Loaded GTNH ${dataset.gtnhVersion}: ${dataset.recipes.length.toLocaleString()} recipes.`,
-        );
+        setNotice(`Loaded GTNH ${dataset.gtnhVersion} recipe index.`);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Dataset load failed.";
         setDatasetError(message);
@@ -93,7 +91,7 @@ export function FactoryPlannerApp() {
           return;
         }
 
-        setDatasetLoading(false);
+        void loadDatasetVersion(pickDefaultDatasetVersion(manifest)!.id);
       } catch (error) {
         if (cancelled) {
           return;

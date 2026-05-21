@@ -56,8 +56,16 @@ interface FactoryStore {
   selectNode: (nodeId?: string) => void;
   selectRecipe: (recipeId?: string) => void;
   addNodeForRecipe: (recipeId: string) => void;
+  addNodeForRecipeObject: (recipe: Recipe) => void;
   addConnectedNodeForRecipe: (
     recipeId: string,
+    anchorNodeId: string,
+    resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+      mode: RecipeBrowserMode;
+    },
+  ) => void;
+  addConnectedNodeForRecipeObject: (
+    recipe: Recipe,
     anchorNodeId: string,
     resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
       mode: RecipeBrowserMode;
@@ -156,11 +164,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
     set((state) => ({
       dataset,
       selectedDatasetVersionId: dataset.datasetVersionId,
-      selectedRecipeId:
-        state.selectedRecipeId &&
-        dataset.recipes.some((recipe) => recipe.id === state.selectedRecipeId)
-          ? state.selectedRecipeId
-          : dataset.recipes[0]?.id,
+      selectedRecipeId: state.selectedRecipeId ?? dataset.recipes[0]?.id,
       datasetError: undefined,
       isDatasetLoading: false,
     }));
@@ -307,85 +311,24 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      const index = state.project.nodes.length;
-      const node: FactoryNode = {
-        id: createId("node"),
-        recipeId,
-        machineCount: 1,
-        parallel: 1,
-        overclockTier: recipe.minimumTier,
-        enabled: true,
-        position: {
-          x: 100 + index * 90,
-          y: 120 + (index % 4) * 90,
-        },
-      };
-      const recipeAlreadyInProject = state.project.recipes.some((entry) => entry.id === recipe.id);
-      const project = touchProject({
-        ...state.project,
-        recipes: recipeAlreadyInProject
-          ? state.project.recipes
-          : [...state.project.recipes, recipe],
-        nodes: [...state.project.nodes, node],
-      });
-
-      return {
-        project,
-        selectedNodeId: node.id,
-        selectedRecipeId: recipeId,
-        lastResult: calculateThroughput(project),
-      };
+      return addRecipeNodeToState(state, recipe);
     });
+  },
+  addNodeForRecipeObject: (recipe) => {
+    set((state) => addRecipeNodeToState(state, recipe));
   },
   addConnectedNodeForRecipe: (recipeId, anchorNodeId, resource) => {
     set((state) => {
       const recipe = findRecipeForPlanning(state, recipeId);
-      const anchorNode = state.project.nodes.find((node) => node.id === anchorNodeId);
-      const anchorRecipe = state.project.recipes.find((entry) => entry.id === anchorNode?.recipeId);
-
-      if (!recipe || !anchorNode || !anchorRecipe) {
+      if (!recipe) {
         return state;
       }
 
-      const recipeAlreadyInProject = state.project.recipes.some((entry) => entry.id === recipe.id);
-      const nextNode: FactoryNode = {
-        id: createId("node"),
-        recipeId,
-        machineCount: 1,
-        parallel: 1,
-        overclockTier: recipe.minimumTier,
-        enabled: true,
-        position:
-          resource.mode === "recipes"
-            ? { x: anchorNode.position.x - 440, y: anchorNode.position.y }
-            : { x: anchorNode.position.x + 440, y: anchorNode.position.y },
-      };
-
-      const projectWithNode: FactoryProject = {
-        ...state.project,
-        recipes: recipeAlreadyInProject
-          ? state.project.recipes
-          : [...state.project.recipes, recipe],
-        nodes: [...state.project.nodes, nextNode],
-      };
-
-      const edge =
-        resource.mode === "recipes"
-          ? buildEdgeBetweenNodes(projectWithNode, nextNode.id, anchorNode.id, resource)
-          : buildEdgeBetweenNodes(projectWithNode, anchorNode.id, nextNode.id, resource);
-
-      const project = touchProject({
-        ...projectWithNode,
-        edges: edge ? [...projectWithNode.edges, edge] : projectWithNode.edges,
-      });
-
-      return {
-        project,
-        selectedNodeId: nextNode.id,
-        selectedRecipeId: recipeId,
-        lastResult: calculateThroughput(project),
-      };
+      return addConnectedRecipeNodeToState(state, recipe, anchorNodeId, resource);
     });
+  },
+  addConnectedNodeForRecipeObject: (recipe, anchorNodeId, resource) => {
+    set((state) => addConnectedRecipeNodeToState(state, recipe, anchorNodeId, resource));
   },
   updateNode: (nodeId, patch) => {
     set((state) => {
@@ -661,6 +604,88 @@ function findRecipeForPlanning(state: FactoryStore, recipeId: string): Recipe | 
     state.dataset?.recipes.find((recipe) => recipe.id === recipeId) ??
     state.project.recipes.find((recipe) => recipe.id === recipeId)
   );
+}
+
+function addRecipeNodeToState(state: FactoryStore, recipe: Recipe): Partial<FactoryStore> {
+  const index = state.project.nodes.length;
+  const node: FactoryNode = {
+    id: createId("node"),
+    recipeId: recipe.id,
+    machineCount: 1,
+    parallel: 1,
+    overclockTier: recipe.minimumTier,
+    enabled: true,
+    position: {
+      x: 100 + index * 90,
+      y: 120 + (index % 4) * 90,
+    },
+  };
+  const recipeAlreadyInProject = state.project.recipes.some((entry) => entry.id === recipe.id);
+  const project = touchProject({
+    ...state.project,
+    recipes: recipeAlreadyInProject ? state.project.recipes : [...state.project.recipes, recipe],
+    nodes: [...state.project.nodes, node],
+  });
+
+  return {
+    project,
+    selectedNodeId: node.id,
+    selectedRecipeId: recipe.id,
+    lastResult: calculateThroughput(project),
+  };
+}
+
+function addConnectedRecipeNodeToState(
+  state: FactoryStore,
+  recipe: Recipe,
+  anchorNodeId: string,
+  resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+    mode: RecipeBrowserMode;
+  },
+): Partial<FactoryStore> {
+  const anchorNode = state.project.nodes.find((node) => node.id === anchorNodeId);
+  const anchorRecipe = state.project.recipes.find((entry) => entry.id === anchorNode?.recipeId);
+
+  if (!anchorNode || !anchorRecipe) {
+    return state;
+  }
+
+  const recipeAlreadyInProject = state.project.recipes.some((entry) => entry.id === recipe.id);
+  const nextNode: FactoryNode = {
+    id: createId("node"),
+    recipeId: recipe.id,
+    machineCount: 1,
+    parallel: 1,
+    overclockTier: recipe.minimumTier,
+    enabled: true,
+    position:
+      resource.mode === "recipes"
+        ? { x: anchorNode.position.x - 440, y: anchorNode.position.y }
+        : { x: anchorNode.position.x + 440, y: anchorNode.position.y },
+  };
+
+  const projectWithNode: FactoryProject = {
+    ...state.project,
+    recipes: recipeAlreadyInProject ? state.project.recipes : [...state.project.recipes, recipe],
+    nodes: [...state.project.nodes, nextNode],
+  };
+
+  const edge =
+    resource.mode === "recipes"
+      ? buildEdgeBetweenNodes(projectWithNode, nextNode.id, anchorNode.id, resource)
+      : buildEdgeBetweenNodes(projectWithNode, anchorNode.id, nextNode.id, resource);
+
+  const project = touchProject({
+    ...projectWithNode,
+    edges: edge ? [...projectWithNode.edges, edge] : projectWithNode.edges,
+  });
+
+  return {
+    project,
+    selectedNodeId: nextNode.id,
+    selectedRecipeId: recipe.id,
+    lastResult: calculateThroughput(project),
+  };
 }
 
 function buildEdgeBetweenNodes(

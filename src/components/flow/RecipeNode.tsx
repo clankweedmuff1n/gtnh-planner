@@ -78,7 +78,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         </div>
       ) : null}
       <div className="px-2 pb-2 pt-1">
-        <div className="mb-1 grid grid-cols-[24px_minmax(0,1fr)_24px] items-center">
+        <div className="mb-1 grid min-w-0 grid-cols-[24px_minmax(0,1fr)_36px] items-center">
           <button
             type="button"
             onClick={(event) => {
@@ -177,7 +177,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           }}
         />
 
-        <div className="mt-1 grid grid-cols-3 gap-1 text-[12px] leading-4 text-black">
+        <div className="mt-1 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-1 text-[12px] leading-4 text-black">
           <MachineCountStat
             machineCount={projectNode.machineCount}
             suggestedMachineCount={getSuggestedMachineCount(result, projectNode.machineCount)}
@@ -274,7 +274,7 @@ function getConnectionSlotState(
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-[#777] bg-[#b6b6b6] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
+    <div className="min-w-0 border border-[#777] bg-[#b6b6b6] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
       <div className="truncate text-[9px] uppercase text-[#424242]">{label}</div>
       <div className="truncate font-medium">{value}</div>
     </div>
@@ -311,9 +311,9 @@ function MachineCountStat({
   };
 
   return (
-    <div className="border border-[#777] bg-[#b6b6b6] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
+    <div className="min-w-0 border border-[#777] bg-[#b6b6b6] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
       <div className="truncate text-[9px] uppercase text-[#424242]">Machines</div>
-      <div className="flex items-center gap-1">
+      <div className="flex min-w-0 items-center gap-1">
         <input
           value={draft}
           onChange={(event) => {
@@ -330,7 +330,7 @@ function MachineCountStat({
           onClick={(event) => event.stopPropagation()}
           inputMode="numeric"
           aria-label="Machine count"
-          className="nodrag min-w-0 flex-1 bg-transparent text-[12px] font-medium leading-4 text-black outline-none"
+          className="nodrag w-0 min-w-0 flex-1 bg-transparent text-[12px] font-medium leading-4 text-black outline-none"
         />
         <button
           type="button"

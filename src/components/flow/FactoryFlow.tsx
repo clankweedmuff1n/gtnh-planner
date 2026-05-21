@@ -10,6 +10,7 @@ import {
   applyNodeChanges,
   getSmoothStepPath,
   type Connection,
+  type ConnectionLineComponentProps,
   type Edge,
   type EdgeProps,
   type EdgeTypes,
@@ -43,6 +44,13 @@ const nodeTypes = {
 const edgeTypes = {
   resourceEdge: ResourceEdge,
 } satisfies EdgeTypes;
+
+const connectionLineStyle = {
+  stroke: "#00d9ff",
+  strokeWidth: 5,
+  strokeOpacity: 0.95,
+  filter: "drop-shadow(0 0 5px rgba(0,217,255,0.9))",
+};
 
 const DEFAULT_ITEM_EDGE_COLOR = "#8b8f98";
 const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
@@ -137,6 +145,7 @@ export function FactoryFlow() {
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
   const draggingNodeRef = useRef(false);
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
+  const connectCompletedRef = useRef(false);
   const boardRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance<
     RecipeFlowNode | StorageFlowNode,
@@ -226,6 +235,7 @@ export function FactoryFlow() {
 
   const handleConnect = useCallback(
     (connection: Connection) => {
+      connectCompletedRef.current = true;
       if (connection.source && connection.target) {
         const sourceHandle = parseResourceHandleId(connection.sourceHandle);
         const targetHandle = parseResourceHandleId(connection.targetHandle);
@@ -275,6 +285,7 @@ export function FactoryFlow() {
 
   const handleConnectStart = useCallback(
     (_: MouseEvent | TouchEvent, params: { nodeId: string | null; handleId: string | null }) => {
+      connectCompletedRef.current = false;
       draggedResourceRef.current =
         params.nodeId && params.handleId
           ? getDraggedResourceForHandle(project, params.nodeId, params.handleId)
@@ -289,7 +300,13 @@ export function FactoryFlow() {
       draggedResourceRef.current = undefined;
 
       const flowInstance = flowInstanceRef.current;
-      if (!draggedResource || connectionState.toHandle || !flowInstance) {
+      if (
+        !draggedResource ||
+        connectCompletedRef.current ||
+        connectionState.toHandle ||
+        isPointerOverFlowHandle(event) ||
+        !flowInstance
+      ) {
         return;
       }
 
@@ -428,6 +445,8 @@ export function FactoryFlow() {
         onInit={handleInit}
         onMoveEnd={updateFlowViewportCenter}
         isValidConnection={isCompatibleResourceConnection}
+        connectionLineComponent={ResourceConnectionLine}
+        connectionLineStyle={connectionLineStyle}
         connectionMode={ConnectionMode.Loose}
         connectionRadius={18}
         edgesReconnectable
@@ -596,6 +615,60 @@ function ResourceEdge({
       ) : null}
     </>
   );
+}
+
+function ResourceConnectionLine({
+  fromX,
+  fromY,
+  toX,
+  toY,
+  fromPosition,
+  toPosition,
+  connectionStatus,
+}: ConnectionLineComponentProps<RecipeFlowNode | StorageFlowNode>) {
+  const [edgePath] = getSmoothStepPath({
+    sourceX: fromX,
+    sourceY: fromY,
+    sourcePosition: fromPosition,
+    targetX: toX,
+    targetY: toY,
+    targetPosition: toPosition,
+  });
+  const color = connectionStatus === "invalid" ? "#ef4444" : "#00d9ff";
+
+  return (
+    <g className="react-flow__connection">
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="#052e36"
+        strokeWidth={9}
+        strokeLinecap="round"
+        opacity={0.75}
+      />
+      <path
+        d={edgePath}
+        fill="none"
+        stroke={color}
+        strokeWidth={5}
+        strokeLinecap="round"
+        opacity={0.98}
+        style={{ filter: `drop-shadow(0 0 5px ${color})` }}
+      />
+      <circle cx={toX} cy={toY} r={6} fill={color} stroke="#052e36" strokeWidth={2} />
+    </g>
+  );
+}
+
+function isPointerOverFlowHandle(event: MouseEvent | TouchEvent) {
+  const position = getClientPosition(event);
+  if (!position || typeof document === "undefined") {
+    return false;
+  }
+
+  return document
+    .elementsFromPoint(position.x, position.y)
+    .some((element) => element.classList.contains("react-flow__handle"));
 }
 
 const sampledResourceColorCache = new Map<string, string>();

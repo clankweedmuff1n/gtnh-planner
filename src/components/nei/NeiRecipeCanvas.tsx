@@ -55,7 +55,6 @@ export function NeiRecipeCanvas({
         height,
         backgroundImage: "url('/nei/gregtech/gui/background/nei_single_recipe.png')",
         backgroundSize: "100% 100%",
-        imageRendering: "pixelated",
       }}
     >
       {layout.progressBars.slice(0, 1).map((bar, index) => (
@@ -295,7 +294,6 @@ function NeiSlotFrameView({
   const backgroundStyle = {
     backgroundImage: `url('${getSlotTexture(frame)}')`,
     backgroundSize: "100% 100%",
-    imageRendering: "pixelated" as const,
   };
 
   if (!slot && !isOverflow && !isCollapse) {
@@ -396,7 +394,6 @@ function ProgressTexture({
         backgroundImage: `url('/nei/gregtech/gui/progressbar/${bar.texture}.png')`,
         backgroundPosition: "top left",
         backgroundSize: "100% 200%",
-        imageRendering: "pixelated",
       }}
     />
   );

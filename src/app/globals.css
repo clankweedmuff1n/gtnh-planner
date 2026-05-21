@@ -19,13 +19,6 @@ body {
   font-family: var(--font-minecraft), monospace;
 }
 
-.pixelated-image,
-.pixelated-image img,
-[style*="image-rendering"] {
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-}
-
 html,
 body {
   height: 100%;

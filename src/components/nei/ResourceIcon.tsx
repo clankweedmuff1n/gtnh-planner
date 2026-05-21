@@ -110,11 +110,10 @@ function IconImage({
       alt={resource.displayName ?? resource.id}
       className={
         iconPixelSize
-          ? "pixelated-image max-w-none object-contain"
-          : "pixelated-image h-[calc(200%-8px)] w-[calc(200%-8px)] max-w-none object-contain"
+          ? "max-w-none object-contain"
+          : "h-[calc(200%-8px)] w-[calc(200%-8px)] max-w-none object-contain"
       }
       style={{
-        imageRendering: "pixelated",
         ...(iconPixelSize ? { width: iconPixelSize, height: iconPixelSize } : undefined),
       }}
     />

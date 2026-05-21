@@ -44,7 +44,6 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
         compact ? "text-[10px]" : "text-[14px]",
         className,
       ].join(" ")}
-      style={{ imageRendering: "pixelated" }}
     >
       <div className="border-2 border-[#f7f7f7] bg-[#c6c6c6] shadow-[inset_-2px_-2px_0_#6f6f6f]">
         {!compact ? (

@@ -9,6 +9,7 @@ import {
   ReactFlow,
   applyNodeChanges,
   getSmoothStepPath,
+  useReactFlow,
   useStore,
   type Connection,
   type ConnectionLineComponentProps,
@@ -694,6 +695,10 @@ function ResourceEdge({
     data?.color ?? DEFAULT_ITEM_EDGE_COLOR,
   );
   const viewportTransform = useStore((state) => state.transform);
+  const { screenToFlowPosition } = useReactFlow<
+    RecipeFlowNode | StorageFlowNode,
+    ResourceFlowEdge
+  >();
   const edgeColor = resourceColor;
   const visualSource = getSlotEdgeEndpoint({
     nodeId: source,
@@ -702,7 +707,8 @@ function ResourceEdge({
     fallbackX: sourceX,
     fallbackY: sourceY,
     isRecipeSlotEndpoint: data?.sourceSlotEndpoint,
-    transform: viewportTransform,
+    screenToFlowPosition,
+    viewportTransform,
   });
   const visualTarget = getSlotEdgeEndpoint({
     nodeId: target,
@@ -711,7 +717,8 @@ function ResourceEdge({
     fallbackX: targetX,
     fallbackY: targetY,
     isRecipeSlotEndpoint: data?.targetSlotEndpoint,
-    transform: viewportTransform,
+    screenToFlowPosition,
+    viewportTransform,
   });
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX: visualSource.x,
@@ -822,7 +829,8 @@ function getSlotEdgeEndpoint({
   fallbackX,
   fallbackY,
   isRecipeSlotEndpoint,
-  transform,
+  screenToFlowPosition,
+  viewportTransform: _viewportTransform,
 }: {
   nodeId: string;
   handleId?: string | null;
@@ -830,13 +838,15 @@ function getSlotEdgeEndpoint({
   fallbackX: number;
   fallbackY: number;
   isRecipeSlotEndpoint?: boolean;
-  transform: [number, number, number];
+  screenToFlowPosition: (clientPosition: { x: number; y: number }) => { x: number; y: number };
+  viewportTransform: [number, number, number];
 }) {
+  void _viewportTransform;
   if (!isRecipeSlotEndpoint) {
     return { x: fallbackX, y: fallbackY };
   }
 
-  const domEndpoint = getSlotEdgeEndpointFromDom(nodeId, handleId, position, transform);
+  const domEndpoint = getSlotEdgeEndpointFromDom(nodeId, handleId, position, screenToFlowPosition);
   if (domEndpoint) {
     return domEndpoint;
   }
@@ -855,33 +865,26 @@ function getSlotEdgeEndpointFromDom(
   nodeId: string,
   handleId: string | null | undefined,
   position: unknown,
-  transform: [number, number, number],
+  screenToFlowPosition: (clientPosition: { x: number; y: number }) => { x: number; y: number },
 ) {
   if (!handleId || typeof document === "undefined") {
     return undefined;
   }
 
-  const slotElement = [...document.querySelectorAll<HTMLElement>("[data-resource-handle='true']")]
-    .find(
-      (element) =>
-        element.dataset.resourceNodeId === nodeId &&
-        element.dataset.resourceHandleId === handleId,
-    );
-  const flowElement = document.querySelector<HTMLElement>(".factory-flow-board .react-flow");
-  if (!slotElement || !flowElement) {
+  const slotElement = [
+    ...document.querySelectorAll<HTMLElement>("[data-resource-handle='true']"),
+  ].find(
+    (element) =>
+      element.dataset.resourceNodeId === nodeId && element.dataset.resourceHandleId === handleId,
+  );
+  if (!slotElement) {
     return undefined;
   }
 
   const slotRect = slotElement.getBoundingClientRect();
-  const flowRect = flowElement.getBoundingClientRect();
-  const [translateX, translateY, zoom] = transform;
   const screenX = String(position) === "left" ? slotRect.left : slotRect.right;
   const screenY = slotRect.top + slotRect.height / 2;
-
-  return {
-    x: (screenX - flowRect.left - translateX) / zoom,
-    y: (screenY - flowRect.top - translateY) / zoom,
-  };
+  return screenToFlowPosition({ x: screenX, y: screenY });
 }
 
 function formatEdgeRateLabel(data: ResourceEdgeData | undefined) {

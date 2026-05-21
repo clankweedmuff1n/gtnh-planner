@@ -28,6 +28,7 @@ import type {
   FactoryNodeColorTag,
   FactoryProject,
   ResourceAmount,
+  ResourceKind,
 } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
@@ -82,6 +83,14 @@ type DraggedResourceConnection = Pick<
   side: "input" | "output";
   handleId: string;
 };
+
+interface ResolvedResourceHandle {
+  nodeId: string;
+  handleId: string;
+  side: "input" | "output";
+  kind: ResourceKind;
+  resourceId: string;
+}
 
 export function FactoryFlow() {
   const project = useFactoryStore((state) => state.project);
@@ -310,7 +319,7 @@ export function FactoryFlow() {
   );
 
   const handleConnectEnd = useCallback(
-    (event: MouseEvent | TouchEvent, connectionState: { toHandle: unknown | null }) => {
+    (event: MouseEvent | TouchEvent) => {
       const draggedResource = draggedResourceRef.current;
       draggedResourceRef.current = undefined;
       const clientPosition = getClientPosition(event) ?? lastConnectionPointerRef.current;
@@ -322,12 +331,7 @@ export function FactoryFlow() {
         getStorageHandleAtPointer(event, draggedResource);
 
       if (draggedResource && targetHandle) {
-        if (
-          draggedResource.nodeId !== targetHandle.nodeId &&
-          draggedResource.side !== targetHandle.side &&
-          draggedResource.kind === targetHandle.kind &&
-          draggedResource.id === targetHandle.resourceId
-        ) {
+        if (isCompatibleDraggedResourceTarget(draggedResource, targetHandle)) {
           const source =
             draggedResource.side === "output"
               ? {
@@ -365,8 +369,7 @@ export function FactoryFlow() {
       if (
         !draggedResource ||
         connectCompletedRef.current ||
-        connectionState.toHandle ||
-        isPointerOverFlowHandle(event) ||
+        isPointerOverIncompatibleFlowHandle(event, draggedResource) ||
         !flowInstance
       ) {
         return;
@@ -830,19 +833,28 @@ function trimEdgeNumber(value: number) {
   return value.toFixed(digits).replace(/\.?0+$/, "");
 }
 
-function isPointerOverFlowHandle(event: MouseEvent | TouchEvent) {
-  if (getResourceHandleAtPointer(event)) {
-    return true;
-  }
-
+function isPointerOverIncompatibleFlowHandle(
+  event: MouseEvent | TouchEvent,
+  draggedResource: DraggedResourceConnection,
+) {
   const position = getClientPosition(event);
   if (!position || typeof document === "undefined") {
     return false;
   }
 
-  return document
-    .elementsFromPoint(position.x, position.y)
-    .some((element) => element.classList.contains("react-flow__handle"));
+  return document.elementsFromPoint(position.x, position.y).some((element) => {
+    const handleElement = element.closest<HTMLElement>(".react-flow__handle");
+    if (!handleElement) {
+      return false;
+    }
+
+    const resourceHandle = readResourceHandleElement(handleElement);
+    if (!resourceHandle) {
+      return true;
+    }
+
+    return !isCompatibleDraggedResourceTarget(draggedResource, resourceHandle);
+  });
 }
 
 function isEditableKeyboardTarget(target: EventTarget | null) {
@@ -935,10 +947,22 @@ function readResourceHandleElement(element: HTMLElement | null) {
       side: handle.side,
       kind: handle.kind,
       resourceId: handle.resourceId,
-    };
+    } satisfies ResolvedResourceHandle;
   }
 
   return undefined;
+}
+
+function isCompatibleDraggedResourceTarget(
+  draggedResource: DraggedResourceConnection,
+  targetHandle: ResolvedResourceHandle,
+) {
+  return (
+    draggedResource.nodeId !== targetHandle.nodeId &&
+    draggedResource.side !== targetHandle.side &&
+    draggedResource.kind === targetHandle.kind &&
+    draggedResource.id === targetHandle.resourceId
+  );
 }
 
 function getStorageHandleAtPointer(
@@ -997,7 +1021,7 @@ function getStorageHandleAtPosition(
         side,
         kind,
         resourceId,
-      };
+      } satisfies ResolvedResourceHandle;
     }
   }
 

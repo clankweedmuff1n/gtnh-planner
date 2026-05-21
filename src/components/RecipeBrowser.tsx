@@ -34,7 +34,6 @@ const RESOURCE_DEFAULT_PAGE_SIZE = 6;
 const RESOURCE_ROW_HEIGHT = 62;
 const RESOURCE_ROW_GAP = 8;
 const RESOURCE_PAGER_HEIGHT = 40;
-const QUICK_SLOT_ICON_PIXEL_SIZE = 34;
 const RECIPE_QUERY_CACHE_TTL_MS = 90_000;
 const RESOURCE_QUERY_CACHE_TTL_MS = 90_000;
 
@@ -600,18 +599,9 @@ function ResourceHistoryPanel({
               onBrowse(resource, "uses");
             }}
             aria-label={resourceLabel(resource)}
-            className="h-10 w-10 shrink-0 border border-neutral-600 bg-[#2b2d32] p-0 hover:border-cyan-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0 hover:ring-2 hover:ring-cyan-400"
           >
-            <span className="flex h-full w-full items-center justify-center">
-              <ResourceIcon
-                resource={{ ...resource, amount: 1 }}
-                size="sm"
-                showAmount={false}
-                tooltip={false}
-                bare
-                iconPixelSize={QUICK_SLOT_ICON_PIXEL_SIZE}
-              />
-            </span>
+            <ResourceIcon resource={{ ...resource, amount: 1 }} size="sm" showAmount={false} />
           </button>
         ))}
       </div>
@@ -928,17 +918,7 @@ function RecipeMapTabBar({
               className={neiTabClass(activeRecipeMap === tab.id)}
             >
               {tab.icon ? (
-                <span className="flex h-9 w-9 items-center justify-center">
-                  <ResourceIcon
-                    resource={tab.icon}
-                    size="sm"
-                    showAmount={false}
-                    tooltip={false}
-                    bare
-                    className="!h-full !w-full"
-                    iconPixelSize={QUICK_SLOT_ICON_PIXEL_SIZE}
-                  />
-                </span>
+                <ResourceIcon resource={tab.icon} size="sm" showAmount={false} tooltip={false} />
               ) : (
                 <span className="text-[12px] font-bold leading-none text-white [text-shadow:1px_1px_0_#000]">
                   ?
@@ -1669,7 +1649,7 @@ function buildRecipeMapTabs(
 
 function neiTabClass(active: boolean): string {
   return [
-    "flex h-10 w-10 shrink-0 items-center justify-center border-2 p-0 shadow-[inset_2px_2px_0_rgba(255,255,255,0.35),inset_-2px_-2px_0_rgba(0,0,0,0.45)]",
-    active ? "border-[#f4f4f4] bg-[#c6c6c6]" : "border-[#252525] bg-[#7d7d7d] hover:bg-[#9b9b9b]",
+    "flex h-10 w-10 shrink-0 items-center justify-center bg-transparent p-0",
+    active ? "ring-2 ring-white" : "hover:ring-2 hover:ring-cyan-300",
   ].join(" ");
 }

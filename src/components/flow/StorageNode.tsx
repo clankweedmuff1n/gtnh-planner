@@ -178,13 +178,12 @@ function FluidStorageCard({
     >
       <StorageHeader title="Super Tank" variant="tank" storageColor={storageColor} />
       <div
-        className="storage-node-body mx-auto mt-3 grid h-[96px] w-[132px] place-items-center border-2 border-[#80889c] bg-[#9fa9bd] shadow-[inset_7px_7px_0_#858fa4,inset_-7px_-7px_0_#6f788a]"
+        className="storage-node-body mx-auto mt-3 grid h-[96px] w-[132px] place-items-center border-2 border-[#1f1f1f] bg-black shadow-[inset_7px_7px_0_#1f2933,inset_-7px_-7px_0_#050505]"
         style={{
-          backgroundColor: storageColor?.panel,
           borderColor: storageColor?.border,
         }}
       >
-        <div className="relative grid h-[64px] w-[64px] place-items-center border-2 border-[#1f1f1f] bg-black shadow-[inset_2px_2px_0_#4f5a6f,inset_-2px_-2px_0_#050505]">
+        <div className="relative grid h-[64px] w-[64px] place-items-center border-2 border-[#d8d8d8] bg-[#111] shadow-[inset_2px_2px_0_#4f5a6f,inset_-2px_-2px_0_#050505]">
           <StorageEdgeAnchors
             nodeId={storage.id}
             inputHandleId={inputHandleId}
@@ -356,17 +355,25 @@ function StorageStat({
 }) {
   return (
     <div
-      className="storage-node-stat grid h-10 min-w-0 grid-rows-[12px_minmax(0,1fr)] border-2 border-[#707070] bg-[#bababa] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]"
+      className="storage-node-stat grid h-10 min-w-0 overflow-hidden border-2 border-[#707070] bg-[#bababa] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]"
       style={{
         backgroundColor: storageColor?.panel,
         borderColor: storageColor?.border,
       }}
     >
-      <div className="truncate text-[8px] uppercase leading-[11px] text-[#424242]">{label}</div>
+      <div className="h-[11px] truncate text-[8px] uppercase leading-[11px] text-[#424242]">
+        {label}
+      </div>
       <div
         className={[
-          "flex min-w-0 items-center justify-center truncate whitespace-nowrap text-center font-medium leading-none text-[#111] tabular-nums",
-          value.length > 10 ? "text-[7px]" : value.length > 8 ? "text-[8px]" : "text-[10px]",
+          "block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-center font-medium leading-[18px] text-[#111] tabular-nums",
+          value.length > 11
+            ? "text-[6px]"
+            : value.length > 9
+              ? "text-[7px]"
+              : value.length > 7
+                ? "text-[8px]"
+                : "text-[10px]",
         ].join(" ")}
         title={value}
       >

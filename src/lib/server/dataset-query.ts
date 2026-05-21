@@ -75,6 +75,7 @@ export async function queryDatasetRecipes(
     mode: "recipes" | "uses";
     recipeMap?: string;
     maxTier: TierFilter;
+    offset: number;
     limit: number;
   },
 ) {
@@ -83,7 +84,8 @@ export async function queryDatasetRecipes(
   const query = normalizeText(request.query);
   const recipeMaps = new Set<string>();
   const candidates = request.resource
-    ? indexes.recipeIndexesByResource.get(getResourceModeKey(request.resource, request.mode)) ?? []
+    ? (indexes.recipeIndexesByResource.get(getResourceModeKey(request.resource, request.mode)) ??
+      [])
     : indexes.allRecipeIndexes;
   const eligible: number[] = [];
 
@@ -112,9 +114,6 @@ export async function queryDatasetRecipes(
       continue;
     }
     total += 1;
-    if (withIcons.length + withoutIcons.length >= request.limit * 2) {
-      continue;
-    }
     const iconScore = indexes.iconScores[recipeIndex] ?? 0;
     if (iconScore > 0) {
       withIcons.push({ recipeIndex, iconScore });
@@ -126,22 +125,35 @@ export async function queryDatasetRecipes(
   const recipeIndexes = [
     ...withIcons.sort((a, b) => b.iconScore - a.iconScore).map((entry) => entry.recipeIndex),
     ...withoutIcons,
-  ].slice(0, request.limit);
+  ].slice(request.offset, request.offset + request.limit);
 
   return {
     recipes: recipeIndexes.map((index) => catalog.recipes?.[index]).filter(Boolean),
     total,
     recipeMaps: sortedRecipeMaps,
+    offset: request.offset,
+    limit: request.limit,
+    hasMore: request.offset + request.limit < total,
   };
 }
 
-export async function getDatasetRecipe(versionId: string, recipeId: string): Promise<Recipe | undefined> {
+export async function prewarmDatasetVersion(versionId: string): Promise<void> {
+  const catalog = await loadRecipeIndex(versionId);
+  ensureIndexes(catalog);
+}
+
+export async function getDatasetRecipe(
+  versionId: string,
+  recipeId: string,
+): Promise<Recipe | undefined> {
   const catalog = await loadRecipeIndex(versionId);
   const recipeIndex = catalog.recipes?.findIndex((recipe) => recipe.id === recipeId) ?? -1;
   if (recipeIndex === -1) {
     return undefined;
   }
-  const summary = catalog.recipes?.[recipeIndex] as (RecipeSummary & { shardIndex?: number }) | undefined;
+  const summary = catalog.recipes?.[recipeIndex] as
+    | (RecipeSummary & { shardIndex?: number })
+    | undefined;
   const shard =
     summary?.shardIndex !== undefined
       ? catalog.shards[summary.shardIndex]
@@ -175,7 +187,9 @@ async function loadCatalog(versionId: string): Promise<LoadedRecipeIndex> {
   if (!version?.resourceIndexPath) {
     throw new Error(`Dataset ${versionId} has no server resource index.`);
   }
-  const catalog = await readGzipJson<LoadedRecipeIndex>(publicPathToFile(version.resourceIndexPath));
+  const catalog = await readGzipJson<LoadedRecipeIndex>(
+    publicPathToFile(version.resourceIndexPath),
+  );
   const loaded = {
     ...catalog,
     version,
@@ -192,7 +206,9 @@ async function loadRecipeIndex(versionId: string): Promise<LoadedRecipeIndex> {
   if (!catalog.version.recipeIndexPath) {
     throw new Error(`Dataset ${versionId} has no recipe index.`);
   }
-  const recipeIndex = await readGzipJson<LoadedRecipeIndex>(publicPathToFile(catalog.version.recipeIndexPath));
+  const recipeIndex = await readGzipJson<LoadedRecipeIndex>(
+    publicPathToFile(catalog.version.recipeIndexPath),
+  );
   catalog.recipes = hydrateSummaries(recipeIndex.recipes ?? [], catalog);
   catalog.shards = recipeIndex.shards;
   catalog.recipeCount = recipeIndex.recipeCount;
@@ -274,7 +290,14 @@ function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
     }
   });
 
-  catalog.indexes = { recipeIndexesByResource, recipeMaps, tierIndexes, searchText, iconScores, allRecipeIndexes };
+  catalog.indexes = {
+    recipeIndexesByResource,
+    recipeMaps,
+    tierIndexes,
+    searchText,
+    iconScores,
+    allRecipeIndexes,
+  };
   return catalog.indexes;
 }
 
@@ -287,7 +310,10 @@ function addRecipeIndex(index: Map<string, number[]>, key: string, recipeIndex: 
   }
 }
 
-function getResourceModeKey(resource: Pick<ResourceAmount, "kind" | "id">, mode: "recipes" | "uses") {
+function getResourceModeKey(
+  resource: Pick<ResourceAmount, "kind" | "id">,
+  mode: "recipes" | "uses",
+) {
   return `${mode}:${resource.kind}:${resource.id}`;
 }
 

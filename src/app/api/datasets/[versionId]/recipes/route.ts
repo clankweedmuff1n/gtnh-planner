@@ -25,6 +25,7 @@ export async function GET(
       mode: url.searchParams.get("mode") === "uses" ? "uses" : "recipes",
       recipeMap: url.searchParams.get("recipeMap") || undefined,
       maxTier: parseTierFilter(url.searchParams.get("maxTier")),
+      offset: parseOffset(url.searchParams.get("offset")),
       limit: parseLimit(url.searchParams.get("limit")),
     });
     return NextResponse.json(result);
@@ -36,9 +37,14 @@ export async function GET(
   }
 }
 
+function parseOffset(value: string | null): number {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(parsed) ? Math.max(0, parsed) : 0;
+}
+
 function parseLimit(value: string | null): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isInteger(parsed) ? Math.max(1, Math.min(500, parsed)) : 240;
+  return Number.isInteger(parsed) ? Math.max(1, Math.min(120, parsed)) : 48;
 }
 
 function parseTierFilter(value: string | null): TierFilter {

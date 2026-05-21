@@ -11,6 +11,7 @@ export interface RecipeDatasetQuery {
   mode: "recipes" | "uses";
   recipeMap?: string;
   maxTier: TierFilter;
+  offset: number;
   limit: number;
 }
 
@@ -18,6 +19,9 @@ export interface RecipeDatasetQueryResult {
   recipes: RecipeSummary[];
   total: number;
   recipeMaps: string[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 export async function initRecipeDatasetVersion(
@@ -49,6 +53,7 @@ export async function queryRecipeDatasetRecipes(
   url.searchParams.set("query", query.query);
   url.searchParams.set("mode", query.mode);
   url.searchParams.set("maxTier", query.maxTier);
+  url.searchParams.set("offset", String(query.offset));
   url.searchParams.set("limit", String(query.limit));
   if (query.recipeMap) {
     url.searchParams.set("recipeMap", query.recipeMap);

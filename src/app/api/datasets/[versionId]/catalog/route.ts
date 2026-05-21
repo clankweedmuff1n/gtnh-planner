@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDatasetCatalog } from "@/lib/server/dataset-query";
+import { getDatasetCatalog, prewarmDatasetVersion } from "@/lib/server/dataset-query";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,11 @@ export async function GET(
 ) {
   try {
     const { versionId } = await params;
-    return NextResponse.json(await getDatasetCatalog(versionId));
+    const catalog = await getDatasetCatalog(versionId);
+    void prewarmDatasetVersion(versionId).catch((error) => {
+      console.error(`Failed to prewarm dataset ${versionId}`, error);
+    });
+    return NextResponse.json(catalog);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Dataset catalog failed." },

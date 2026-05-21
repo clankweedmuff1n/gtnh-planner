@@ -1,7 +1,15 @@
 "use client";
 
 import { Archive, GitBranchPlus, Plus, Search, X } from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { PointerEvent } from "react";
 import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
 import { getRecipeDatasetRecipe, queryRecipeDatasetRecipes } from "@/lib/datasets/browser-loader";
@@ -101,6 +109,18 @@ export function RecipeBrowser() {
       })
       .slice(0, 96);
   }, [activeResource, deferredRecipeSearch, resourceIndex]);
+
+  const visibleResourceResults = useMemo(() => {
+    if (!activeResource) {
+      return resourceResults;
+    }
+
+    return [...resourceIndex.values()]
+      .filter((resource) =>
+        resourceMatchesQuery(resource, deferredRecipeSearch.trim().toLowerCase()),
+      )
+      .slice(0, 96);
+  }, [activeResource, deferredRecipeSearch, resourceIndex, resourceResults]);
 
   const recipeMaps = useMemo(
     () => availableRecipeMaps.filter(Boolean).sort((a, b) => a.localeCompare(b)),
@@ -401,25 +421,11 @@ export function RecipeBrowser() {
               Recipe index is not loaded yet.
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-2">
-              {(activeResource
-                ? [...resourceIndex.values()]
-                    .filter((resource) =>
-                      resourceMatchesQuery(resource, deferredRecipeSearch.trim().toLowerCase()),
-                    )
-                    .slice(0, 96)
-                : resourceResults
-              ).map((resource) => (
-                <ResourceResult
-                  key={`${resource.kind}:${resource.id}`}
-                  resource={resource}
-                  active={
-                    activeResource?.kind === resource.kind && activeResource.id === resource.id
-                  }
-                  onBrowse={(mode) => browseResource(resource, mode)}
-                />
-              ))}
-            </div>
+            <VirtualResourceResultList
+              resources={visibleResourceResults}
+              activeResource={activeResource}
+              onBrowse={browseResource}
+            />
           )}
         </div>
         <ResourceHistoryPanel resources={historyResources} onBrowse={browseResource} />
@@ -527,7 +533,78 @@ interface RecipeQueryCacheEntry {
   recipeMaps: string[];
 }
 
-function ResourceResult({
+function VirtualResourceResultList({
+  resources,
+  activeResource,
+  onBrowse,
+}: {
+  resources: IndexedResource[];
+  activeResource?: IndexedResource;
+  onBrowse: (resource: IndexedResource, mode: "recipes" | "uses") => void;
+}) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({ scrollTop: 0, height: 560 });
+  const rowHeight = 52;
+  const gap = 8;
+  const itemHeight = rowHeight + gap;
+  const overscan = 6;
+  const startIndex = Math.max(0, Math.floor(viewport.scrollTop / itemHeight) - overscan);
+  const visibleCount = Math.ceil(viewport.height / itemHeight) + overscan * 2;
+  const visibleResources = resources.slice(startIndex, startIndex + visibleCount);
+  const topPadding = startIndex * itemHeight;
+  const bottomPadding = Math.max(
+    0,
+    (resources.length - startIndex - visibleResources.length) * itemHeight,
+  );
+
+  useEffect(() => {
+    const scrollParent = anchorRef.current?.parentElement;
+    if (!scrollParent) {
+      return;
+    }
+
+    let frame = 0;
+    const updateViewport = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        setViewport({
+          scrollTop: scrollParent.scrollTop,
+          height: scrollParent.clientHeight,
+        });
+      });
+    };
+
+    updateViewport();
+    scrollParent.addEventListener("scroll", updateViewport, { passive: true });
+    const resizeObserver = new ResizeObserver(updateViewport);
+    resizeObserver.observe(scrollParent);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      scrollParent.removeEventListener("scroll", updateViewport);
+      resizeObserver.disconnect();
+    };
+  }, [resources.length]);
+
+  return (
+    <div ref={anchorRef}>
+      <div style={{ height: topPadding }} />
+      <div className="grid grid-cols-1 gap-2">
+        {visibleResources.map((resource) => (
+          <ResourceResult
+            key={`${resource.kind}:${resource.id}`}
+            resource={resource}
+            active={activeResource?.kind === resource.kind && activeResource.id === resource.id}
+            onBrowse={(mode) => onBrowse(resource, mode)}
+          />
+        ))}
+      </div>
+      <div style={{ height: bottomPadding }} />
+    </div>
+  );
+}
+
+const ResourceResult = memo(function ResourceResult({
   resource,
   active,
   onBrowse,
@@ -558,7 +635,7 @@ function ResourceResult({
       </span>
     </button>
   );
-}
+});
 
 function RecipeMapTabBar({
   activeRecipeMap,

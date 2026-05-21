@@ -32,7 +32,7 @@ import { NeiRecipeWindow } from "./nei/NeiRecipeWindow";
 import { ResourceIconCanvas } from "./nei/ResourceIconCanvas";
 import { ResourceIcon } from "./nei/ResourceIcon";
 
-const RECIPE_QUERY_LIMIT = 12;
+const RECIPE_QUERY_LIMIT = 6;
 const RECIPE_QUERY_CACHE_TTL_MS = 90_000;
 
 export function RecipeBrowser() {
@@ -64,6 +64,7 @@ export function RecipeBrowser() {
   const [recipeQueryError, setRecipeQueryError] = useState<string | undefined>();
   const recipeQueryCacheRef = useRef<Map<string, RecipeQueryCacheEntry>>(new Map());
   const deferredRecipeSearch = useDeferredValue(recipeSearch);
+  const [, startSearchTransition] = useTransition();
 
   const resourceIndex = useMemo(
     () => buildResourceIndex(dataset?.resourceIndex, dataset?.recipes ?? [], projectRecipes),
@@ -379,14 +380,17 @@ export function RecipeBrowser() {
             <Search className="h-4 w-4 text-neutral-500" />
             <input
               value={recipeSearch}
-              onChange={(event) => setRecipeSearch(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                startSearchTransition(() => setRecipeSearch(value));
+              }}
               placeholder="Search item or fluid..."
               className="min-w-0 flex-1 bg-transparent outline-none"
             />
             {recipeSearch ? (
               <button
                 type="button"
-                onClick={() => setRecipeSearch("")}
+                onClick={() => startSearchTransition(() => setRecipeSearch(""))}
                 title="Clear search"
                 aria-label="Clear search"
                 className="text-neutral-500 hover:text-neutral-200"
@@ -597,7 +601,7 @@ function VirtualResourceResultList({
 }) {
   const [page, setPage] = useState(0);
   const [, startPageTransition] = useTransition();
-  const pageSize = 10;
+  const pageSize = 8;
   const pageCount = Math.max(1, Math.ceil(resources.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);
   const visibleResources = resources.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
@@ -730,6 +734,7 @@ function RecipeMapTabBar({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hasOverflow, setHasOverflow] = useState(false);
+  const [, startTabTransition] = useTransition();
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -769,7 +774,7 @@ function RecipeMapTabBar({
               type="button"
               onMouseEnter={() => onRecipeMapHover(tab.id)}
               onFocus={() => onRecipeMapHover(tab.id)}
-              onClick={() => onRecipeMapChange(tab.id)}
+              onClick={() => startTabTransition(() => onRecipeMapChange(tab.id))}
               aria-label={tab.label}
               className={neiTabClass(activeRecipeMap === tab.id)}
             >

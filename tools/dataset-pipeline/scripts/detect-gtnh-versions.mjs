@@ -12,18 +12,23 @@ const headers = {
 const selectedChannels =
   channelInput === "both" ? new Set(["stable", "daily"]) : new Set([channelInput]);
 const detected = [];
+const currentManifest = await readCurrentManifest();
 
 if (selectedChannels.has("stable")) {
   const stable = await detectStableRelease();
-  if (stable) {
+  if (stable && shouldBuildVersion(stable, currentManifest)) {
     detected.push(stable);
+  } else if (stable) {
+    console.log(`Stable ${stable.id} already published; skipping.`);
   }
 }
 
 if (selectedChannels.has("daily")) {
   const daily = await detectDailyBuild();
-  if (daily) {
+  if (daily && shouldBuildVersion(daily, currentManifest)) {
     detected.push(daily);
+  } else if (daily) {
+    console.log(`Daily ${daily.id} already published; skipping.`);
   }
 }
 
@@ -39,6 +44,36 @@ const matrix = {
 
 writeOutput("matrix", JSON.stringify(matrix));
 writeOutput("has_versions", detected.length > 0 ? "true" : "false");
+
+async function readCurrentManifest() {
+  try {
+    const rawManifest = await fs.readFile("public/datasets/gtnh/datasets.manifest.json", "utf8");
+    return JSON.parse(rawManifest);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return undefined;
+    }
+
+    throw error;
+  }
+}
+
+function shouldBuildVersion(version, manifest) {
+  if (!manifest?.versions?.length) {
+    return true;
+  }
+
+  if (version.channel === "stable") {
+    return !manifest.versions.some((entry) => entry.id === version.id);
+  }
+
+  if (version.channel === "daily") {
+    const latestDaily = manifest.versions.find((entry) => entry.channel === "daily");
+    return latestDaily?.id !== version.id;
+  }
+
+  return true;
+}
 
 async function detectStableRelease() {
   let release;

@@ -10,6 +10,7 @@ interface ResourceIconCanvasProps {
 }
 
 const imageCache = new Map<string, HTMLImageElement>();
+const bitmapCache = new Map<string, Promise<ImageBitmap>>();
 
 export const ResourceIconCanvas = memo(function ResourceIconCanvas({
   resource,
@@ -45,7 +46,7 @@ export const ResourceIconCanvas = memo(function ResourceIconCanvas({
     }
 
     let cancelled = false;
-    loadIconImage(source).then((image) => {
+    loadIconImage(source).then(async (image) => {
       if (cancelled) {
         return;
       }
@@ -54,21 +55,31 @@ export const ResourceIconCanvas = memo(function ResourceIconCanvas({
       context.imageSmoothingEnabled = false;
 
       if (resource.iconAtlas) {
-        context.drawImage(
-          image,
-          resource.iconAtlas.x,
-          resource.iconAtlas.y,
-          resource.iconAtlas.width,
-          resource.iconAtlas.height,
-          0,
-          0,
-          size,
-          size,
-        );
+        const bitmap = await loadIconBitmap(image, {
+          cacheKey: `${source}:${resource.iconAtlas.x}:${resource.iconAtlas.y}:${resource.iconAtlas.width}:${resource.iconAtlas.height}`,
+          x: resource.iconAtlas.x,
+          y: resource.iconAtlas.y,
+          width: resource.iconAtlas.width,
+          height: resource.iconAtlas.height,
+        });
+        if (cancelled) {
+          return;
+        }
+        context.drawImage(bitmap, 0, 0, size, size);
         return;
       }
 
-      context.drawImage(image, 0, 0, size, size);
+      const bitmap = await loadIconBitmap(image, {
+        cacheKey: source,
+        x: 0,
+        y: 0,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
+      if (cancelled) {
+        return;
+      }
+      context.drawImage(bitmap, 0, 0, size, size);
     });
 
     return () => {
@@ -85,6 +96,30 @@ export const ResourceIconCanvas = memo(function ResourceIconCanvas({
     />
   );
 });
+
+function loadIconBitmap(
+  image: HTMLImageElement,
+  source: { cacheKey: string; x: number; y: number; width: number; height: number },
+): Promise<ImageBitmap> {
+  const cached = bitmapCache.get(source.cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const bitmapPromise =
+    typeof createImageBitmap === "function"
+      ? createImageBitmap(
+          image,
+          source.x,
+          source.y,
+          source.width,
+          source.height,
+        )
+      : Promise.resolve(image as unknown as ImageBitmap);
+
+  bitmapCache.set(source.cacheKey, bitmapPromise);
+  return bitmapPromise;
+}
 
 function loadIconImage(src: string): Promise<HTMLImageElement> {
   const absoluteSrc = new URL(src, window.location.origin).toString();

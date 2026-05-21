@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import type { Recipe } from "@/lib/model/types";
 import { formatRate, getRecipePowerTier } from "@/lib/model";
 import type { NeiPositionedSlot } from "@/lib/nei/layout";
@@ -20,7 +20,7 @@ interface NeiRecipeWindowProps {
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
 }
 
-export function NeiRecipeWindow({
+export const NeiRecipeWindow = memo(function NeiRecipeWindow({
   recipe,
   scale = 2,
   className = "",
@@ -33,7 +33,7 @@ export function NeiRecipeWindow({
   const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
   const totalEu = recipe.eut * recipe.durationTicks;
   const seconds = recipe.durationTicks / 20;
-  const powerTier = getRecipePowerTier(recipe);
+  const powerTier = useMemo(() => getRecipePowerTier(recipe), [recipe]);
 
   return (
     <div
@@ -78,7 +78,7 @@ export function NeiRecipeWindow({
       </div>
     </div>
   );
-}
+});
 
 function NeiTitleBar({ label, compact }: { label: string; compact: boolean }) {
   return (

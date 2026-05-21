@@ -1162,9 +1162,9 @@ function VirtualRecipeResultList({
             key={recipe.id}
             recipe={recipe}
             selected={selectedRecipeId === recipe.id}
-            onSelect={() => onSelectRecipe(recipe.id)}
-            onAdd={() => void onAdd(recipe.id)}
-            onAddConnected={onAddConnected ? () => void onAddConnected(recipe.id) : undefined}
+            onSelectRecipe={onSelectRecipe}
+            onAdd={onAdd}
+            onAddConnected={onAddConnected}
             onSlotBrowse={onSlotBrowse}
           />
         ))}
@@ -1218,34 +1218,28 @@ function RecipePagePager({
   );
 }
 
-function RecipeResultCard({
+const RecipeResultCard = memo(function RecipeResultCard({
   recipe,
   selected,
-  onSelect,
+  onSelectRecipe,
   onAdd,
   onAddConnected,
   onSlotBrowse,
 }: {
   recipe: RecipeSummary;
   selected: boolean;
-  onSelect: () => void;
-  onAdd: () => void;
-  onAddConnected?: () => void;
+  onSelectRecipe: (recipeId: string) => void;
+  onAdd: (recipeId: string) => void | Promise<void>;
+  onAddConnected?: (recipeId: string) => void | Promise<void>;
   onSlotBrowse?: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
 }) {
-  const [renderPreview, setRenderPreview] = useState(false);
-  const previewRecipe = summaryToPreviewRecipe(recipe);
-  const primary = primaryOutput(previewRecipe);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setRenderPreview(true), 0);
-    return () => window.clearTimeout(timeout);
-  }, [recipe.id]);
+  const previewRecipe = useMemo(() => summaryToPreviewRecipe(recipe), [recipe]);
+  const primary = useMemo(() => primaryOutput(previewRecipe), [previewRecipe]);
 
   return (
     <article
-      onClick={onSelect}
-      onDoubleClick={() => void onAdd()}
+      onClick={() => onSelectRecipe(recipe.id)}
+      onDoubleClick={() => void onAdd(recipe.id)}
       className={[
         "relative cursor-pointer transition",
         selected ? "ring-1 ring-cyan-400" : "",
@@ -1259,9 +1253,9 @@ function RecipeResultCard({
           onClick={(event) => {
             event.stopPropagation();
             if (onAddConnected) {
-              onAddConnected();
+              onAddConnected(recipe.id);
             } else {
-              onAdd();
+              onAdd(recipe.id);
             }
           }}
           className="absolute right-1 top-1 z-10 inline-flex h-7 w-7 shrink-0 items-center justify-center border border-neutral-600 bg-[#1b1d21] text-neutral-200 hover:border-cyan-400 hover:text-cyan-100"
@@ -1269,21 +1263,17 @@ function RecipeResultCard({
           {onAddConnected ? <GitBranchPlus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </button>
       </div>
-      {renderPreview ? (
-        <div className="overflow-x-auto pb-1 pr-9">
-          <NeiRecipeWindow
-            recipe={previewRecipe}
-            scale={2}
-            compact
-            className="mx-auto"
-            onSlotClick={
-              onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined
-            }
-          />
-        </div>
-      ) : (
-        <RecipeResultPlaceholder recipe={previewRecipe} primary={primary} />
-      )}
+      <div className="overflow-x-auto pb-1 pr-9">
+        <NeiRecipeWindow
+          recipe={previewRecipe}
+          scale={2}
+          compact
+          className="mx-auto"
+          onSlotClick={
+            onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined
+          }
+        />
+      </div>
       {primary ? (
         <p className="mt-2 truncate text-[11px] text-neutral-400">
           Primary: {primary.displayName ?? primary.id}
@@ -1291,28 +1281,7 @@ function RecipeResultCard({
       ) : null}
     </article>
   );
-}
-
-function RecipeResultPlaceholder({
-  recipe,
-  primary,
-}: {
-  recipe: Recipe;
-  primary?: ResourceAmount;
-}) {
-  return (
-    <div className="mr-9 flex h-[214px] items-center justify-center border-2 border-[#777] bg-[#b6b6b6] shadow-[inset_2px_2px_0_#eeeeee,inset_-2px_-2px_0_#777]">
-      <div className="flex items-center gap-3">
-        {primary ? (
-          <ResourceIcon resource={primary} size="sm" showAmount={false} tooltip={false} />
-        ) : null}
-        <div className="max-w-[280px] truncate text-center text-[13px] text-[#222]">
-          {recipe.source?.recipeMap ?? recipe.machineType}
-        </div>
-      </div>
-    </div>
-  );
-}
+});
 
 function summaryToPreviewRecipe(summary: RecipeSummary): Recipe {
   return {

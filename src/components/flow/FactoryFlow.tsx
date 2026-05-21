@@ -99,6 +99,7 @@ export function FactoryFlow() {
   const selectNode = useFactoryStore((state) => state.selectNode);
   const setNodePosition = useFactoryStore((state) => state.setNodePosition);
   const updateNode = useFactoryStore((state) => state.updateNode);
+  const updateStorage = useFactoryStore((state) => state.updateStorage);
   const setStoragePosition = useFactoryStore((state) => state.setStoragePosition);
   const connectNodes = useFactoryStore((state) => state.connectNodes);
   const reconnectEdge = useFactoryStore((state) => state.reconnectEdge);
@@ -159,6 +160,7 @@ export function FactoryFlow() {
     () => nodesFromProject,
   );
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
+  const [isNodeDragging, setNodeDragging] = useState(false);
   const draggingNodeRef = useRef(false);
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
   const lastConnectionPointerRef = useRef<{ x: number; y: number } | undefined>(undefined);
@@ -219,7 +221,7 @@ export function FactoryFlow() {
 
         return {
           id: edge.id,
-          zIndex: 20,
+          zIndex: isNodeDragging ? 2000 : 20,
           source: edge.source,
           target: edge.target,
           sourceHandle: edge.sourceHandle,
@@ -251,7 +253,7 @@ export function FactoryFlow() {
           },
         };
       }),
-    [hoveredStorageResourceKey, project, recipeSearch, result.edges],
+    [hoveredStorageResourceKey, isNodeDragging, project, recipeSearch, result.edges],
   );
 
   const handleConnect = useCallback(
@@ -516,14 +518,23 @@ export function FactoryFlow() {
 
   const handleNodeClick = useCallback(
     (_: unknown, node: Node) => {
-      if (nodeColorPaintMode !== undefined && node.type === "recipeNode") {
-        updateNode(node.id, { colorTag: nodeColorPaintMode ?? undefined });
+      if (nodeColorPaintMode !== undefined) {
+        if (node.type === "recipeNode") {
+          updateNode(node.id, { colorTag: nodeColorPaintMode ?? undefined });
+          return;
+        }
+
+        if (node.type === "storageNode") {
+          updateStorage(node.id, { colorTag: nodeColorPaintMode ?? undefined });
+          return;
+        }
+
         return;
       }
 
       selectNode(node.id);
     },
-    [nodeColorPaintMode, selectNode, updateNode],
+    [nodeColorPaintMode, selectNode, updateNode, updateStorage],
   );
 
   const handlePaneClick = useCallback(() => {
@@ -533,6 +544,7 @@ export function FactoryFlow() {
 
   const handleNodeDragStart = useCallback(() => {
     draggingNodeRef.current = true;
+    setNodeDragging(true);
   }, []);
 
   const handleNodeDragStop = useCallback(
@@ -544,6 +556,7 @@ export function FactoryFlow() {
       }
 
       draggingNodeRef.current = false;
+      setNodeDragging(false);
       setFlowNodes((currentNodes) =>
         currentNodes.map((entry) =>
           entry.id === node.id ? ({ ...entry, position: node.position } as typeof entry) : entry,
@@ -565,7 +578,10 @@ export function FactoryFlow() {
   return (
     <div
       ref={boardRef}
-      className="factory-flow-board relative h-full min-h-[520px] overflow-hidden border-x border-neutral-200 bg-neutral-100"
+      className={[
+        "factory-flow-board relative h-full min-h-[520px] overflow-hidden border-x border-neutral-200 bg-neutral-100",
+        isNodeDragging ? "factory-flow-board--dragging" : "",
+      ].join(" ")}
     >
       <ReactFlow
         nodes={flowNodes}

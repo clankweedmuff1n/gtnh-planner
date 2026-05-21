@@ -143,6 +143,7 @@ export const factoryStorageSchema = z.object({
   id: z.string().min(1),
   kind: resourceKindSchema,
   resourceId: z.string().min(1),
+  colorTag: factoryNodeColorTagSchema.optional(),
   displayName: z.string().optional(),
   iconPath: z.string().optional(),
   iconAtlas: resourceIconAtlasRefSchema.optional(),

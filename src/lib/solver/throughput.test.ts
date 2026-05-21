@@ -125,6 +125,125 @@ describe("calculateThroughput", () => {
     expect(result.resources["fluid:water"].netPerSecond).toBeCloseTo(0);
   });
 
+  it("lets a drawer or tank absorb producer output even without consumers", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "storage-sink-project",
+      name: "Storage sink test",
+      recipes: [
+        {
+          id: "source-recipe",
+          name: "Dust source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "item", id: "dust", amount: 2 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "source",
+          recipeId: "source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "dust-drawer",
+          kind: "item",
+          resourceId: "dust",
+          displayName: "Dust",
+          position: { x: 200, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "drawer-edge",
+          source: "source",
+          target: "dust-drawer",
+          resourceKind: "item",
+          resourceId: "dust",
+          label: "Dust",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.edges["drawer-edge"].transferredPerSecond).toBeCloseTo(2);
+    expect(result.storages["dust-drawer"].producedPerSecond).toBeCloseTo(2);
+    expect(result.storages["dust-drawer"].consumedPerSecond).toBeCloseTo(0);
+    expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(2);
+    expect(result.storages["dust-drawer"].status).toBe("filling");
+  });
+
+  it("lets a drawer or tank feed consumers and show negative net when undersupplied", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "storage-source-project",
+      name: "Storage source test",
+      recipes: [
+        {
+          id: "consumer-recipe",
+          name: "Dust consumer",
+          machineType: "Assembler",
+          minimumTier: "LV",
+          durationTicks: 20,
+          eut: 30,
+          inputs: [{ kind: "item", id: "dust", amount: 3 }],
+          outputs: [{ kind: "item", id: "plate", amount: 1 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "consumer",
+          recipeId: "consumer-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 200, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "dust-drawer",
+          kind: "item",
+          resourceId: "dust",
+          displayName: "Dust",
+          position: { x: 0, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "drawer-edge",
+          source: "dust-drawer",
+          target: "consumer",
+          resourceKind: "item",
+          resourceId: "dust",
+          label: "Dust",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.edges["drawer-edge"].demandPerSecond).toBeCloseTo(3);
+    expect(result.edges["drawer-edge"].transferredPerSecond).toBeCloseTo(3);
+    expect(result.storages["dust-drawer"].producedPerSecond).toBeCloseTo(0);
+    expect(result.storages["dust-drawer"].consumedPerSecond).toBeCloseTo(3);
+    expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(-3);
+    expect(result.storages["dust-drawer"].status).toBe("draining");
+  });
+
   it("does not consume non-consumed recipe inputs", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,

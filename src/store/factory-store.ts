@@ -100,6 +100,7 @@ interface FactoryStore {
   ) => void;
   deleteStorage: (storageId: string) => void;
   autoRouteStorage: (storageId: string) => void;
+  updateStorage: (storageId: string, patch: Partial<FactoryStorage>) => void;
   setStoragePosition: (storageId: string, position: FactoryStorage["position"]) => void;
   setNodePosition: (nodeId: string, position: FactoryNode["position"]) => void;
   connectNodes: (
@@ -583,6 +584,21 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       const project = touchProject({
         ...state.project,
         edges: [...state.project.edges, ...missingEdges],
+      });
+
+      return {
+        project,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
+  updateStorage: (storageId, patch) => {
+    set((state) => {
+      const project = touchProject({
+        ...state.project,
+        storages: (state.project.storages ?? []).map((storage) =>
+          storage.id === storageId ? { ...storage, ...patch } : storage,
+        ),
       });
 
       return {

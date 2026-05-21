@@ -151,6 +151,7 @@ export interface FactoryStorage {
   id: string;
   kind: ResourceKind;
   resourceId: ResourceId;
+  colorTag?: FactoryNodeColorTag;
   displayName?: string;
   iconPath?: string;
   iconAtlas?: ResourceIconAtlasRef;

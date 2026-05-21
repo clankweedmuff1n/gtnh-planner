@@ -1,11 +1,13 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import type { CSSProperties } from "react";
 import type { FactoryStorage, StorageThroughputResult } from "@/lib/model/types";
 import { formatRate, makeResourceKey } from "@/lib/model";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
 import { useFactoryStore } from "@/store/factory-store";
 import { makeResourceHandleId } from "./resource-handles";
+import { GT_NODE_COLORS } from "./node-colors";
 
 export interface StorageNodeData extends Record<string, unknown> {
   storage: FactoryStorage;
@@ -24,6 +26,7 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
   const resourceKey = makeResourceKey(storage.kind, storage.resourceId);
   const isHighlighted = hoveredStorageResourceKey === resourceKey;
   const isSearchHighlighted = storageMatchesSearch(storage, recipeSearch);
+  const storageColor = storage.colorTag ? GT_NODE_COLORS[storage.colorTag] : undefined;
   const produced = result?.producedPerSecond ?? 0;
   const consumed = result?.consumedPerSecond ?? 0;
   const net = result?.netPerSecond ?? 0;
@@ -45,11 +48,18 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
       data-storage-resource-id={storage.resourceId}
       onMouseEnter={() => setHoveredStorageResourceKey(resourceKey)}
       onMouseLeave={() => setHoveredStorageResourceKey(undefined)}
-      className={[
-        "group relative text-[#202020]",
-        isHighlighted ? "ring-4 ring-cyan-300" : "",
-        isSearchHighlighted ? "ring-4 ring-sky-300" : "",
-      ].join(" ")}
+      className={["group relative text-[#202020]", storageColor ? "storage-node-tinted" : ""].join(
+        " ",
+      )}
+      style={
+        storageColor
+          ? ({
+              "--storage-node-tint": storageColor.panel,
+              "--storage-node-tint-header": storageColor.header,
+              "--storage-node-tint-border": storageColor.border,
+            } as CSSProperties)
+          : undefined
+      }
       title={`${title}\nIn ${formatRate(produced, 3)}${unit}\nOut ${formatRate(consumed, 3)}${unit}\nNet ${net >= 0 ? "+" : ""}${formatRate(net, 3)}${unit}`}
     >
       <Handle
@@ -79,6 +89,8 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
           consumed={consumed}
           net={net}
           unit={unit}
+          isHighlighted={isHighlighted || isSearchHighlighted}
+          storageColor={storageColor}
         />
       ) : (
         <ItemStorageCard
@@ -87,6 +99,8 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
           consumed={consumed}
           net={net}
           unit={unit}
+          isHighlighted={isHighlighted || isSearchHighlighted}
+          storageColor={storageColor}
         />
       )}
     </div>
@@ -96,16 +110,22 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
 function StorageHeader({
   title,
   variant,
+  storageColor,
 }: {
   title: string;
   variant: "tank" | "drawer";
+  storageColor: StorageColor;
 }) {
   return (
     <div
       className={[
-        "flex h-6 items-center gap-1 border-b-2 px-1 shadow-[inset_1px_1px_0_rgba(255,255,255,0.55)]",
+        "storage-node-header flex h-6 items-center gap-1 border-b-2 px-1 shadow-[inset_1px_1px_0_rgba(255,255,255,0.55)]",
         variant === "tank" ? "border-[#747c91] bg-[#b8c1d9]" : "border-[#4f3518] bg-[#8a6030]",
       ].join(" ")}
+      style={{
+        backgroundColor: storageColor?.header,
+        borderColor: storageColor?.border,
+      }}
     >
       <div className="minecraft-title min-w-0 flex-1 truncate text-center text-[13px] leading-4">
         {title}
@@ -114,6 +134,8 @@ function StorageHeader({
   );
 }
 
+type StorageColor = (typeof GT_NODE_COLORS)[keyof typeof GT_NODE_COLORS] | undefined;
+
 function FluidStorageCard({
   storage,
   result,
@@ -121,6 +143,8 @@ function FluidStorageCard({
   consumed,
   net,
   unit,
+  isHighlighted,
+  storageColor,
 }: {
   storage: FactoryStorage;
   result?: StorageThroughputResult;
@@ -128,11 +152,33 @@ function FluidStorageCard({
   consumed: number;
   net: number;
   unit: string;
+  isHighlighted: boolean;
+  storageColor: StorageColor;
 }) {
   return (
-    <div className="w-[174px] border-2 border-[#565f72] bg-[#b9c2d4] p-1 shadow-[0_0_0_3px_#53e5ef,inset_2px_2px_0_#e8edf7,inset_-2px_-2px_0_#7b8497]">
-      <StorageHeader title="Super Tank" variant="tank" />
-      <div className="border-2 border-[#80889c] bg-[#9fa9bd] p-2 shadow-[inset_2px_2px_0_#d8deeb,inset_-2px_-2px_0_#767f91]">
+    <div
+      className={[
+        "storage-node-card w-[174px] border-2 border-[#565f72] bg-[#b9c2d4] p-1 shadow-[inset_2px_2px_0_#e8edf7,inset_-2px_-2px_0_#7b8497]",
+        isHighlighted ? "brightness-110" : "",
+      ].join(" ")}
+      style={
+        {
+          backgroundColor: storageColor?.panel,
+          borderColor: storageColor?.border,
+          "--storage-node-base": "#b9c2d4",
+          "--storage-node-header-base": "#b8c1d9",
+          "--storage-node-body-base": "#9fa9bd",
+        } as CSSProperties
+      }
+    >
+      <StorageHeader title="Super Tank" variant="tank" storageColor={storageColor} />
+      <div
+        className="storage-node-body border-2 border-[#80889c] bg-[#9fa9bd] p-2 shadow-[inset_2px_2px_0_#d8deeb,inset_-2px_-2px_0_#767f91]"
+        style={{
+          backgroundColor: storageColor?.panel,
+          borderColor: storageColor?.border,
+        }}
+      >
         <div className="relative h-[92px] overflow-hidden border-2 border-[#1a1a1a] bg-black shadow-[2px_2px_0_#e2e7f0,-2px_-2px_0_#70798b]">
           <div
             className="absolute bottom-0 left-0 right-0 overflow-hidden bg-[#0d3b69]"
@@ -150,7 +196,13 @@ function FluidStorageCard({
           <div className="pointer-events-none absolute bottom-5 left-7 h-2 w-20 bg-[#2a87d5]/55" />
         </div>
       </div>
-      <StorageStats produced={produced} consumed={consumed} net={net} unit={unit} />
+      <StorageStats
+        produced={produced}
+        consumed={consumed}
+        net={net}
+        unit={unit}
+        storageColor={storageColor}
+      />
     </div>
   );
 }
@@ -161,17 +213,41 @@ function ItemStorageCard({
   consumed,
   net,
   unit,
+  isHighlighted,
+  storageColor,
 }: {
   storage: FactoryStorage;
   produced: number;
   consumed: number;
   net: number;
   unit: string;
+  isHighlighted: boolean;
+  storageColor: StorageColor;
 }) {
   return (
-    <div className="w-[174px] border-2 border-[#2b1c0e] bg-[#8a6030] p-1 shadow-[0_0_0_3px_#53e5ef,inset_3px_3px_0_#ad7b3e,inset_-3px_-3px_0_#3e2a13]">
-      <StorageHeader title="Drawer" variant="drawer" />
-      <div className="mx-auto mt-3 grid h-[96px] w-[132px] place-items-center border-2 border-[#3a260f] bg-[#7a5427] shadow-[inset_7px_7px_0_#5a3b1b,inset_-7px_-7px_0_#4a3117]">
+    <div
+      className={[
+        "storage-node-card w-[174px] border-2 border-[#2b1c0e] bg-[#8a6030] p-1 shadow-[inset_3px_3px_0_#ad7b3e,inset_-3px_-3px_0_#3e2a13]",
+        isHighlighted ? "brightness-110" : "",
+      ].join(" ")}
+      style={
+        {
+          backgroundColor: storageColor?.panel,
+          borderColor: storageColor?.border,
+          "--storage-node-base": "#8a6030",
+          "--storage-node-header-base": "#8a6030",
+          "--storage-node-body-base": "#7a5427",
+        } as CSSProperties
+      }
+    >
+      <StorageHeader title="Drawer" variant="drawer" storageColor={storageColor} />
+      <div
+        className="storage-node-body mx-auto mt-3 grid h-[96px] w-[132px] place-items-center border-2 border-[#3a260f] bg-[#7a5427] shadow-[inset_7px_7px_0_#5a3b1b,inset_-7px_-7px_0_#4a3117]"
+        style={{
+          backgroundColor: storageColor?.panel,
+          borderColor: storageColor?.border,
+        }}
+      >
         <div className="grid h-[64px] w-[64px] place-items-center border-2 border-[#1f1f1f] bg-[#d8c4b4] shadow-[inset_2px_2px_0_#fff,inset_-2px_-2px_0_#7d6d61]">
           <ResourceIcon
             resource={{ ...storage, id: storage.resourceId, amount: 1 }}
@@ -182,7 +258,13 @@ function ItemStorageCard({
           />
         </div>
       </div>
-      <StorageStats produced={produced} consumed={consumed} net={net} unit={unit} />
+      <StorageStats
+        produced={produced}
+        consumed={consumed}
+        net={net}
+        unit={unit}
+        storageColor={storageColor}
+      />
     </div>
   );
 }
@@ -192,17 +274,23 @@ function StorageStats({
   consumed,
   net,
   unit,
+  storageColor,
 }: {
   produced: number;
   consumed: number;
   net: number;
   unit: string;
+  storageColor: StorageColor;
 }) {
   return (
     <div className="grid grid-cols-3 gap-1 pt-2 text-[9px]">
-      <StorageStat label="In" value={formatCompact(produced, unit)} />
-      <StorageStat label="Out" value={formatCompact(consumed, unit)} />
-      <StorageStat label="Net" value={`${net >= 0 ? "+" : ""}${formatCompact(net, unit)}`} />
+      <StorageStat label="In" value={formatCompact(produced, unit)} storageColor={storageColor} />
+      <StorageStat label="Out" value={formatCompact(consumed, unit)} storageColor={storageColor} />
+      <StorageStat
+        label="Net"
+        value={`${net >= 0 ? "+" : ""}${formatCompact(net, unit)}`}
+        storageColor={storageColor}
+      />
     </div>
   );
 }
@@ -218,9 +306,23 @@ function storageMatchesSearch(storage: FactoryStorage, query: string) {
     .includes(normalizedQuery);
 }
 
-function StorageStat({ label, value }: { label: string; value: string }) {
+function StorageStat({
+  label,
+  value,
+  storageColor,
+}: {
+  label: string;
+  value: string;
+  storageColor: StorageColor;
+}) {
   return (
-    <div className="h-9 min-w-0 border-2 border-[#707070] bg-[#bababa] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
+    <div
+      className="storage-node-stat h-9 min-w-0 border-2 border-[#707070] bg-[#bababa] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]"
+      style={{
+        backgroundColor: storageColor?.panel,
+        borderColor: storageColor?.border,
+      }}
+    >
       <div className="text-[8px] uppercase leading-[10px] text-[#424242]">{label}</div>
       <div
         className={[

@@ -161,8 +161,10 @@ export function calculateThroughput(
         const countKey = `${targetStorage.id}|${key}`;
         const targetDemand = storageOutgoingDemand.get(countKey) ?? 0;
         const targetCount = storageIncomingCounts.get(countKey) ?? 1;
-        const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
         const sourceCapacity = sourceResult?.outputs[key]?.amountPerSecond ?? 0;
+        const demandPerSecond =
+          edge.ratePerSecond ??
+          (targetDemand > EPSILON ? targetDemand / targetCount : sourceCapacity);
         const transferredPerSecond = Math.min(sourceCapacity, demandPerSecond);
 
         addRequiredRate(requiredByNodeAndResource, edge.source, key, demandPerSecond);
@@ -180,12 +182,7 @@ export function calculateThroughput(
         const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
         const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
         const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
-        const sourceCapacity = storageIncomingTransferred.get(`${sourceStorage.id}|${key}`) ?? 0;
-        const totalDemand =
-          storageOutgoingDemand.get(`${sourceStorage.id}|${key}`) ?? demandPerSecond;
-        const allocatedCapacity =
-          totalDemand > EPSILON ? (sourceCapacity * demandPerSecond) / totalDemand : sourceCapacity;
-        const transferredPerSecond = Math.min(allocatedCapacity, demandPerSecond);
+        const transferredPerSecond = demandPerSecond;
 
         updateStorageFlow(storages[sourceStorage.id], 0, transferredPerSecond);
         edgeResults[edge.id] = buildEdgeResult(edge, key, demandPerSecond, transferredPerSecond);

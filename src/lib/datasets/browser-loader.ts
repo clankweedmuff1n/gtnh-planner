@@ -31,6 +31,7 @@ type WorkerRequest =
       id: number;
       type: "init";
       datasetUrl: string;
+      indexUrl?: string;
       expectedVersionId: string;
       cacheKey: string;
     }
@@ -38,6 +39,7 @@ type WorkerRequest =
       id: number;
       type: "queryRecipes";
       datasetUrl: string;
+      indexUrl?: string;
       expectedVersionId: string;
       cacheKey: string;
     } & RecipeDatasetQuery)
@@ -45,6 +47,7 @@ type WorkerRequest =
       id: number;
       type: "getRecipe";
       datasetUrl: string;
+      indexUrl?: string;
       expectedVersionId: string;
       cacheKey: string;
       recipeId: string;
@@ -91,10 +94,12 @@ export async function initRecipeDatasetVersion(
   version: DatasetVersion,
 ): Promise<RecipeDataset> {
   const datasetUrl = getVersionedDatasetUrl(manifestUrl, version);
+  const indexUrl = getVersionedRecipeIndexUrl(manifestUrl, version);
   const cacheKey = getDatasetCacheKey(version);
   const response = await sendDatasetWorkerRequest({
     type: "init",
     datasetUrl,
+    indexUrl,
     expectedVersionId: version.id,
     cacheKey,
   });
@@ -112,10 +117,12 @@ export async function getRecipeDatasetRecipe(
   recipeId: string,
 ): Promise<Recipe> {
   const datasetUrl = getVersionedDatasetUrl(manifestUrl, version);
+  const indexUrl = getVersionedRecipeIndexUrl(manifestUrl, version);
   const cacheKey = getDatasetCacheKey(version);
   const response = await sendDatasetWorkerRequest({
     type: "getRecipe",
     datasetUrl,
+    indexUrl,
     expectedVersionId: version.id,
     cacheKey,
     recipeId,
@@ -134,10 +141,12 @@ export async function queryRecipeDatasetRecipes(
   query: RecipeDatasetQuery,
 ): Promise<RecipeDatasetQueryResult> {
   const datasetUrl = getVersionedDatasetUrl(manifestUrl, version);
+  const indexUrl = getVersionedRecipeIndexUrl(manifestUrl, version);
   const cacheKey = getDatasetCacheKey(version);
   const response = await sendDatasetWorkerRequest({
     type: "queryRecipes",
     datasetUrl,
+    indexUrl,
     expectedVersionId: version.id,
     cacheKey,
     ...query,
@@ -166,6 +175,22 @@ function getVersionedDatasetUrl(manifestUrl: string, version: DatasetVersion): s
     version.checksumSha256 ?? version.publishedAt ?? version.id,
   );
   return datasetUrl.toString();
+}
+
+function getVersionedRecipeIndexUrl(
+  manifestUrl: string,
+  version: DatasetVersion,
+): string | undefined {
+  if (!version.recipeIndexPath) {
+    return undefined;
+  }
+
+  const indexUrl = new URL(resolveDatasetUrl(manifestUrl, version.recipeIndexPath), window.location.origin);
+  indexUrl.searchParams.set(
+    "datasetVersion",
+    version.checksumSha256 ?? version.publishedAt ?? version.id,
+  );
+  return indexUrl.toString();
 }
 
 function sendDatasetWorkerRequest(
@@ -224,9 +249,10 @@ function getDatasetWorker(): Worker {
 
 function getDatasetCacheKey(version: DatasetVersion): string {
   return [
-    "worker-v5",
+    "worker-v6",
     version.id,
     version.recipeDatasetPath,
+    version.recipeIndexPath,
     version.checksumSha256,
     version.sourceInfo.gitCommit,
     version.publishedAt,

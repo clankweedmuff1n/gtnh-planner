@@ -21,9 +21,11 @@ for (const entry of entries) {
   }
 
   const dataset = await readRecipeDataset(recipesPath);
+  const recipeIndexPath = getRecipeIndexPath(entry.name);
+  const checksumPath = recipeIndexPath ?? recipesPath;
   const checksumSha256 = crypto
     .createHash("sha256")
-    .update(await fs.readFile(recipesPath))
+    .update(await fs.readFile(checksumPath))
     .digest("hex");
 
   discoveredVersions.push({
@@ -33,6 +35,11 @@ for (const entry of entries) {
     publishedAt: dataset.generatedAt,
     manifestPath: "/datasets/gtnh/datasets.manifest.json",
     recipeDatasetPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(recipesPath)}`,
+    ...(recipeIndexPath
+      ? {
+          recipeIndexPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(recipeIndexPath)}`,
+        }
+      : {}),
     checksumSha256,
     sourceInfo: dataset.sourceInfo,
   });
@@ -91,6 +98,15 @@ function getRecipeDatasetPath(versionId) {
   const jsonPath = path.join(rootDir, versionId, "recipes.json");
   if (existsSync(jsonPath)) {
     return jsonPath;
+  }
+
+  return undefined;
+}
+
+function getRecipeIndexPath(versionId) {
+  const gzipPath = path.join(rootDir, versionId, "recipe-index.json.gz");
+  if (existsSync(gzipPath)) {
+    return gzipPath;
   }
 
   return undefined;

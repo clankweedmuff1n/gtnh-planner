@@ -72,6 +72,7 @@ validateDataset(dataset);
 await pruneRenderedIcons(recipeDatasetPath, path.join(outDir, "textures", "rendered"));
 await buildIconAtlas(recipeDatasetPath, outDir);
 await buildResourceIndex(recipeDatasetPath);
+await buildRecipeIndex(recipeDatasetPath, outDir);
 dataset = JSON.parse(await fs.readFile(recipeDatasetPath, "utf8"));
 validateDataset(dataset);
 
@@ -191,6 +192,24 @@ async function buildResourceIndex(datasetPath) {
 
   if (exitCode !== 0) {
     throw new Error(`Resource index build failed with exit code ${exitCode}.`);
+  }
+}
+
+async function buildRecipeIndex(datasetPath, datasetOutDir) {
+  const exitCode = await new Promise((resolve) => {
+    const child = spawn(
+      "node",
+      ["tools/dataset-pipeline/scripts/build-recipe-index.mjs", datasetPath, datasetOutDir],
+      {
+        stdio: "inherit",
+        env: process.env,
+      },
+    );
+    child.on("exit", (code) => resolve(code ?? 1));
+  });
+
+  if (exitCode !== 0) {
+    throw new Error(`Recipe index build failed with exit code ${exitCode}.`);
   }
 }
 

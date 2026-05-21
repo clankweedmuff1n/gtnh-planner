@@ -11,6 +11,7 @@ type WorkerRequest =
       id: number;
       type: "init";
       datasetUrl: string;
+      indexUrl?: string;
       expectedVersionId: string;
       cacheKey: string;
     }
@@ -18,6 +19,7 @@ type WorkerRequest =
       id: number;
       type: "queryRecipes";
       datasetUrl: string;
+      indexUrl?: string;
       expectedVersionId: string;
       cacheKey: string;
       query: string;
@@ -31,6 +33,7 @@ type WorkerRequest =
       id: number;
       type: "getRecipe";
       datasetUrl: string;
+      indexUrl?: string;
       expectedVersionId: string;
       cacheKey: string;
       recipeId: string;
@@ -85,15 +88,49 @@ interface RecipeWorkerIndexes {
   queryCache: Map<string, CachedQueryResult>;
 }
 
+interface RecipeIndexShard {
+  id: string;
+  path: string;
+  start: number;
+  end: number;
+}
+
+interface IndexedRecipeSummary extends RecipeSummary {
+  shardIndex?: number;
+}
+
+interface LoadedRecipeDataset extends Omit<RecipeDataset, "recipes"> {
+  recipes: IndexedRecipeSummary[];
+  recipeCount: number;
+  fullRecipes?: Recipe[];
+  shards?: RecipeIndexShard[];
+  shardUrlBase?: string;
+  shardVersionToken?: string;
+}
+
+type ResourceLookupEntry =
+  | LoadedRecipeDataset["resources"][number]
+  | NonNullable<LoadedRecipeDataset["resourceIndex"]>[number];
+
+interface RecipeShardPayload {
+  schemaVersion: 1;
+  datasetVersionId: string;
+  shardIndex: number;
+  start: number;
+  end: number;
+  recipes: Recipe[];
+}
+
 const MAX_QUERY_CACHE_ENTRIES = 160;
 
-let loadedDataset: RecipeDataset | undefined;
+let loadedDataset: LoadedRecipeDataset | undefined;
 let loadedDatasetCacheKey: string | undefined;
 let loadedIndexes: RecipeWorkerIndexes | undefined;
+const loadedRecipeShards = new Map<string, Recipe[]>();
 let loadingDataset:
   | {
       cacheKey: string;
-      promise: Promise<RecipeDataset>;
+      promise: Promise<LoadedRecipeDataset>;
     }
   | undefined;
 
@@ -105,6 +142,7 @@ async function handleRequest(request: WorkerRequest) {
   try {
     if (request.type === "init") {
       loadedDataset = await ensureDataset(
+        request.indexUrl,
         request.datasetUrl,
         request.expectedVersionId,
         request.cacheKey,
@@ -120,6 +158,7 @@ async function handleRequest(request: WorkerRequest) {
     }
 
     loadedDataset = await ensureDataset(
+      request.indexUrl,
       request.datasetUrl,
       request.expectedVersionId,
       request.cacheKey,
@@ -127,7 +166,7 @@ async function handleRequest(request: WorkerRequest) {
     ensureRecipeIndexes(loadedDataset, request.cacheKey);
 
     if (request.type === "getRecipe") {
-      const recipe = loadedDataset.recipes.find((entry) => entry.id === request.recipeId);
+      const recipe = await getFullRecipe(loadedDataset, request.recipeId);
       if (!recipe) {
         throw new Error(`Recipe ${request.recipeId} was not found in dataset.`);
       }
@@ -159,10 +198,11 @@ async function handleRequest(request: WorkerRequest) {
 }
 
 async function ensureDataset(
+  indexUrl: string | undefined,
   datasetUrl: string,
   expectedVersionId: string,
   cacheKey: string,
-): Promise<RecipeDataset> {
+): Promise<LoadedRecipeDataset> {
   if (loadedDataset?.datasetVersionId === expectedVersionId && loadedDatasetCacheKey === cacheKey) {
     return loadedDataset;
   }
@@ -173,7 +213,7 @@ async function ensureDataset(
 
   loadingDataset = {
     cacheKey,
-    promise: loadDataset(datasetUrl, expectedVersionId, cacheKey),
+    promise: loadDataset(indexUrl, datasetUrl, expectedVersionId, cacheKey),
   };
 
   try {
@@ -181,6 +221,7 @@ async function ensureDataset(
     loadedDataset = dataset;
     loadedDatasetCacheKey = cacheKey;
     loadedIndexes = undefined;
+    loadedRecipeShards.clear();
     return dataset;
   } finally {
     if (loadingDataset?.cacheKey === cacheKey) {
@@ -190,13 +231,20 @@ async function ensureDataset(
 }
 
 async function loadDataset(
+  indexUrl: string | undefined,
   datasetUrl: string,
   expectedVersionId: string,
   cacheKey: string,
-): Promise<RecipeDataset> {
+): Promise<LoadedRecipeDataset> {
   const cached = await readCachedDataset(cacheKey).catch(() => undefined);
   if (cached?.datasetVersionId === expectedVersionId && hasUsableIconAtlas(cached)) {
     return cached;
+  }
+
+  if (indexUrl) {
+    const indexDataset = await loadRecipeIndexDataset(indexUrl, expectedVersionId);
+    await writeCachedDataset(cacheKey, indexDataset).catch(() => undefined);
+    return indexDataset;
   }
 
   const response = await fetch(datasetUrl, {
@@ -222,11 +270,38 @@ async function loadDataset(
     );
   }
 
-  await writeCachedDataset(cacheKey, dataset).catch(() => undefined);
-  return dataset;
+  const loadedDataset = toLoadedDataset(dataset, datasetUrl);
+  await writeCachedDataset(cacheKey, loadedDataset).catch(() => undefined);
+  return loadedDataset;
 }
 
-function hasUsableIconAtlas(dataset: RecipeDataset): boolean {
+async function loadRecipeIndexDataset(
+  indexUrl: string,
+  expectedVersionId: string,
+): Promise<LoadedRecipeDataset> {
+  const response = await fetch(indexUrl, {
+    cache: "no-store",
+    headers: {
+      Accept: "application/json, application/gzip, application/octet-stream",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not load recipe index (${response.status}).`);
+  }
+
+  const text = await readDatasetResponseText(response, indexUrl);
+  const index = parseTrustedRecipeIndexJson(text);
+  if (index.datasetVersionId !== expectedVersionId) {
+    throw new Error(
+      `Dataset id mismatch: manifest expected ${expectedVersionId}, file contains ${index.datasetVersionId}.`,
+    );
+  }
+
+  return hydrateRecipeIndex(index, indexUrl);
+}
+
+function hasUsableIconAtlas(dataset: Pick<RecipeDataset, "resources" | "resourceIndex">): boolean {
   const indexedResources = dataset.resourceIndex ?? dataset.resources;
   return indexedResources.some((resource) => Boolean(resource.iconAtlas));
 }
@@ -253,17 +328,95 @@ function parseTrustedRecipeDatasetJson(source: string): RecipeDataset {
   return dataset as RecipeDataset;
 }
 
-function summarizeDataset(dataset: RecipeDataset): DatasetSummary {
+function parseTrustedRecipeIndexJson(source: string): LoadedRecipeDataset {
+  const dataset = JSON.parse(source) as Partial<LoadedRecipeDataset>;
+  if (
+    dataset.schemaVersion !== 1 ||
+    typeof dataset.datasetVersionId !== "string" ||
+    typeof dataset.gtnhVersion !== "string" ||
+    !Array.isArray(dataset.resources) ||
+    !Array.isArray(dataset.resourceIndex) ||
+    !Array.isArray(dataset.recipes) ||
+    !Array.isArray(dataset.recipeMaps) ||
+    !Array.isArray(dataset.shards)
+  ) {
+    throw new Error("Invalid GTNH recipe index.");
+  }
+
+  return dataset as LoadedRecipeDataset;
+}
+
+function hydrateRecipeIndex(index: LoadedRecipeDataset, indexUrl: string): LoadedRecipeDataset {
+  const resourcesByKey = getResourceLookup(index);
+  return {
+    ...index,
+    recipeCount: index.recipeCount ?? index.recipes.length,
+    recipes: index.recipes.map((recipe) => hydrateSummary(recipe, resourcesByKey)),
+    shardUrlBase: indexUrl,
+    shardVersionToken: new URL(indexUrl, self.location.origin).searchParams.get("datasetVersion") ?? undefined,
+  };
+}
+
+function toLoadedDataset(dataset: RecipeDataset, datasetUrl: string): LoadedRecipeDataset {
+  return {
+    ...dataset,
+    recipes: dataset.recipes.map((recipe, index) => summarizeRecipe(recipe, index)),
+    recipeCount: dataset.recipes.length,
+    fullRecipes: dataset.recipes,
+    shardUrlBase: datasetUrl,
+    shardVersionToken: new URL(datasetUrl, self.location.origin).searchParams.get("datasetVersion") ?? undefined,
+  };
+}
+
+function getResourceLookup(
+  dataset: Pick<LoadedRecipeDataset, "resources" | "resourceIndex">,
+): Map<string, ResourceLookupEntry> {
+  const lookup = new Map<string, ResourceLookupEntry>();
+  for (const resource of [...dataset.resources, ...(dataset.resourceIndex ?? [])]) {
+    lookup.set(`${resource.kind}:${resource.id}`, resource);
+  }
+  return lookup;
+}
+
+function hydrateSummary(
+  summary: IndexedRecipeSummary,
+  resourcesByKey: Map<string, ResourceLookupEntry>,
+): IndexedRecipeSummary {
+  return {
+    ...summary,
+    inputs: summary.inputs.map((resource) => hydrateResource(resource, resourcesByKey)),
+    outputs: summary.outputs.map((resource) => hydrateResource(resource, resourcesByKey)),
+  };
+}
+
+function hydrateResource<T extends ResourceAmount>(
+  resource: T,
+  resourcesByKey: Map<string, ResourceLookupEntry>,
+): T {
+  const indexed = resourcesByKey.get(`${resource.kind}:${resource.id}`);
+  if (!indexed) {
+    return resource;
+  }
+
+  return {
+    ...resource,
+    displayName: resource.displayName ?? indexed.displayName,
+    iconPath: resource.iconPath ?? indexed.iconPath,
+    iconAtlas: resource.iconAtlas ?? indexed.iconAtlas,
+  };
+}
+
+function summarizeDataset(dataset: LoadedRecipeDataset): DatasetSummary {
   return {
     ...dataset,
     recipes: [],
-    recipeCount: dataset.recipes.length,
+    recipeCount: dataset.recipeCount ?? dataset.recipes.length,
     resourceIndex: dataset.resourceIndex ?? buildDatasetResourceIndex(dataset),
   };
 }
 
 function queryRecipes(
-  dataset: RecipeDataset,
+  dataset: LoadedRecipeDataset,
   request: Extract<WorkerRequest, { type: "queryRecipes" }>,
 ): { recipes: RecipeSummary[]; total: number; recipeMaps: string[] } {
   const indexes = ensureRecipeIndexes(dataset, request.cacheKey);
@@ -337,20 +490,19 @@ function queryRecipes(
 }
 
 function materializeQueryResult(
-  dataset: RecipeDataset,
+  dataset: LoadedRecipeDataset,
   result: CachedQueryResult,
 ): { recipes: RecipeSummary[]; total: number; recipeMaps: string[] } {
   return {
     recipes: result.recipeIndexes
       .map((recipeIndex) => dataset.recipes[recipeIndex])
-      .filter((recipe): recipe is Recipe => Boolean(recipe))
-      .map(summarizeRecipe),
+      .filter((recipe): recipe is RecipeSummary => Boolean(recipe)),
     total: result.total,
     recipeMaps: result.recipeMaps,
   };
 }
 
-function summarizeRecipe(recipe: Recipe): RecipeSummary {
+function summarizeRecipe(recipe: Recipe, shardIndex?: number): IndexedRecipeSummary {
   const layout = getNeiRecipeLayout(recipe);
   const visibleInputs = new Set<number>();
   const visibleOutputs = new Set<number>();
@@ -376,6 +528,7 @@ function summarizeRecipe(recipe: Recipe): RecipeSummary {
     outputs: recipe.outputs.filter((_, index) => visibleOutputs.has(index)),
     source: recipe.source,
     nei: recipe.nei,
+    shardIndex,
     slots: layout.slots.map((slot) => ({
       side: slot.side,
       kind: slot.kind,
@@ -411,7 +564,7 @@ function getCandidateRecipeIndexes(
   );
 }
 
-function ensureRecipeIndexes(dataset: RecipeDataset, cacheKey: string): RecipeWorkerIndexes {
+function ensureRecipeIndexes(dataset: LoadedRecipeDataset, cacheKey: string): RecipeWorkerIndexes {
   if (loadedIndexes?.cacheKey === cacheKey) {
     return loadedIndexes;
   }
@@ -479,7 +632,90 @@ function getQueryCacheKey(request: Extract<WorkerRequest, { type: "queryRecipes"
   ].join("|");
 }
 
-function buildRecipeSearchText(recipe: Recipe): string {
+async function getFullRecipe(
+  dataset: LoadedRecipeDataset,
+  recipeId: string,
+): Promise<Recipe | undefined> {
+  const fullRecipe = dataset.fullRecipes?.find((recipe) => recipe.id === recipeId);
+  if (fullRecipe) {
+    return fullRecipe;
+  }
+
+  const summaryIndex = dataset.recipes.findIndex((recipe) => recipe.id === recipeId);
+  if (summaryIndex === -1) {
+    return undefined;
+  }
+
+  const summary = dataset.recipes[summaryIndex];
+  const shard =
+    summary.shardIndex !== undefined
+      ? dataset.shards?.[summary.shardIndex]
+      : dataset.shards?.find((entry) => summaryIndex >= entry.start && summaryIndex < entry.end);
+
+  if (!shard) {
+    return summaryToRecipe(summary);
+  }
+
+  const recipes = await loadRecipeShard(dataset, shard);
+  return recipes.find((recipe) => recipe.id === recipeId) ?? summaryToRecipe(summary);
+}
+
+async function loadRecipeShard(
+  dataset: LoadedRecipeDataset,
+  shard: RecipeIndexShard,
+): Promise<Recipe[]> {
+  const shardUrl = getShardUrl(dataset, shard);
+  const cacheKey = `${dataset.datasetVersionId}|${dataset.shardVersionToken ?? ""}|${shard.id}`;
+  const cached = loadedRecipeShards.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(shardUrl, {
+    cache: "force-cache",
+    headers: {
+      Accept: "application/json, application/gzip, application/octet-stream",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Could not load recipe shard ${shard.id} (${response.status}).`);
+  }
+
+  const text = await readDatasetResponseText(response, shardUrl);
+  const payload = JSON.parse(text) as RecipeShardPayload;
+  if (payload.datasetVersionId !== dataset.datasetVersionId) {
+    throw new Error(`Recipe shard ${shard.id} does not belong to ${dataset.datasetVersionId}.`);
+  }
+
+  loadedRecipeShards.set(cacheKey, payload.recipes);
+  return payload.recipes;
+}
+
+function getShardUrl(dataset: LoadedRecipeDataset, shard: RecipeIndexShard): string {
+  const shardUrl = new URL(shard.path, dataset.shardUrlBase ?? self.location.origin);
+  if (dataset.shardVersionToken) {
+    shardUrl.searchParams.set("datasetVersion", dataset.shardVersionToken);
+  }
+  return shardUrl.toString();
+}
+
+function summaryToRecipe(summary: RecipeSummary): Recipe {
+  return {
+    id: summary.id,
+    name: summary.name,
+    machineType: summary.machineType,
+    minimumTier: summary.minimumTier,
+    durationTicks: summary.durationTicks,
+    eut: summary.eut,
+    inputs: summary.inputs,
+    outputs: summary.outputs,
+    programmedCircuit: summary.programmedCircuit,
+    source: summary.source,
+    nei: summary.nei,
+  };
+}
+
+function buildRecipeSearchText(recipe: RecipeSummary): string {
   return normalizeText(
     [
       recipe.name,
@@ -511,7 +747,9 @@ function isGzipDatasetUrl(datasetUrl: string): boolean {
   return new URL(datasetUrl, self.location.origin).pathname.endsWith(".gz");
 }
 
-function buildDatasetResourceIndex(dataset: RecipeDataset): DatasetResourceIndexEntry[] {
+function buildDatasetResourceIndex(
+  dataset: Pick<LoadedRecipeDataset, "resources" | "recipes">,
+): DatasetResourceIndexEntry[] {
   const resourcesByKey = new Map<string, RecipeDataset["resources"][number]>(
     dataset.resources.map((resource) => [`${resource.kind}:${resource.id}`, resource] as const),
   );
@@ -567,13 +805,13 @@ function recipeMatchesTierIndex(
   return (indexes.tierIndexes[recipeIndex] ?? GT_VOLTAGE_TIERS.length - 1) <= getTierIndex(maxTier);
 }
 
-function getRecipeTier(recipe: Recipe): Exclude<MachineTier, "DEMO"> {
+function getRecipeTier(recipe: RecipeSummary): Exclude<MachineTier, "DEMO"> {
   const declaredTier = recipe.minimumTier;
   if (isKnownTier(declaredTier)) {
     return declaredTier;
   }
 
-  return getRecipePowerTier(recipe);
+  return getRecipePowerTier(recipe as Recipe);
 }
 
 function isKnownTier(tier: string): tier is Exclude<MachineTier, "DEMO"> {
@@ -585,7 +823,7 @@ function getTierIndex(tier: Exclude<MachineTier, "DEMO">) {
   return index === -1 ? GT_VOLTAGE_TIERS.length - 1 : index;
 }
 
-function recipeIconScore(recipe: Recipe): number {
+function recipeIconScore(recipe: RecipeSummary): number {
   return [...recipe.inputs, ...recipe.outputs].reduce(
     (score, resource) => score + (resource.iconPath || resource.iconAtlas ? 1 : 0),
     0,
@@ -600,19 +838,19 @@ const DB_NAME = "gtnh-factory-flow-worker";
 const DB_VERSION = 1;
 const DATASET_STORE = "recipe-datasets";
 
-async function readCachedDataset(cacheKey: string): Promise<RecipeDataset | undefined> {
+async function readCachedDataset(cacheKey: string): Promise<LoadedRecipeDataset | undefined> {
   const db = await openDatasetCache();
   return new Promise((resolve, reject) => {
     const request = db
       .transaction(DATASET_STORE, "readonly")
       .objectStore(DATASET_STORE)
       .get(cacheKey);
-    request.onsuccess = () => resolve(request.result as RecipeDataset | undefined);
+    request.onsuccess = () => resolve(request.result as LoadedRecipeDataset | undefined);
     request.onerror = () => reject(request.error ?? new Error("Could not read dataset cache."));
   });
 }
 
-async function writeCachedDataset(cacheKey: string, dataset: RecipeDataset): Promise<void> {
+async function writeCachedDataset(cacheKey: string, dataset: LoadedRecipeDataset): Promise<void> {
   const db = await openDatasetCache();
   await new Promise<void>((resolve, reject) => {
     const request = db

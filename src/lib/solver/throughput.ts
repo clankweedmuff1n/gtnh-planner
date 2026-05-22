@@ -601,8 +601,11 @@ function applyProjectTarget(
           makeResourceKey(edge.resourceKind, edge.resourceId) === targetKey,
       ),
   );
-  const targetNodes =
-    nodesWithNoOutgoingTargetEdge.length > 0 ? nodesWithNoOutgoingTargetEdge : producers;
+  const targetNodes = nodesWithNoOutgoingTargetEdge;
+  if (targetNodes.length === 0) {
+    return;
+  }
+
   const targetShare = project.targetRate.amountPerSecond / targetNodes.length;
 
   for (const node of targetNodes) {

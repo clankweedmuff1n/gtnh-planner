@@ -178,10 +178,75 @@ describe("calculateThroughput", () => {
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
     expect(result.edges["drawer-edge"].transferredPerSecond).toBeCloseTo(2);
+    expect(result.nodes.source.utilization).toBeCloseTo(1);
+    expect(result.nodes.source.theoreticalMachinesRequired).toBeCloseTo(1);
     expect(result.storages["dust-drawer"].producedPerSecond).toBeCloseTo(2);
     expect(result.storages["dust-drawer"].consumedPerSecond).toBeCloseTo(0);
     expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(2);
     expect(result.storages["dust-drawer"].status).toBe("filling");
+  });
+
+  it("does not add global target demand on top of output fully routed to storage", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "storage-target-project",
+      name: "Storage target test",
+      targetRate: {
+        kind: "item",
+        resourceId: "dust",
+        amountPerSecond: 10,
+      },
+      recipes: [
+        {
+          id: "source-recipe",
+          name: "Dust source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "item", id: "dust", amount: 2 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "source",
+          recipeId: "source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "dust-drawer",
+          kind: "item",
+          resourceId: "dust",
+          displayName: "Dust",
+          position: { x: 200, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "drawer-edge",
+          source: "source",
+          target: "dust-drawer",
+          resourceKind: "item",
+          resourceId: "dust",
+          label: "Dust",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.nodes.source.utilization).toBeCloseTo(1);
+    expect(result.nodes.source.theoreticalMachinesRequired).toBeCloseTo(1);
+    expect(result.nodes.source.requiredRatePerSecond).toBeCloseTo(2);
+    expect(result.nodes.source.maxRatePerSecond).toBeCloseTo(2);
   });
 
   it("lets a drawer or tank feed consumers and show negative net when undersupplied", () => {

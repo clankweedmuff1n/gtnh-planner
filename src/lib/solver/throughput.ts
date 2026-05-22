@@ -143,7 +143,7 @@ export function calculateThroughput(
   const requiredByNodeAndResource = new Map<string, Map<ResourceKey, number>>();
   const edgeResults: Record<string, EdgeThroughput> = {};
   const storageOutgoingDemand = calculateStorageOutgoingDemand(project, nodes, projectStorages);
-  const storageIncomingCounts = countIncomingEdgesToStorage(project, projectStorages);
+  const storageIncomingCounts = countIncomingEdgesToStorageResource(project, projectStorages);
   const storageIncomingTransferred = new Map<string, number>();
 
   for (const edge of project.edges) {
@@ -159,11 +159,10 @@ export function calculateThroughput(
       if (targetStorage) {
         const sourceResult = nodes[edge.source];
         const countKey = `${targetStorage.id}|${key}`;
-        const targetDemand = storageOutgoingDemand.get(countKey) ?? 0;
-        const targetCount = storageIncomingCounts.get(countKey) ?? 1;
+        const targetDemand = storageOutgoingDemand.get(key) ?? 0;
+        const targetCount = storageIncomingCounts.get(key) ?? 1;
         const sourceCapacity = sourceResult?.outputs[key]?.amountPerSecond ?? 0;
-        const demandPerSecond =
-          targetDemand > EPSILON ? targetDemand / targetCount : sourceCapacity;
+        const demandPerSecond = Math.max(sourceCapacity, targetDemand / targetCount);
         const transferredPerSecond = Math.min(sourceCapacity, demandPerSecond);
 
         addRequiredRate(requiredByNodeAndResource, edge.source, key, demandPerSecond);
@@ -411,21 +410,22 @@ function countIncomingEdgesByTargetResource(project: FactoryProject): Map<string
   return counts;
 }
 
-function countIncomingEdgesToStorage(
+function countIncomingEdgesToStorageResource(
   project: FactoryProject,
   storages: FactoryStorage[],
 ): Map<string, number> {
   const storageIds = new Set(storages.map((storage) => storage.id));
+  const storagesById = new Map(storages.map((storage) => [storage.id, storage]));
   const counts = new Map<string, number>();
 
   for (const edge of project.edges) {
-    if (!storageIds.has(edge.target)) {
+    const storage = storagesById.get(edge.target);
+    if (!storageIds.has(edge.target) || !storage) {
       continue;
     }
 
-    const key = makeResourceKey(edge.resourceKind, edge.resourceId);
-    const countKey = `${edge.target}|${key}`;
-    counts.set(countKey, (counts.get(countKey) ?? 0) + 1);
+    const key = makeResourceKey(storage.kind, storage.resourceId);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 
   return counts;
@@ -450,8 +450,7 @@ function calculateStorageOutgoingDemand(
     const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
     const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
     const demandPerSecond = targetDemand / targetCount;
-    const countKey = `${edge.source}|${key}`;
-    demand.set(countKey, (demand.get(countKey) ?? 0) + demandPerSecond);
+    demand.set(key, (demand.get(key) ?? 0) + demandPerSecond);
   }
 
   return demand;

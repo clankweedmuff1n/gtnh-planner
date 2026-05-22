@@ -347,6 +347,19 @@ describe("factory machine count optimization", () => {
     expect(machineCounts.every((machineCount) => Number.isInteger(machineCount))).toBe(true);
     expect(Math.max(...machineCounts)).toBeLessThanOrEqual(2);
   });
+
+  it("still propagates ratios through separate buses when there is no feedback loop", () => {
+    useFactoryStore.getState().setProject(createAcyclicStorageBusProject());
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "bus-source", machineCount: 10 }),
+        expect.objectContaining({ id: "bus-target", machineCount: 10 }),
+      ]),
+    );
+  });
 });
 
 function createLinkTestProject(): FactoryProject {
@@ -615,6 +628,48 @@ function createStorageBusCycleProject(): FactoryProject {
         targetHandle: makeResourceHandleId("input", { kind: "item", id: "y" }, 0),
         resourceKind: "item",
         resourceId: "y",
+      },
+    ],
+  };
+}
+
+function createAcyclicStorageBusProject(): FactoryProject {
+  return {
+    ...createRatioOptimizationProject(),
+    id: "acyclic-storage-bus-ratio",
+    nodes: [
+      makeNode("bus-source", "dust-source-recipe", 0),
+      {
+        ...makeNode("bus-target", "plate-target-recipe", 240),
+        targetOutput: {
+          kind: "item",
+          resourceId: "plate",
+          amountPerSecond: 10,
+        },
+      },
+    ],
+    storages: [
+      { id: "dust-out", kind: "item", resourceId: "dust", position: { x: 100, y: 0 } },
+      { id: "dust-in", kind: "item", resourceId: "dust", position: { x: 140, y: 0 } },
+    ],
+    edges: [
+      {
+        id: "dust-out-edge",
+        source: "bus-source",
+        target: "dust-out",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "dust" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "dust" }),
+        resourceKind: "item",
+        resourceId: "dust",
+      },
+      {
+        id: "dust-in-edge",
+        source: "dust-in",
+        target: "bus-target",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "dust" }),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "dust" }, 0),
+        resourceKind: "item",
+        resourceId: "dust",
       },
     ],
   };

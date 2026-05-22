@@ -1452,10 +1452,23 @@ function getCyclicRecipeNodeIds(project: FactoryProject): Set<string> {
     adjacency.get(edge.source)?.push(edge.target);
   }
 
+  const storageProducerIds = new Set<string>();
+  const storageConsumerIds = new Set<string>();
   const storagesByResource = new Map<string, FactoryStorage[]>();
   for (const storage of project.storages ?? []) {
     const key = `${storage.kind}:${storage.resourceId}`;
     storagesByResource.set(key, [...(storagesByResource.get(key) ?? []), storage]);
+  }
+  const storageIds = new Set((project.storages ?? []).map((storage) => storage.id));
+  for (const edge of project.edges) {
+    const sourceIsStorage = storageIds.has(edge.source);
+    const targetIsStorage = storageIds.has(edge.target);
+    if (targetIsStorage && !sourceIsStorage) {
+      storageProducerIds.add(edge.target);
+    }
+    if (sourceIsStorage && !targetIsStorage) {
+      storageConsumerIds.add(edge.source);
+    }
   }
 
   for (const storages of storagesByResource.values()) {
@@ -1464,8 +1477,12 @@ function getCyclicRecipeNodeIds(project: FactoryProject): Set<string> {
     }
 
     for (const source of storages) {
+      if (!storageProducerIds.has(source.id)) {
+        continue;
+      }
+
       for (const target of storages) {
-        if (source.id !== target.id) {
+        if (source.id !== target.id && storageConsumerIds.has(target.id)) {
           adjacency.get(source.id)?.push(target.id);
         }
       }

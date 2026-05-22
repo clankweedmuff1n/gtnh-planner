@@ -172,11 +172,6 @@ textarea {
   background: color-mix(in srgb, var(--storage-node-tint-header) 82%, #8a6030);
 }
 
-.storage-node-tinted .storage-node-body {
-  border-color: var(--storage-node-tint-border);
-  background: color-mix(in srgb, var(--storage-node-tint) 74%, #7a5427);
-}
-
 .storage-node-tinted .storage-node-card--tank {
   border-color: #1f1f1f !important;
   background: color-mix(in srgb, var(--storage-node-tint) 66%, #b9c2d4);

@@ -10,7 +10,6 @@ import {
   applyNodeChanges,
   getSmoothStepPath,
   useReactFlow,
-  useStore,
   type Connection,
   type ConnectionLineComponentProps,
   type Edge,
@@ -72,6 +71,7 @@ type ResourceEdgeData = {
   showLabel: boolean;
   sourceSlotEndpoint: boolean;
   targetSlotEndpoint: boolean;
+  measurementRevision: number;
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -162,6 +162,7 @@ export function FactoryFlow() {
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
   const [isNodeDragging, setNodeDragging] = useState(false);
+  const [edgeMeasurementRevision, setEdgeMeasurementRevision] = useState(0);
   const draggingNodeRef = useRef(false);
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
   const lastConnectionPointerRef = useRef<{ x: number; y: number } | undefined>(undefined);
@@ -239,6 +240,7 @@ export function FactoryFlow() {
             showLabel: true,
             sourceSlotEndpoint: Boolean(sourceHandle),
             targetSlotEndpoint: Boolean(targetHandle),
+            measurementRevision: edgeMeasurementRevision,
           },
           style: {
             stroke: edgeColor,
@@ -254,7 +256,14 @@ export function FactoryFlow() {
           },
         };
       }),
-    [hoveredStorageResourceKey, isNodeDragging, project, recipeSearch, result.edges],
+    [
+      edgeMeasurementRevision,
+      hoveredStorageResourceKey,
+      isNodeDragging,
+      project,
+      recipeSearch,
+      result.edges,
+    ],
   );
 
   const handleConnect = useCallback(
@@ -448,6 +457,11 @@ export function FactoryFlow() {
     );
   }, [setFlowViewportCenter]);
 
+  const handleMoveEnd = useCallback(() => {
+    updateFlowViewportCenter();
+    setEdgeMeasurementRevision((revision) => revision + 1);
+  }, [updateFlowViewportCenter]);
+
   const handleInit = useCallback(
     (instance: ReactFlowInstance<RecipeFlowNode | StorageFlowNode, ResourceFlowEdge>) => {
       flowInstanceRef.current = instance;
@@ -611,7 +625,7 @@ export function FactoryFlow() {
         onConnectEnd={handleConnectEnd}
         onReconnect={handleReconnect}
         onInit={handleInit}
-        onMoveEnd={updateFlowViewportCenter}
+        onMoveEnd={handleMoveEnd}
         isValidConnection={isCompatibleResourceConnection}
         connectionLineComponent={ResourceConnectionLine}
         connectionLineStyle={connectionLineStyle}
@@ -738,25 +752,10 @@ function ResourceEdge({
     data?.resource,
     data?.color ?? DEFAULT_ITEM_EDGE_COLOR,
   );
-  const viewportTransform = useStore((state) => state.transform);
-  const [measurementTick, setMeasurementTick] = useState(0);
   const { screenToFlowPosition } = useReactFlow<
     RecipeFlowNode | StorageFlowNode,
     ResourceFlowEdge
   >();
-  useEffect(() => {
-    let secondFrame = 0;
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        setMeasurementTick((tick) => tick + 1);
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(firstFrame);
-      window.cancelAnimationFrame(secondFrame);
-    };
-  }, [viewportTransform]);
 
   const edgeColor = resourceColor;
   const visualSource = getSlotEdgeEndpoint({
@@ -767,8 +766,7 @@ function ResourceEdge({
     fallbackY: sourceY,
     isRecipeSlotEndpoint: data?.sourceSlotEndpoint,
     screenToFlowPosition,
-    viewportTransform,
-    measurementTick,
+    measurementRevision: data?.measurementRevision,
   });
   const visualTarget = getSlotEdgeEndpoint({
     nodeId: target,
@@ -778,8 +776,7 @@ function ResourceEdge({
     fallbackY: targetY,
     isRecipeSlotEndpoint: data?.targetSlotEndpoint,
     screenToFlowPosition,
-    viewportTransform,
-    measurementTick,
+    measurementRevision: data?.measurementRevision,
   });
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX: visualSource.x,
@@ -891,8 +888,7 @@ function getSlotEdgeEndpoint({
   fallbackY,
   isRecipeSlotEndpoint,
   screenToFlowPosition,
-  viewportTransform: _viewportTransform,
-  measurementTick: _measurementTick,
+  measurementRevision: _measurementRevision,
 }: {
   nodeId: string;
   handleId?: string | null;
@@ -901,11 +897,9 @@ function getSlotEdgeEndpoint({
   fallbackY: number;
   isRecipeSlotEndpoint?: boolean;
   screenToFlowPosition: (clientPosition: { x: number; y: number }) => { x: number; y: number };
-  viewportTransform: [number, number, number];
-  measurementTick: number;
+  measurementRevision?: number;
 }) {
-  void _viewportTransform;
-  void _measurementTick;
+  void _measurementRevision;
 
   if (!isRecipeSlotEndpoint) {
     return { x: fallbackX, y: fallbackY };

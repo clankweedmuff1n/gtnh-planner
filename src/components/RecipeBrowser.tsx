@@ -241,8 +241,6 @@ export function RecipeBrowser() {
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) {
-        setResourceResults([]);
-        setResourceTotal(0);
         setResourceQueryLoading(true);
         setResourceQueryError(undefined);
       }

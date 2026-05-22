@@ -1554,8 +1554,10 @@ function getTopLaneEdgePoints({
 
   return compactPolylinePoints([
     { x: sourceX, y: sourceY },
+    { x: sourceExitX, y: sourceY },
     { x: sourceExitX, y: laneY },
     { x: targetApproachX, y: laneY },
+    { x: targetApproachX, y: targetY },
     { x: targetX, y: targetY },
   ]);
 }

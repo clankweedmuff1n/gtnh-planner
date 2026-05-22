@@ -9,7 +9,6 @@ import {
   ReactFlow,
   applyNodeChanges,
   getSmoothStepPath,
-  useReactFlow,
   type Connection,
   type ConnectionLineComponentProps,
   type Edge,
@@ -57,6 +56,7 @@ const connectionLineStyle = {
 const DEFAULT_ITEM_EDGE_COLOR = "#8b8f98";
 const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
 const RECIPE_SLOT_EDGE_OFFSET = 20;
+const STORAGE_SLOT_EDGE_OFFSET = 55;
 type ResourceEdgeData = {
   resource: Pick<
     ResourceAmount,
@@ -71,7 +71,8 @@ type ResourceEdgeData = {
   showLabel: boolean;
   sourceSlotEndpoint: boolean;
   targetSlotEndpoint: boolean;
-  measurementRevision: number;
+  sourceStorageEndpoint: boolean;
+  targetStorageEndpoint: boolean;
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -162,7 +163,6 @@ export function FactoryFlow() {
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
   const [isNodeDragging, setNodeDragging] = useState(false);
-  const [edgeMeasurementRevision, setEdgeMeasurementRevision] = useState(0);
   const draggingNodeRef = useRef(false);
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
   const lastConnectionPointerRef = useRef<{ x: number; y: number } | undefined>(undefined);
@@ -238,9 +238,10 @@ export function FactoryFlow() {
             isLimited: edgeResult?.isLimited === true,
             isStorageEdge,
             showLabel: true,
-            sourceSlotEndpoint: Boolean(sourceHandle),
-            targetSlotEndpoint: Boolean(targetHandle),
-            measurementRevision: edgeMeasurementRevision,
+            sourceSlotEndpoint: Boolean(sourceHandle && !sourceStorage),
+            targetSlotEndpoint: Boolean(targetHandle && !targetStorage),
+            sourceStorageEndpoint: Boolean(sourceHandle && sourceStorage),
+            targetStorageEndpoint: Boolean(targetHandle && targetStorage),
           },
           style: {
             stroke: edgeColor,
@@ -256,14 +257,7 @@ export function FactoryFlow() {
           },
         };
       }),
-    [
-      edgeMeasurementRevision,
-      hoveredStorageResourceKey,
-      isNodeDragging,
-      project,
-      recipeSearch,
-      result.edges,
-    ],
+    [hoveredStorageResourceKey, isNodeDragging, project, recipeSearch, result.edges],
   );
 
   const handleConnect = useCallback(
@@ -459,7 +453,6 @@ export function FactoryFlow() {
 
   const handleMoveEnd = useCallback(() => {
     updateFlowViewportCenter();
-    setEdgeMeasurementRevision((revision) => revision + 1);
   }, [updateFlowViewportCenter]);
 
   const handleInit = useCallback(
@@ -737,13 +730,9 @@ function ResourceEdge({
   sourceX,
   sourceY,
   sourcePosition,
-  source,
-  sourceHandleId,
   targetX,
   targetY,
   targetPosition,
-  target,
-  targetHandleId,
   style,
   selected,
   data,
@@ -752,31 +741,20 @@ function ResourceEdge({
     data?.resource,
     data?.color ?? DEFAULT_ITEM_EDGE_COLOR,
   );
-  const { screenToFlowPosition } = useReactFlow<
-    RecipeFlowNode | StorageFlowNode,
-    ResourceFlowEdge
-  >();
-
   const edgeColor = resourceColor;
   const visualSource = getSlotEdgeEndpoint({
-    nodeId: source,
-    handleId: sourceHandleId,
     position: sourcePosition,
     fallbackX: sourceX,
     fallbackY: sourceY,
     isRecipeSlotEndpoint: data?.sourceSlotEndpoint,
-    screenToFlowPosition,
-    measurementRevision: data?.measurementRevision,
+    isStorageSlotEndpoint: data?.sourceStorageEndpoint,
   });
   const visualTarget = getSlotEdgeEndpoint({
-    nodeId: target,
-    handleId: targetHandleId,
     position: targetPosition,
     fallbackX: targetX,
     fallbackY: targetY,
     isRecipeSlotEndpoint: data?.targetSlotEndpoint,
-    screenToFlowPosition,
-    measurementRevision: data?.measurementRevision,
+    isStorageSlotEndpoint: data?.targetStorageEndpoint,
   });
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX: visualSource.x,
@@ -881,73 +859,32 @@ function ResourceConnectionLine({
 }
 
 function getSlotEdgeEndpoint({
-  nodeId,
-  handleId,
   position,
   fallbackX,
   fallbackY,
   isRecipeSlotEndpoint,
-  screenToFlowPosition,
-  measurementRevision: _measurementRevision,
+  isStorageSlotEndpoint,
 }: {
-  nodeId: string;
-  handleId?: string | null;
   position: unknown;
   fallbackX: number;
   fallbackY: number;
   isRecipeSlotEndpoint?: boolean;
-  screenToFlowPosition: (clientPosition: { x: number; y: number }) => { x: number; y: number };
-  measurementRevision?: number;
+  isStorageSlotEndpoint?: boolean;
 }) {
-  void _measurementRevision;
-
-  if (!isRecipeSlotEndpoint) {
+  if (!isRecipeSlotEndpoint && !isStorageSlotEndpoint) {
     return { x: fallbackX, y: fallbackY };
   }
 
-  const domEndpoint = getSlotEdgeEndpointFromDom(nodeId, handleId, position, screenToFlowPosition);
-  if (domEndpoint) {
-    return domEndpoint;
-  }
+  const offset = isStorageSlotEndpoint ? STORAGE_SLOT_EDGE_OFFSET : RECIPE_SLOT_EDGE_OFFSET;
 
   switch (String(position)) {
     case "right":
-      return { x: fallbackX + RECIPE_SLOT_EDGE_OFFSET, y: fallbackY };
+      return { x: fallbackX + offset, y: fallbackY };
     case "left":
-      return { x: fallbackX - RECIPE_SLOT_EDGE_OFFSET, y: fallbackY };
+      return { x: fallbackX - offset, y: fallbackY };
     default:
       return { x: fallbackX, y: fallbackY };
   }
-}
-
-function getSlotEdgeEndpointFromDom(
-  nodeId: string,
-  handleId: string | null | undefined,
-  position: unknown,
-  screenToFlowPosition: (clientPosition: { x: number; y: number }) => { x: number; y: number },
-) {
-  if (!handleId || typeof document === "undefined") {
-    return undefined;
-  }
-
-  const slotElement =
-    findResourceEndpointElement("[data-resource-edge-anchor='true']", nodeId, handleId) ??
-    findResourceEndpointElement("[data-resource-handle='true']", nodeId, handleId);
-  if (!slotElement) {
-    return undefined;
-  }
-
-  const slotRect = slotElement.getBoundingClientRect();
-  const screenX = String(position) === "left" ? slotRect.left : slotRect.right;
-  const screenY = slotRect.top + slotRect.height / 2;
-  return screenToFlowPosition({ x: screenX, y: screenY });
-}
-
-function findResourceEndpointElement(selector: string, nodeId: string, handleId: string) {
-  return [...document.querySelectorAll<HTMLElement>(selector)].find(
-    (element) =>
-      element.dataset.resourceNodeId === nodeId && element.dataset.resourceHandleId === handleId,
-  );
 }
 
 function formatEdgeRateLabel(data: ResourceEdgeData | undefined) {

@@ -302,6 +302,23 @@ describe("factory machine count optimization", () => {
       ]),
     );
   });
+
+  it("normalizes every optimized machine count to an integer", () => {
+    const project = createRatioOptimizationProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) =>
+        node.id === "dust-source" ? { ...node, machineCount: 1.6 } : node,
+      ),
+      edges: [],
+    });
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(
+      useFactoryStore.getState().project.nodes.every((node) => Number.isInteger(node.machineCount)),
+    ).toBe(true);
+  });
 });
 
 function createLinkTestProject(): FactoryProject {

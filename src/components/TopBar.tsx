@@ -119,10 +119,10 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
           onClick={optimizeMachineCounts}
           disabled={project.nodes.length === 0}
           title="Set every machine count to its suggested best ratio"
-          className="inline-flex h-9 items-center justify-center gap-2 rounded border border-cyan-700 bg-cyan-600 px-3 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-100 disabled:text-neutral-400"
+          aria-label="Set every machine count to its suggested best ratio"
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-cyan-700 bg-cyan-600 text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-100 disabled:text-neutral-400"
         >
           <WandSparkles className="h-4 w-4" />
-          <span>Best ratios</span>
         </button>
         <ToolbarButton
           icon={Trash2}

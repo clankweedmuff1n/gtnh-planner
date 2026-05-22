@@ -97,7 +97,7 @@ describe("factory resource links", () => {
     );
   });
 
-  it("creates a new storage card for each dropped connection instead of reusing by resource", () => {
+  it("does not create multiple storage cards from the same recipe slot", () => {
     const store = useFactoryStore.getState();
     store.addStorageForConnection(
       { kind: "item", id: "dust", displayName: "Dust" },
@@ -120,11 +120,36 @@ describe("factory resource links", () => {
         .project.storages?.filter((storage) => storage.resourceId === "dust") ?? [];
     const createdDustStorages = dustStorages.filter((storage) => storage.id !== "dust-drawer");
 
-    expect(createdDustStorages).toHaveLength(2);
-    expect(new Set(createdDustStorages.map((storage) => storage.id)).size).toBe(2);
-    expect(useFactoryStore.getState().project.edges.map((edge) => edge.target)).toEqual(
-      createdDustStorages.map((storage) => storage.id),
+    expect(createdDustStorages).toHaveLength(1);
+    expect(useFactoryStore.getState().project.edges).toHaveLength(1);
+    expect(useFactoryStore.getState().project.edges[0]?.target).toBe(createdDustStorages[0]?.id);
+  });
+
+  it("allows separate storage cards for the same resource on different recipe slots", () => {
+    const store = useFactoryStore.getState();
+    store.addStorageForConnection(
+      { kind: "item", id: "dust", displayName: "Dust" },
+      "item-source",
+      "output",
+      { x: 320, y: 20 },
+      makeResourceHandleId("output", { kind: "item", id: "dust" }, 0),
     );
+    store.addStorageForConnection(
+      { kind: "item", id: "dust", displayName: "Dust" },
+      "item-target",
+      "input",
+      { x: 420, y: 20 },
+      makeResourceHandleId("input", { kind: "item", id: "dust" }, 0),
+    );
+
+    const createdDustStorages =
+      useFactoryStore
+        .getState()
+        .project.storages?.filter((storage) => storage.resourceId === "dust")
+        .filter((storage) => storage.id !== "dust-drawer") ?? [];
+
+    expect(createdDustStorages).toHaveLength(2);
+    expect(useFactoryStore.getState().project.edges).toHaveLength(2);
   });
 
   it("does not connect storage to non-consumed recipe inputs", () => {

@@ -343,6 +343,13 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         };
       }
 
+      if (hasStorageEndpointConflict(state.project, edge)) {
+        return {
+          pendingResourceConnection: undefined,
+          selectedNodeId: slot.nodeId,
+        };
+      }
+
       const project = touchProject({
         ...state.project,
         edges: [...state.project.edges, edge],
@@ -449,13 +456,6 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   addResourceStorage: (resource) => {
     set((state) => {
-      const existing = (state.project.storages ?? []).find(
-        (storage) => storage.kind === resource.kind && storage.resourceId === resource.id,
-      );
-      if (existing) {
-        return { selectedNodeId: undefined, hoveredStorageResourceKey: getResourceKey(resource) };
-      }
-
       const storage: FactoryStorage = {
         id: createId("storage"),
         kind: resource.kind,
@@ -526,6 +526,16 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       }
 
       const duplicateEdge = findDuplicateEdge(projectWithStorage.edges, edge);
+      if (!duplicateEdge && hasStorageEndpointConflict(projectWithStorage, edge)) {
+        const project = touchProject(pruneOrphanStorages(projectWithStorage));
+        return {
+          project,
+          selectedNodeId: undefined,
+          hoveredStorageResourceKey: getResourceKey(resource),
+          lastResult: calculateThroughput(project),
+        };
+      }
+
       const project = touchProject(
         pruneOrphanStorages({
           ...projectWithStorage,
@@ -571,7 +581,19 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       }
 
       const edges = buildCompatibleEdgesForStorage(state.project, storage);
-      const missingEdges = edges.filter((edge) => !hasDuplicateEdge(state.project.edges, edge));
+      const missingEdges: FactoryEdge[] = [];
+      for (const edge of edges) {
+        const projectWithPendingEdges = {
+          ...state.project,
+          edges: [...state.project.edges, ...missingEdges],
+        };
+        if (
+          !hasDuplicateEdge(projectWithPendingEdges.edges, edge) &&
+          !hasStorageEndpointConflict(projectWithPendingEdges, edge)
+        ) {
+          missingEdges.push(edge);
+        }
+      }
       if (missingEdges.length === 0) {
         return state;
       }
@@ -649,6 +671,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         };
       }
 
+      if (hasStorageEndpointConflict(state.project, edge)) {
+        return state;
+      }
+
       const project = touchProject({
         ...state.project,
         edges: [...state.project.edges, edge],
@@ -711,6 +737,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       }
 
       const duplicateEdge = findDuplicateEdge(projectWithoutOld.edges, edge);
+      if (!duplicateEdge && hasStorageEndpointConflict(projectWithoutOld, edge)) {
+        return state;
+      }
+
       const project = touchProject(
         pruneOrphanStorages({
           ...projectWithoutOld,
@@ -1208,6 +1238,47 @@ function findDuplicateEdge(edges: FactoryEdge[], edge: FactoryEdge): FactoryEdge
       existing.sourceHandle === edge.sourceHandle &&
       existing.targetHandle === edge.targetHandle,
   );
+}
+
+function hasStorageEndpointConflict(project: FactoryProject, edge: FactoryEdge): boolean {
+  if (!findEdgeStorage(project, edge)) {
+    return false;
+  }
+
+  const recipeEndpointKey = getRecipeEndpointKey(project, edge);
+  if (!recipeEndpointKey) {
+    return false;
+  }
+
+  return project.edges.some(
+    (existingEdge) =>
+      findEdgeStorage(project, existingEdge) &&
+      existingEdge.resourceKind === edge.resourceKind &&
+      existingEdge.resourceId === edge.resourceId &&
+      getRecipeEndpointKey(project, existingEdge) === recipeEndpointKey,
+  );
+}
+
+function findEdgeStorage(project: FactoryProject, edge: FactoryEdge): FactoryStorage | undefined {
+  return (
+    (project.storages ?? []).find((storage) => storage.id === edge.source) ??
+    (project.storages ?? []).find((storage) => storage.id === edge.target)
+  );
+}
+
+function getRecipeEndpointKey(project: FactoryProject, edge: FactoryEdge): string | undefined {
+  const sourceIsStorage = (project.storages ?? []).some((storage) => storage.id === edge.source);
+  const targetIsStorage = (project.storages ?? []).some((storage) => storage.id === edge.target);
+
+  if (sourceIsStorage && !targetIsStorage) {
+    return `target:${edge.target}:${edge.targetHandle ?? ""}`;
+  }
+
+  if (targetIsStorage && !sourceIsStorage) {
+    return `source:${edge.source}:${edge.sourceHandle ?? ""}`;
+  }
+
+  return undefined;
 }
 
 function makeResourceHandleId(

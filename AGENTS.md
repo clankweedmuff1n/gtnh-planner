@@ -52,3 +52,8 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+## Delivery
+
+- When a requested code change is complete and verified, commit and push it automatically unless the user explicitly says not to.
+- Keep unrelated local or untracked files out of the commit.

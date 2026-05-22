@@ -960,6 +960,8 @@ function ResourceEdge({
     preferredSide: "target",
   });
   const rate = formatEdgeRateLabel(data);
+  const isGlobalView = zoom < 0.35;
+  const showLabel = Boolean(data?.showLabel && (!isGlobalView || selected || !rate.startsWith("0 ")));
   const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
   const routedEdge = getDirectEdgePath({
     sourceX: visualSource.x,
@@ -997,20 +999,23 @@ function ResourceEdge({
         style={{
           ...style,
           stroke: edgeColor,
-          strokeWidth: selected ? 7 : style?.strokeWidth,
+          strokeWidth: selected ? 6 : style?.strokeWidth,
           filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
         }}
       />
-      <polygon
-        points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
-        fill={edgeColor}
-        stroke="#252525"
-        strokeWidth={selected ? 1.8 : 1.2}
-        style={{
-          filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
-        }}
-      />
-      {data?.showLabel ? (
+      {selected || !isGlobalView ? (
+        <polygon
+          points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
+          fill={edgeColor}
+          stroke="#252525"
+          strokeWidth={selected ? 1.8 : 1.2}
+          style={{
+            opacity: data?.isLimited ? 0.72 : 0.95,
+            filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
+          }}
+        />
+      ) : null}
+      {showLabel && data ? (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan absolute flex cursor-grab items-center gap-1 border border-[#252525] bg-[#2b2d32] px-1 py-0.5 text-[10px] font-medium text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.18),inset_-1px_-1px_0_rgba(0,0,0,0.55)] active:cursor-grabbing"
@@ -1019,7 +1024,7 @@ function ResourceEdge({
               pointerEvents: "all",
               color: data.isLimited ? "#fecaca" : "#f8fafc",
               borderColor: edgeColor,
-              opacity: selected ? 1 : 0.94,
+              opacity: selected ? 1 : isGlobalView ? 0.78 : 0.94,
               boxShadow: selected ? "0 0 0 2px rgba(34,211,238,0.9)" : undefined,
             }}
             title={`${data.resource.displayName ?? data.resource.id}: ${rate}. Drag along cable. Double click to reset label.`}

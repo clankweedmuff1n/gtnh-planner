@@ -334,6 +334,115 @@ exporterSource = exporterSource.replace(
   ].join("\n"),
 );
 
+if (!exporterSource.includes("item.ch = Integer.valueOf(outputChances[outputIndex]);")) {
+  exporterSource = replaceRequired(
+    exporterSource,
+    /\/\/ item outputs\s+for\(ItemStack stack : rec\.mOutputs\)\{\s+Item item = RecipeUtil\.formatGregtechItemStack\(stack\);\s+if\(item == null\)\{\s+continue;\s+\}\s+gtr\.iO\.add\(item\);\s+\}\s+\/\/ fluid inputs/,
+    [
+      "// non-consumed item inputs / special items",
+      "if (rec.mSpecialItems != null) {",
+      "    if (rec.mSpecialItems instanceof ItemStack) {",
+      "        Item item = RecipeUtil.formatGregtechItemStack((ItemStack) rec.mSpecialItems);",
+      "        if (item != null) gtr.iNC.add(item);",
+      "    } else if (rec.mSpecialItems instanceof Object[]) {",
+      "        for (Object special : (Object[]) rec.mSpecialItems) {",
+      "            if (!(special instanceof ItemStack)) continue;",
+      "            Item item = RecipeUtil.formatGregtechItemStack((ItemStack) special);",
+      "            if (item != null) gtr.iNC.add(item);",
+      "        }",
+      "    } else if (rec.mSpecialItems instanceof Iterable) {",
+      "        for (Object special : (Iterable<?>) rec.mSpecialItems) {",
+      "            if (!(special instanceof ItemStack)) continue;",
+      "            Item item = RecipeUtil.formatGregtechItemStack((ItemStack) special);",
+      "            if (item != null) gtr.iNC.add(item);",
+      "        }",
+      "    }",
+      "}",
+      "// item outputs",
+      "int[] outputChances = getOutputChances(rec, rec.mOutputs.length);",
+      "int outputIndex = 0;",
+      "for(ItemStack stack : rec.mOutputs){",
+      "    Item item = RecipeUtil.formatGregtechItemStack(stack);",
+      "    if(item == null){",
+      "        outputIndex++;",
+      "        continue;",
+      "    }",
+      "    if (outputChances != null && outputIndex < outputChances.length) {",
+      "        item.ch = Integer.valueOf(outputChances[outputIndex]);",
+      "    }",
+      "    outputIndex++;",
+      "    gtr.iO.add(item);",
+      "}",
+      "// fluid inputs",
+    ].join("\n"),
+    "GregTech item output export loop",
+  );
+}
+
+if (!exporterSource.includes("private static int[] getOutputChances(")) {
+  exporterSource = replaceRequired(
+    exporterSource,
+    /\}\s+private Object getShapedRecipes\(\)\{/,
+    [
+      "}",
+      "private static int[] getOutputChances(Object recipe, int outputCount) {",
+      '    int[] fieldChances = readIntArrayField(recipe, new String[] { "mOutputChances", "mChances", "mOutputChance" });',
+      "    if (fieldChances != null) {",
+      "        return fieldChances;",
+      "    }",
+      '    return callChanceGetter(recipe, "getOutputChance", outputCount);',
+      "}",
+      "private static int[] readIntArrayField(Object target, String[] fieldNames) {",
+      "    if (target == null) {",
+      "        return null;",
+      "    }",
+      "    Class<?> type = target.getClass();",
+      "    while (type != null) {",
+      "        for (String fieldName : fieldNames) {",
+      "            try {",
+      "                Field field = type.getDeclaredField(fieldName);",
+      "                field.setAccessible(true);",
+      "                Object value = field.get(target);",
+      "                if (value instanceof int[]) {",
+      "                    return (int[]) value;",
+      "                }",
+      "            } catch (NoSuchFieldException ignored) {",
+      "            } catch (IllegalAccessException ignored) {",
+      "                return null;",
+      "            }",
+      "        }",
+      "        type = type.getSuperclass();",
+      "    }",
+      "    return null;",
+      "}",
+      "private static int[] callChanceGetter(Object target, String methodName, int count) {",
+      "    if (target == null || count <= 0) {",
+      "        return null;",
+      "    }",
+      "    try {",
+      "        Method method = target.getClass().getMethod(methodName, int.class);",
+      "        int[] chances = new int[count];",
+      "        boolean hasChance = false;",
+      "        for (int index = 0; index < count; index++) {",
+      "            Object value = method.invoke(target, Integer.valueOf(index));",
+      "            if (value instanceof Number) {",
+      "                chances[index] = ((Number) value).intValue();",
+      "                if (chances[index] > 0 && chances[index] < 10000) {",
+      "                    hasChance = true;",
+      "                }",
+      "            }",
+      "        }",
+      "        return hasChance ? chances : null;",
+      "    } catch (Throwable ignored) {",
+      "        return null;",
+      "    }",
+      "}",
+      "private Object getShapedRecipes(){",
+    ].join("\n"),
+    "GregTech output chance helper insertion point",
+  );
+}
+
 await fs.writeFile(exporterPath, exporterSource);
 
 const gregtechRecipePath = path.join(
@@ -833,4 +942,12 @@ await copyIconExporterTemplate(
 
 async function copyIconExporterTemplate(relativePath, destinationPath) {
   await fs.copyFile(path.join(iconExporterTemplateDir, relativePath), destinationPath);
+}
+
+function replaceRequired(source, searchValue, replacement, label) {
+  const replaced = source.replace(searchValue, replacement);
+  if (replaced === source) {
+    throw new Error(`Failed to patch RecEx source: ${label}.`);
+  }
+  return replaced;
 }

@@ -41,7 +41,12 @@ import {
   embedProjectJsonInPng,
   embedProjectJsonInSvg,
 } from "@/lib/import-export/plan-image";
-import { formatRate, isRecipeInputConsumed, resourceMatchesInput } from "@/lib/model";
+import {
+  formatRate,
+  isRecipeInputConsumed,
+  makeResourceKey,
+  resourceMatchesInput,
+} from "@/lib/model";
 import type {
   FactoryEdge,
   FactoryNodeColorTag,
@@ -112,6 +117,7 @@ type ResourceEdgeData = {
     transferred?: string;
     isLimited: boolean;
   };
+  isFlowHighlighted?: boolean;
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -152,8 +158,11 @@ export function FactoryFlow() {
   const setNodeColorPaintMode = useFactoryStore((state) => state.setNodeColorPaintMode);
   const setFlowViewportCenter = useFactoryStore((state) => state.setFlowViewportCenter);
   const hoveredStorageResourceKey = useFactoryStore((state) => state.hoveredStorageResourceKey);
+  const hoveredFlowResourceKey = useFactoryStore((state) => state.hoveredFlowResourceKey);
+  const selectedFlowResourceKey = useFactoryStore((state) => state.selectedFlowResourceKey);
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
   const isProjectImporting = useFactoryStore((state) => state.isProjectImporting);
+  const activeFlowResourceKey = hoveredFlowResourceKey ?? selectedFlowResourceKey;
 
   const nodesFromProject = useMemo<Array<RecipeFlowNode | StorageFlowNode>>(
     () => [
@@ -257,10 +266,12 @@ export function FactoryFlow() {
       const isStorageEdgeEmphasized = Boolean(
         isStorageEdge && (isStorageEdgeActive || isSearchEdgeActive),
       );
+      const isFlowHighlighted =
+        activeFlowResourceKey === makeResourceKey(edge.resourceKind, edge.resourceId);
 
       return {
         id: edge.id,
-        zIndex: isNodeDragging ? 2000 : 20,
+        zIndex: isNodeDragging ? 2000 : isFlowHighlighted ? 1200 : 20,
         source: edge.source,
         target: edge.target,
         sourceHandle: edge.sourceHandle,
@@ -283,12 +294,21 @@ export function FactoryFlow() {
           sourceStorageEndpoint: Boolean(sourceHandle && sourceStorage),
           targetStorageEndpoint: Boolean(targetHandle && targetStorage),
           bundle: edgeBundles.get(edge.id),
+          isFlowHighlighted,
         },
         style: {
           stroke: edgeColor,
           strokeDasharray: edgeResult?.isLimited ? "4 6" : undefined,
-          strokeOpacity: edgeResult?.isLimited ? 0.58 : isStorageEdge ? 0.86 : 0.92,
-          strokeWidth: isStorageEdge
+          strokeOpacity: isFlowHighlighted
+            ? 1
+            : edgeResult?.isLimited
+              ? 0.58
+              : isStorageEdge
+                ? 0.86
+                : 0.92,
+          strokeWidth: isFlowHighlighted
+            ? 5
+            : isStorageEdge
             ? isStorageEdgeEmphasized
               ? 3.5
               : 2.6
@@ -300,7 +320,14 @@ export function FactoryFlow() {
         },
       };
     });
-  }, [hoveredStorageResourceKey, isNodeDragging, project, recipeSearch, result.edges]);
+  }, [
+    activeFlowResourceKey,
+    hoveredStorageResourceKey,
+    isNodeDragging,
+    project,
+    recipeSearch,
+    result.edges,
+  ]);
 
   const connectResourceEdges = useCallback(
     (
@@ -1033,9 +1060,12 @@ function ResourceEdge({
   const isHiddenBundleMember =
     data?.bundle?.role === "member" && data.bundle.mode === "single-target";
   const showLabel = Boolean(
-    data?.showLabel && !isHiddenBundleMember && (selected || zoom >= EDGE_LABEL_ZOOM),
+    data?.showLabel &&
+      !isHiddenBundleMember &&
+      (selected || data.isFlowHighlighted || zoom >= EDGE_LABEL_ZOOM),
   );
-  const showArrowHead = selected || zoom >= EDGE_ARROW_ZOOM;
+  const isHighlighted = selected || data?.isFlowHighlighted === true;
+  const showArrowHead = isHighlighted || zoom >= EDGE_ARROW_ZOOM;
   const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
   const routedEdge =
     data?.bundle?.role === "primary"
@@ -1104,9 +1134,9 @@ function ResourceEdge({
               strokeDasharray: isGlobalView && data?.isLimited ? "2 8" : style?.strokeDasharray,
               strokeLinecap: "round",
               strokeLinejoin: "round",
-              strokeOpacity: selected ? 0.95 : isGlobalView ? 0.36 : 0.72,
+              strokeOpacity: isHighlighted ? 0.95 : isGlobalView ? 0.36 : 0.72,
               strokeWidth:
-                (selected
+                (isHighlighted
                   ? 6
                   : data?.bundle?.role === "primary"
                     ? Math.max(Number(style?.strokeWidth ?? 2.6) + 0.6, 3.2)
@@ -1123,19 +1153,19 @@ function ResourceEdge({
               strokeDasharray: isGlobalView && data?.isLimited ? "2 8" : style?.strokeDasharray,
               strokeLinecap: "round",
               strokeLinejoin: "round",
-              strokeOpacity: selected
+              strokeOpacity: isHighlighted
                 ? 1
                 : isGlobalView
                   ? data?.isLimited
                     ? 0.28
                     : 0.52
                   : style?.strokeOpacity,
-              strokeWidth: selected
+              strokeWidth: isHighlighted
                 ? 6
                 : data?.bundle?.role === "primary"
                   ? Math.max(Number(style?.strokeWidth ?? 2.6) + 0.6, 3.2)
                   : style?.strokeWidth,
-              filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
+              filter: isHighlighted ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
             }}
           />
         </>
@@ -1145,10 +1175,10 @@ function ResourceEdge({
           points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
           fill={edgeColor}
           stroke="#252525"
-          strokeWidth={selected ? 1.8 : 1.2}
+          strokeWidth={isHighlighted ? 1.8 : 1.2}
           style={{
             opacity: data?.isLimited ? 0.72 : 0.95,
-            filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
+            filter: isHighlighted ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
             pointerEvents: "none",
           }}
         />
@@ -1162,8 +1192,8 @@ function ResourceEdge({
               pointerEvents: "all",
               color: data.isLimited ? "#fecaca" : "#f8fafc",
               borderColor: edgeColor,
-              opacity: selected ? 1 : isGlobalView ? 0.78 : 0.94,
-              boxShadow: selected ? "0 0 0 2px rgba(34,211,238,0.9)" : undefined,
+              opacity: isHighlighted ? 1 : isGlobalView ? 0.78 : 0.94,
+              boxShadow: isHighlighted ? "0 0 0 2px rgba(34,211,238,0.9)" : undefined,
             }}
             title={`${data.resource.displayName ?? data.resource.id}: ${rate}. Drag along cable. Double click to reset label.`}
             onPointerDown={(event) => {

@@ -49,6 +49,8 @@ interface FactoryStore {
   pendingResourceConnection?: PendingResourceConnection;
   nodeColorPaintMode?: FactoryNodeColorTag | null;
   hoveredStorageResourceKey?: string;
+  hoveredFlowResourceKey?: string;
+  selectedFlowResourceKey?: string;
   flowViewportCenter?: FactoryNode["position"];
   selectedNodeId?: string;
   selectedRecipeId?: string;
@@ -71,6 +73,8 @@ interface FactoryStore {
   cancelResourceConnection: () => void;
   setNodeColorPaintMode: (colorTag?: FactoryNodeColorTag | null) => void;
   setHoveredStorageResourceKey: (key?: string) => void;
+  setHoveredFlowResourceKey: (key?: string) => void;
+  selectFlowResourceKey: (key?: string) => void;
   setFlowViewportCenter: (position: FactoryNode["position"]) => void;
   recalculate: () => void;
   selectNode: (nodeId?: string) => void;
@@ -185,6 +189,8 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   pendingResourceConnection: undefined,
   nodeColorPaintMode: undefined,
   hoveredStorageResourceKey: undefined,
+  hoveredFlowResourceKey: undefined,
+  selectedFlowResourceKey: undefined,
   selectedNodeId: undefined,
   selectedRecipeId: undefined,
   lastResult: calculateThroughput(initialProject),
@@ -391,6 +397,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   setHoveredStorageResourceKey: (key) => {
     set({ hoveredStorageResourceKey: key });
+  },
+  setHoveredFlowResourceKey: (key) => {
+    set({ hoveredFlowResourceKey: key });
+  },
+  selectFlowResourceKey: (key) => {
+    set((state) => ({
+      selectedFlowResourceKey: state.selectedFlowResourceKey === key ? undefined : key,
+    }));
   },
   setFlowViewportCenter: (position) => {
     set({ flowViewportCenter: position });

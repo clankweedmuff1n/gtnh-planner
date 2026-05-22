@@ -43,8 +43,10 @@ function SummaryPanel() {
 function FlowIOPanel({ className = "" }: { className?: string }) {
   const project = useFactoryStore((state) => state.project);
   const result = useFactoryStore((state) => state.lastResult);
-  const setRecipeSearch = useFactoryStore((state) => state.setRecipeSearch);
-  const browseResource = useFactoryStore((state) => state.browseResource);
+  const hoveredFlowResourceKey = useFactoryStore((state) => state.hoveredFlowResourceKey);
+  const selectedFlowResourceKey = useFactoryStore((state) => state.selectedFlowResourceKey);
+  const setHoveredFlowResourceKey = useFactoryStore((state) => state.setHoveredFlowResourceKey);
+  const selectFlowResourceKey = useFactoryStore((state) => state.selectFlowResourceKey);
   const [activeTab, setActiveTab] = useState<FlowIOTab>("need");
   const [filter, setFilter] = useState("");
   const resourcesByKey = useMemo(() => buildProjectResourceLookup(project), [project]);
@@ -74,7 +76,6 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
       label: "Need",
       empty: "No missing inputs.",
       items: externalInputs,
-      mode: "uses",
       tone: "red",
       value: (balance) => balance.deficitPerSecond,
     },
@@ -83,7 +84,6 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
       label: "Output",
       empty: "No unconsumed outputs.",
       items: finalOutputs,
-      mode: "recipes",
       tone: "emerald",
       value: (balance) => balance.surplusPerSecond,
     },
@@ -92,7 +92,6 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
       label: "Internal",
       empty: "No balanced internal resources.",
       items: balanced,
-      mode: "uses",
       tone: "neutral",
       value: (balance) => balance.consumedPerSecond,
     },
@@ -102,22 +101,6 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
     () => filterFlowItems(activeConfig.items, filter),
     [activeConfig.items, filter],
   );
-
-  const inspectResource = (balance: ResourceBalance, mode: "recipes" | "uses") => {
-    const resource = resourcesByKey.get(balance.key);
-    setRecipeSearch(balance.displayName ?? balance.resourceId);
-    browseResource(
-      {
-        kind: balance.kind,
-        id: balance.resourceId,
-        displayName: balance.displayName,
-        iconPath: resource?.iconPath,
-        iconAtlas: resource?.iconAtlas,
-        dominantColor: resource?.dominantColor ?? resource?.iconAtlas?.dominantColor,
-      },
-      mode,
-    );
-  };
 
   return (
     <section className={["flex min-h-0 flex-1 flex-col", className].join(" ")}>
@@ -156,9 +139,11 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
         items={filteredItems}
         totalCount={activeConfig.items.length}
         resourcesByKey={resourcesByKey}
-        mode={activeConfig.mode}
+        activeResourceKey={hoveredFlowResourceKey ?? selectedFlowResourceKey}
+        selectedResourceKey={selectedFlowResourceKey}
         value={activeConfig.value}
-        onInspect={inspectResource}
+        onHover={setHoveredFlowResourceKey}
+        onSelect={selectFlowResourceKey}
       />
     </section>
   );
@@ -171,7 +156,6 @@ interface FlowIOTabConfig {
   label: string;
   empty: string;
   items: ResourceBalance[];
-  mode: "recipes" | "uses";
   tone: "red" | "emerald" | "neutral";
   value: (balance: ResourceBalance) => number;
 }
@@ -220,18 +204,22 @@ function FlowIOSection({
   items,
   totalCount,
   resourcesByKey,
-  mode,
+  activeResourceKey,
+  selectedResourceKey,
   value,
-  onInspect,
+  onHover,
+  onSelect,
 }: {
   title: string;
   empty: string;
   items: ResourceBalance[];
   totalCount: number;
   resourcesByKey: Map<string, FlowResourceDisplay>;
-  mode: "recipes" | "uses";
+  activeResourceKey?: string;
+  selectedResourceKey?: string;
   value: (balance: ResourceBalance) => number;
-  onInspect: (balance: ResourceBalance, mode: "recipes" | "uses") => void;
+  onHover: (resourceKey?: string) => void;
+  onSelect: (resourceKey: string) => void;
 }) {
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col">
@@ -247,13 +235,26 @@ function FlowIOSection({
         <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
           {items.map((balance) => {
             const resource = resourcesByKey.get(balance.key);
+            const isActive = activeResourceKey === balance.key;
+            const isSelected = selectedResourceKey === balance.key;
             return (
               <button
                 key={balance.key}
                 type="button"
-                onClick={() => onInspect(balance, mode)}
-                className="grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 rounded border border-neutral-200 bg-white px-2 py-1 text-left text-xs hover:border-cyan-300 hover:bg-cyan-50"
-                title="Highlight matching nodes and open this resource in the browser"
+                onMouseEnter={() => onHover(balance.key)}
+                onMouseLeave={() => onHover(undefined)}
+                onFocus={() => onHover(balance.key)}
+                onBlur={() => onHover(undefined)}
+                onClick={() => onSelect(balance.key)}
+                className={[
+                  "grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 rounded border px-2 py-1 text-left text-xs",
+                  isSelected
+                    ? "border-cyan-500 bg-cyan-100 ring-1 ring-cyan-300"
+                    : isActive
+                      ? "border-cyan-300 bg-cyan-50"
+                      : "border-neutral-200 bg-white hover:border-cyan-300 hover:bg-cyan-50",
+                ].join(" ")}
+                title="Highlight related nodes and cables"
               >
                 <ResourceIcon
                   resource={{

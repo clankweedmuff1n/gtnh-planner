@@ -20,11 +20,15 @@ export function StorageNode({ data, selected }: NodeProps<StorageFlowNode>) {
   const { storage, result } = data;
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
   const hoveredStorageResourceKey = useFactoryStore((state) => state.hoveredStorageResourceKey);
+  const hoveredFlowResourceKey = useFactoryStore((state) => state.hoveredFlowResourceKey);
+  const selectedFlowResourceKey = useFactoryStore((state) => state.selectedFlowResourceKey);
   const setHoveredStorageResourceKey = useFactoryStore(
     (state) => state.setHoveredStorageResourceKey,
   );
   const resourceKey = makeResourceKey(storage.kind, storage.resourceId);
-  const isHighlighted = hoveredStorageResourceKey === resourceKey;
+  const isHighlighted =
+    hoveredStorageResourceKey === resourceKey ||
+    (hoveredFlowResourceKey ?? selectedFlowResourceKey) === resourceKey;
   const isSearchHighlighted = storageMatchesSearch(storage, recipeSearch);
   const storageColor = storage.colorTag ? GT_NODE_COLORS[storage.colorTag] : undefined;
   const produced = result?.producedPerSecond ?? 0;

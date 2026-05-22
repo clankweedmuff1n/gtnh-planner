@@ -12,6 +12,7 @@ import {
   getVoltageTierIndex,
   isRecipeInputConsumed,
   isVoltageTierAbove,
+  makeResourceKey,
   resourceMatchesInput,
   resourceLabel,
 } from "@/lib/model";
@@ -34,6 +35,8 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const { projectNode, recipe, result } = data;
   const browseResource = useFactoryStore((state) => state.browseResource);
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
+  const hoveredFlowResourceKey = useFactoryStore((state) => state.hoveredFlowResourceKey);
+  const selectedFlowResourceKey = useFactoryStore((state) => state.selectedFlowResourceKey);
   const deleteNode = useFactoryStore((state) => state.deleteNode);
   const updateNode = useFactoryStore((state) => state.updateNode);
   const optimizeMachineCount = useFactoryStore((state) => state.optimizeMachineCount);
@@ -43,6 +46,10 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const utilization = result?.utilization ?? 0;
   const utilizationPercent = Number.isFinite(utilization) ? utilization * 100 : 999;
   const isSearchHighlighted = recipeContainsSearchResource(recipe, recipeSearch);
+  const isFlowResourceHighlighted = recipeContainsResourceKey(
+    recipe,
+    hoveredFlowResourceKey ?? selectedFlowResourceKey,
+  );
   const nodeColor = projectNode.colorTag ? GT_NODE_COLORS[projectNode.colorTag] : undefined;
   const recipePowerTier = getRecipePowerTier(recipe);
   const tierControl = getNodeTierControl(recipe, projectNode);
@@ -64,6 +71,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         nodeColorPaintMode !== undefined ? "cursor-crosshair" : "",
         selected ? "ring-2 ring-cyan-300" : "",
         isSearchHighlighted ? "ring-4 ring-sky-300" : "",
+        isFlowResourceHighlighted ? "ring-4 ring-cyan-300" : "",
         exceedsMaxTier ? "ring-4 ring-red-500" : "",
       ].join(" ")}
       style={
@@ -253,6 +261,20 @@ function recipeContainsSearchResource(recipe: Recipe, query: string) {
 
   return [...recipe.inputs, ...recipe.outputs].some((resource) =>
     normalizeSearch(`${resourceLabel(resource)} ${resource.id}`).includes(normalizedQuery),
+  );
+}
+
+function recipeContainsResourceKey(recipe: Recipe, resourceKey: string | undefined) {
+  if (!resourceKey) {
+    return false;
+  }
+
+  return [...recipe.inputs, ...recipe.outputs].some(
+    (resource) =>
+      makeResourceKey(resource.kind, resource.id) === resourceKey ||
+      resource.alternatives?.some(
+        (alternative) => makeResourceKey(alternative.kind, alternative.id) === resourceKey,
+      ),
   );
 }
 

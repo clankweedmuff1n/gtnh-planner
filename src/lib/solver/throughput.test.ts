@@ -186,6 +186,64 @@ describe("calculateThroughput", () => {
     expect(result.storages["dust-drawer"].status).toBe("filling");
   });
 
+  it("updates storage link throughput from current machine capacity instead of stale edge rates", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "storage-sink-rate-project",
+      name: "Storage sink rate test",
+      recipes: [
+        {
+          id: "source-recipe",
+          name: "Dust source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "item", id: "dust", amount: 2 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "source",
+          recipeId: "source-recipe",
+          machineCount: 3,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "dust-drawer",
+          kind: "item",
+          resourceId: "dust",
+          displayName: "Dust",
+          position: { x: 200, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "drawer-edge",
+          source: "source",
+          target: "dust-drawer",
+          resourceKind: "item",
+          resourceId: "dust",
+          label: "Dust",
+          ratePerSecond: 0.03,
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.edges["drawer-edge"].demandPerSecond).toBeCloseTo(6);
+    expect(result.edges["drawer-edge"].transferredPerSecond).toBeCloseTo(6);
+    expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(6);
+  });
+
   it("does not add global target demand on top of output fully routed to storage", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,

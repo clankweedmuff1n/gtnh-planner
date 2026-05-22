@@ -163,8 +163,7 @@ export function calculateThroughput(
         const targetCount = storageIncomingCounts.get(countKey) ?? 1;
         const sourceCapacity = sourceResult?.outputs[key]?.amountPerSecond ?? 0;
         const demandPerSecond =
-          edge.ratePerSecond ??
-          (targetDemand > EPSILON ? targetDemand / targetCount : sourceCapacity);
+          targetDemand > EPSILON ? targetDemand / targetCount : sourceCapacity;
         const transferredPerSecond = Math.min(sourceCapacity, demandPerSecond);
 
         addRequiredRate(requiredByNodeAndResource, edge.source, key, demandPerSecond);
@@ -181,7 +180,7 @@ export function calculateThroughput(
         const targetResult = nodes[edge.target];
         const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
         const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
-        const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
+        const demandPerSecond = targetDemand / targetCount;
         const transferredPerSecond = demandPerSecond;
 
         updateStorageFlow(storages[sourceStorage.id], 0, transferredPerSecond);
@@ -194,7 +193,7 @@ export function calculateThroughput(
     const targetResult = nodes[edge.target];
     const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
     const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
-    const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
+    const demandPerSecond = targetDemand / targetCount;
     const sourceCapacity = sourceResult?.outputs[key]?.amountPerSecond ?? 0;
     const transferredPerSecond = Math.min(sourceCapacity, demandPerSecond);
 
@@ -450,7 +449,7 @@ function calculateStorageOutgoingDemand(
     const targetResult = nodes[edge.target];
     const targetCount = incomingEdgeCounts.get(`${edge.target}|${key}`) ?? 1;
     const targetDemand = targetResult?.inputs[key]?.amountPerSecond ?? 0;
-    const demandPerSecond = edge.ratePerSecond ?? targetDemand / targetCount;
+    const demandPerSecond = targetDemand / targetCount;
     const countKey = `${edge.source}|${key}`;
     demand.set(countKey, (demand.get(countKey) ?? 0) + demandPerSecond);
   }

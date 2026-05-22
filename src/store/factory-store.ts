@@ -4,7 +4,13 @@ import { create } from "zustand";
 import { createEmptyProject } from "@/examples";
 import type { DatasetManifest, RecipeDataset } from "@/lib/datasets";
 import { calculateThroughput } from "@/lib/solver";
-import { getResourceKey, isRecipeInputConsumed, resourceLabel } from "@/lib/model/resources";
+import {
+  getChanceMultiplier,
+  getResourceKey,
+  isRecipeInputConsumed,
+  resourceLabel,
+} from "@/lib/model/resources";
+import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
 import type {
   FactoryEdge,
   FactoryNode,
@@ -18,6 +24,7 @@ import type {
   TargetRate,
   ThroughputResult,
 } from "@/lib/model/types";
+import { TICKS_PER_SECOND } from "@/lib/model/types";
 
 export const LOCAL_STORAGE_KEY = "gtnh-factory-flow.project.v2";
 export const RESOURCE_HISTORY_STORAGE_KEY = "gtnh-factory-flow.resource-history.v1";
@@ -829,17 +836,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       for (let pass = 0; pass < maxPasses; pass += 1) {
         let passChanged = false;
         const nodes = project.nodes.map((node) => {
-          const nodeResult = cyclicNodeIds.has(node.id)
-            ? state.lastResult.nodes[node.id]
-            : result.nodes[node.id];
+          const isCyclicNode = cyclicNodeIds.has(node.id);
+          const nodeResult = isCyclicNode ? state.lastResult.nodes[node.id] : result.nodes[node.id];
           if (!node.enabled || !nodeResult || nodeResult.status === "missing-recipe") {
             return node;
           }
 
-          const machineCount = getOptimizedMachineCount(
-            nodeResult.theoreticalMachinesRequired,
-            node.machineCount,
-          );
+          const machineCount = isCyclicNode
+            ? getCyclicOptimizedMachineCount(project, node)
+            : getOptimizedMachineCount(nodeResult.theoreticalMachinesRequired, node.machineCount);
           if (machineCount === node.machineCount) {
             return node;
           }
@@ -1400,6 +1405,34 @@ function getOptimizedMachineCount(theoreticalMachinesRequired: number, current: 
   }
 
   return Math.max(1, Math.round(theoreticalMachinesRequired));
+}
+
+function getCyclicOptimizedMachineCount(project: FactoryProject, node: FactoryNode): number {
+  if (!node.targetOutput) {
+    return getOptimizedMachineCount(0, node.machineCount);
+  }
+
+  const recipe = project.recipes.find((entry) => entry.id === node.recipeId);
+  const output = recipe?.outputs.find(
+    (entry) =>
+      getResourceKey(entry) === `${node.targetOutput?.kind}:${node.targetOutput?.resourceId}`,
+  );
+  if (!recipe || !output) {
+    return getOptimizedMachineCount(0, node.machineCount);
+  }
+
+  const overclockedRecipe = getOverclockedRecipeStats(recipe, node);
+  const outputPerMachineSecond =
+    (output.amount * getChanceMultiplier(output) * node.parallel * TICKS_PER_SECOND) /
+    overclockedRecipe.durationTicks;
+  if (outputPerMachineSecond <= 0) {
+    return getOptimizedMachineCount(0, node.machineCount);
+  }
+
+  return getOptimizedMachineCount(
+    node.targetOutput.amountPerSecond / outputPerMachineSecond,
+    node.machineCount,
+  );
 }
 
 function getCyclicRecipeNodeIds(project: FactoryProject): Set<string> {

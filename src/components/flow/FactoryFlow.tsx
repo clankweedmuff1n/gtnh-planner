@@ -306,6 +306,65 @@ export function FactoryFlow() {
     [hoveredStorageResourceKey, isNodeDragging, project, recipeSearch, result.edges],
   );
 
+  const connectResourceEdges = useCallback(
+    (
+      sourceNodeId: string,
+      targetNodeId: string,
+      resource?: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+        sourceHandle?: string;
+        targetHandle?: string;
+      },
+    ) => {
+      const sourceHandleIds =
+        resource?.sourceHandle && resource.kind && resource.id
+          ? getRepeatedOutputHandleIds(project, sourceNodeId, resource)
+          : [];
+      const shouldBatchRepeatedOutputs =
+        resource?.sourceHandle &&
+        sourceHandleIds.length > 1 &&
+        sourceHandleIds.includes(resource.sourceHandle);
+
+      if (!resource || !shouldBatchRepeatedOutputs) {
+        connectNodes(sourceNodeId, targetNodeId, resource);
+        return;
+      }
+
+      const allRepeatedEdgesExist = sourceHandleIds.every((sourceHandle) =>
+        project.edges.some(
+          (edge) =>
+            edge.source === sourceNodeId &&
+            edge.target === targetNodeId &&
+            edge.resourceKind === resource.kind &&
+            edge.resourceId === resource.id &&
+            edge.sourceHandle === sourceHandle &&
+            edge.targetHandle === resource.targetHandle,
+        ),
+      );
+
+      for (const sourceHandle of sourceHandleIds) {
+        const alreadyExists = project.edges.some(
+          (edge) =>
+            edge.source === sourceNodeId &&
+            edge.target === targetNodeId &&
+            edge.resourceKind === resource.kind &&
+            edge.resourceId === resource.id &&
+            edge.sourceHandle === sourceHandle &&
+            edge.targetHandle === resource.targetHandle,
+        );
+
+        if (!allRepeatedEdgesExist && alreadyExists) {
+          continue;
+        }
+
+        connectNodes(sourceNodeId, targetNodeId, {
+          ...resource,
+          sourceHandle,
+        });
+      }
+    },
+    [connectNodes, project],
+  );
+
   const handleConnect = useCallback(
     (connection: Connection) => {
       connectCompletedRef.current = true;
@@ -337,7 +396,7 @@ export function FactoryFlow() {
               ? { nodeId: connection.source, handleId: connection.sourceHandle ?? undefined }
               : { nodeId: connection.target, handleId: connection.targetHandle ?? undefined };
 
-          connectNodes(output.nodeId, input.nodeId, {
+          connectResourceEdges(output.nodeId, input.nodeId, {
             kind: output.resource.kind,
             id: output.resource.resourceId,
             sourceHandle: output.handleId,
@@ -350,10 +409,10 @@ export function FactoryFlow() {
           return;
         }
 
-        connectNodes(connection.source, connection.target);
+        connectResourceEdges(connection.source, connection.target);
       }
     },
-    [connectNodes],
+    [connectResourceEdges],
   );
 
   const handleConnectStart = useCallback(
@@ -426,7 +485,7 @@ export function FactoryFlow() {
           }
 
           connectCompletedRef.current = true;
-          connectNodes(source.nodeId, target.nodeId, {
+          connectResourceEdges(source.nodeId, target.nodeId, {
             kind: outputResource.kind,
             id: outputResource.id,
             displayName: outputResource.displayName,
@@ -464,7 +523,7 @@ export function FactoryFlow() {
         draggedResource.handleId,
       );
     },
-    [addStorageForConnection, connectNodes, project],
+    [addStorageForConnection, connectResourceEdges, project],
   );
 
   useEffect(() => {
@@ -1265,12 +1324,23 @@ function inferRepeatedOutputHandleIds(project: FactoryProject, edge: FactoryEdge
     return [];
   }
 
-  const sourceStorage = (project.storages ?? []).find((storage) => storage.id === edge.source);
+  return getRepeatedOutputHandleIds(project, edge.source, {
+    kind: edge.resourceKind,
+    id: edge.resourceId,
+  });
+}
+
+function getRepeatedOutputHandleIds(
+  project: FactoryProject,
+  sourceNodeId: string,
+  resource: Pick<ResourceAmount, "kind" | "id">,
+) {
+  const sourceStorage = (project.storages ?? []).find((storage) => storage.id === sourceNodeId);
   if (sourceStorage) {
     return [];
   }
 
-  const sourceNode = project.nodes.find((node) => node.id === edge.source);
+  const sourceNode = project.nodes.find((node) => node.id === sourceNodeId);
   const sourceRecipe = project.recipes.find((recipe) => recipe.id === sourceNode?.recipeId);
   if (!sourceRecipe) {
     return [];
@@ -1278,7 +1348,7 @@ function inferRepeatedOutputHandleIds(project: FactoryProject, edge: FactoryEdge
 
   return sourceRecipe.outputs
     .map((output, outputIndex) =>
-      output.kind === edge.resourceKind && output.id === edge.resourceId
+      output.kind === resource.kind && output.id === resource.id
         ? makeResourceHandleId("output", output, outputIndex)
         : undefined,
     )

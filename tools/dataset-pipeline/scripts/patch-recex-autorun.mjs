@@ -615,16 +615,57 @@ recipeUtilSource = recipeUtilSource.replace(
 );
 recipeUtilSource = recipeUtilSource.replaceAll(
   "\n        return item;\n    }\n\n    public static Item format",
-  "\n        item.ic = ItemStackIconExporter.captureIcon(stack);\n        return item;\n    }\n\n    public static Item format",
+  "\n        item.ic = ItemStackIconExporter.captureIcon(iconStack(stack));\n        return item;\n    }\n\n    public static Item format",
 );
 recipeUtilSource = recipeUtilSource.replace(
   "\n        return item;\n    }\n\n    /**\n     * Might return null!",
-  "\n        item.ic = ItemStackIconExporter.captureIcon(stack);\n        return item;\n    }\n\n    /**\n     * Might return null!",
+  "\n        item.ic = ItemStackIconExporter.captureIcon(iconStack(stack));\n        return item;\n    }\n\n    /**\n     * Might return null!",
 );
 recipeUtilSource = recipeUtilSource.replace(
   "\n        return fluid;\n    }\n\n    /**\n     * Retrieves all items",
   "\n        fluid.ic = FluidStackIconExporter.captureIcon(stack);\n        return fluid;\n    }\n\n    /**\n     * Retrieves all items",
 );
+recipeUtilSource = recipeUtilSource.replaceAll(
+  "ItemStackIconExporter.captureIcon(stack)",
+  "ItemStackIconExporter.captureIcon(iconStack(stack))",
+);
+if (!recipeUtilSource.includes("ItemStackIconExporter.captureIcon(iconStack(stack))")) {
+  let itemCaptureInsertions = 0;
+  recipeUtilSource = recipeUtilSource.replace(
+    /\n(\s*)return item;\s*\n(\s*)\}/g,
+    (match, indent, braceIndent) => {
+      if (itemCaptureInsertions >= 2) {
+        return match;
+      }
+
+      itemCaptureInsertions += 1;
+      return `\n${indent}item.ic = ItemStackIconExporter.captureIcon(iconStack(stack));\n${indent}return item;\n${braceIndent}}`;
+    },
+  );
+}
+if (!recipeUtilSource.includes("private static ItemStack iconStack(")) {
+  recipeUtilSource = replaceRequired(
+    recipeUtilSource,
+    /\n\s*\/\*\*\s*\n\s*\* Might return null!/,
+    [
+      "",
+      "\tprivate static ItemStack iconStack(ItemStack stack){",
+      "\t\tif(stack == null){",
+      "\t\t\treturn null;",
+      "\t\t}",
+      "\t\tItemStack copy = stack.copy();",
+      "\t\tif(copy.stackSize <= 0){",
+      "\t\t\tcopy.stackSize = 1;",
+      "\t\t}",
+      "\t\treturn copy;",
+      "\t}",
+      "",
+      "\t/**",
+      "\t * Might return null!",
+    ].join("\n"),
+    "RecEx icon stack size helper",
+  );
+}
 await fs.writeFile(recipeUtilPath, recipeUtilSource);
 
 const fluidPath = path.join(

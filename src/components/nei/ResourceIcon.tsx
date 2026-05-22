@@ -102,7 +102,10 @@ function buildTooltipLabel(resource: ResourceIconProps["resource"]) {
     resource.chance !== undefined && Number.isFinite(resource.chance) && resource.chance < 1
       ? `Chance: ${trimAmount(resource.chance * 100)}%`
       : undefined;
-  const consumedLine = resource.consumed === false ? "Not consumed" : undefined;
+  const consumedLine =
+    resource.consumed === false && !resource.tooltip?.some(isNotConsumedTooltipLine)
+      ? "Not consumed"
+      : undefined;
   const alternativesLine = resource.alternatives?.length
     ? `Accepts: ${resource.alternatives
         .slice(0, 12)
@@ -111,6 +114,11 @@ function buildTooltipLabel(resource: ResourceIconProps["resource"]) {
     : undefined;
 
   return [...baseLines, alternativesLine, chanceLine, consumedLine].filter(Boolean).join("\n");
+}
+
+function isNotConsumedTooltipLine(line: string) {
+  const normalized = line.toLowerCase();
+  return normalized.includes("not consumed") || normalized.includes("does not get consumed");
 }
 
 function ChanceLabel({ chance }: { chance: number }) {

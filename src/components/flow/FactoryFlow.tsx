@@ -6,6 +6,7 @@ import {
   Controls,
   ConnectionMode,
   EdgeLabelRenderer,
+  Position,
   ReactFlow,
   applyNodeChanges,
   getNodesBounds,
@@ -20,7 +21,6 @@ import {
   type NodeChange,
   type NodeTypes,
   type OnSelectionChangeParams,
-  type Position,
   type ReactFlowInstance,
   useStore,
 } from "@xyflow/react";
@@ -962,9 +962,11 @@ function ResourceEdge({
             bundleSourceHandleIds: data.bundle.sourceHandleIds,
           })
       : getDirectEdgePath({
+          sourceNodeId: source,
           sourceX: visualSource.x,
           sourceY: visualSource.y,
           sourcePosition,
+          targetNodeId: target,
           targetX: visualTarget.x,
           targetY: visualTarget.y,
           targetPosition,
@@ -993,28 +995,50 @@ function ResourceEdge({
   return (
     <>
       {!isHiddenBundleMember ? (
-        <BaseEdge
-          path={routedEdge.path}
-          interactionWidth={0}
-          style={{
-            ...style,
-            stroke: edgeColor,
-            strokeDasharray: isGlobalView && data?.isLimited ? "2 8" : style?.strokeDasharray,
-            strokeOpacity: selected
-              ? 1
-              : isGlobalView
-                ? data?.isLimited
-                  ? 0.28
-                  : 0.52
-                : style?.strokeOpacity,
-            strokeWidth: selected
-              ? 6
-              : data?.bundle?.role === "primary"
-                ? Math.max(Number(style?.strokeWidth ?? 2.6) + 0.6, 3.2)
-                : style?.strokeWidth,
-            filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
-          }}
-        />
+        <>
+          <BaseEdge
+            path={routedEdge.path}
+            interactionWidth={0}
+            style={{
+              stroke: "#111827",
+              strokeDasharray: isGlobalView && data?.isLimited ? "2 8" : style?.strokeDasharray,
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+              strokeOpacity: selected ? 0.95 : isGlobalView ? 0.36 : 0.72,
+              strokeWidth:
+                (selected
+                  ? 6
+                  : data?.bundle?.role === "primary"
+                    ? Math.max(Number(style?.strokeWidth ?? 2.6) + 0.6, 3.2)
+                    : Number(style?.strokeWidth ?? 2.6)) + 2,
+              pointerEvents: "none",
+            }}
+          />
+          <BaseEdge
+            path={routedEdge.path}
+            interactionWidth={0}
+            style={{
+              ...style,
+              stroke: edgeColor,
+              strokeDasharray: isGlobalView && data?.isLimited ? "2 8" : style?.strokeDasharray,
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+              strokeOpacity: selected
+                ? 1
+                : isGlobalView
+                  ? data?.isLimited
+                    ? 0.28
+                    : 0.52
+                  : style?.strokeOpacity,
+              strokeWidth: selected
+                ? 6
+                : data?.bundle?.role === "primary"
+                  ? Math.max(Number(style?.strokeWidth ?? 2.6) + 0.6, 3.2)
+                  : style?.strokeWidth,
+              filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
+            }}
+          />
+        </>
       ) : null}
       {!isHiddenBundleMember && showArrowHead ? (
         <polygon
@@ -1257,20 +1281,61 @@ function inferRepeatedOutputHandleIds(project: FactoryProject, edge: FactoryEdge
 }
 
 function getDirectEdgePath({
+  sourceNodeId,
   sourceX,
   sourceY,
   sourcePosition,
+  targetNodeId,
   targetX,
   targetY,
   targetPosition,
 }: {
+  sourceNodeId?: string;
   sourceX: number;
   sourceY: number;
   sourcePosition: Position;
+  targetNodeId?: string;
   targetX: number;
   targetY: number;
   targetPosition: Position;
 }) {
+  const isOpposedHorizontal =
+    (sourcePosition === Position.Right && targetPosition === Position.Left) ||
+    (sourcePosition === Position.Left && targetPosition === Position.Right);
+  const isForward =
+    (sourcePosition === Position.Right && targetX >= sourceX) ||
+    (sourcePosition === Position.Left && targetX <= sourceX);
+
+  if (isOpposedHorizontal && isForward && Math.abs(targetY - sourceY) < 18) {
+    const topLanePoints = getTopLaneEdgePoints({
+      sourceNodeId,
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetNodeId,
+      targetX,
+      targetY,
+      targetPosition,
+    });
+    const points =
+      topLanePoints ??
+      compactPolylinePoints([
+        { x: sourceX, y: sourceY },
+        { x: targetX, y: targetY },
+      ]);
+    const labelPoint = getPointAtPolylineRatio(points, 0.5) ?? {
+      x: (sourceX + targetX) / 2,
+      y: (sourceY + targetY) / 2,
+    };
+
+    return {
+      path: pointsToSvgPath(points),
+      labelX: labelPoint.x,
+      labelY: labelPoint.y,
+      points,
+    };
+  }
+
   const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -1445,6 +1510,51 @@ function getBundledMemberEdgePath({
     labelY,
     points,
   };
+}
+
+function getTopLaneEdgePoints({
+  sourceNodeId,
+  sourceX,
+  sourceY,
+  sourcePosition,
+  targetNodeId,
+  targetX,
+  targetY,
+  targetPosition,
+}: {
+  sourceNodeId?: string;
+  sourceX: number;
+  sourceY: number;
+  sourcePosition: Position;
+  targetNodeId?: string;
+  targetX: number;
+  targetY: number;
+  targetPosition: Position;
+}) {
+  if (!sourceNodeId || !targetNodeId) {
+    return undefined;
+  }
+
+  const sourceBounds = getMeasuredNodeBounds(sourceNodeId);
+  const targetBounds = getMeasuredNodeBounds(targetNodeId);
+  if (!sourceBounds || !targetBounds) {
+    return undefined;
+  }
+
+  const laneY = Math.min(sourceBounds.top, targetBounds.top) - 18;
+  const sourceExitX =
+    sourcePosition === Position.Right ? sourceBounds.right + 14 : sourceBounds.left - 14;
+  const targetApproachX =
+    targetPosition === Position.Left ? targetBounds.left - 14 : targetBounds.right + 14;
+
+  return compactPolylinePoints([
+    { x: sourceX, y: sourceY },
+    { x: sourceExitX, y: sourceY },
+    { x: sourceExitX, y: laneY },
+    { x: targetApproachX, y: laneY },
+    { x: targetApproachX, y: targetY },
+    { x: targetX, y: targetY },
+  ]);
 }
 
 function compactPolylinePoints(points: Array<{ x: number; y: number } | undefined>) {

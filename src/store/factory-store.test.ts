@@ -319,6 +319,32 @@ describe("factory machine count optimization", () => {
       useFactoryStore.getState().project.nodes.every((node) => Number.isInteger(node.machineCount)),
     ).toBe(true);
   });
+
+  it("does not amplify cyclic recipe chains across optimization passes", () => {
+    useFactoryStore.getState().setProject(createCyclicRatioProject());
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "cycle-a", machineCount: 2 }),
+        expect.objectContaining({ id: "cycle-b", machineCount: 2 }),
+      ]),
+    );
+  });
+
+  it("does not amplify cycles connected through separate buses for the same resource", () => {
+    useFactoryStore.getState().setProject(createStorageBusCycleProject());
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    const machineCounts = useFactoryStore
+      .getState()
+      .project.nodes.map((node) => node.machineCount);
+
+    expect(machineCounts.every((machineCount) => Number.isInteger(machineCount))).toBe(true);
+    expect(Math.max(...machineCounts)).toBeLessThanOrEqual(2);
+  });
 });
 
 function createLinkTestProject(): FactoryProject {
@@ -464,6 +490,131 @@ function createRatioOptimizationProject(): FactoryProject {
       },
     ],
     fuelProfiles: [],
+  };
+}
+
+function createCyclicRatioProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "cycle-ratio",
+    name: "Cycle ratio",
+    recipes: [
+      {
+        id: "cycle-a-recipe",
+        name: "Cycle A",
+        machineType: "A",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "y", amount: 2 }],
+        outputs: [{ kind: "item", id: "x", amount: 1 }],
+      },
+      {
+        id: "cycle-b-recipe",
+        name: "Cycle B",
+        machineType: "B",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "x", amount: 2 }],
+        outputs: [{ kind: "item", id: "y", amount: 1 }],
+      },
+    ],
+    nodes: [
+      {
+        ...makeNode("cycle-a", "cycle-a-recipe", 0),
+        targetOutput: {
+          kind: "item",
+          resourceId: "x",
+          amountPerSecond: 2,
+        },
+      },
+      makeNode("cycle-b", "cycle-b-recipe", 240),
+    ],
+    storages: [],
+    edges: [
+      {
+        id: "x-edge",
+        source: "cycle-a",
+        target: "cycle-b",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "x" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "x" }, 0),
+        resourceKind: "item",
+        resourceId: "x",
+      },
+      {
+        id: "y-edge",
+        source: "cycle-b",
+        target: "cycle-a",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "y" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "y" }, 0),
+        resourceKind: "item",
+        resourceId: "y",
+      },
+    ],
+    fuelProfiles: [],
+  };
+}
+
+function createStorageBusCycleProject(): FactoryProject {
+  return {
+    ...createCyclicRatioProject(),
+    id: "storage-bus-cycle-ratio",
+    nodes: [
+      {
+        ...makeNode("bus-cycle-a", "cycle-a-recipe", 0),
+        targetOutput: {
+          kind: "item",
+          resourceId: "x",
+          amountPerSecond: 2,
+        },
+      },
+      makeNode("bus-cycle-b", "cycle-b-recipe", 240),
+    ],
+    storages: [
+      { id: "x-out", kind: "item", resourceId: "x", position: { x: 120, y: 0 } },
+      { id: "x-in", kind: "item", resourceId: "x", position: { x: 160, y: 0 } },
+      { id: "y-out", kind: "item", resourceId: "y", position: { x: 120, y: 140 } },
+      { id: "y-in", kind: "item", resourceId: "y", position: { x: 160, y: 140 } },
+    ],
+    edges: [
+      {
+        id: "x-out-edge",
+        source: "bus-cycle-a",
+        target: "x-out",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "x" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "x" }),
+        resourceKind: "item",
+        resourceId: "x",
+      },
+      {
+        id: "x-in-edge",
+        source: "x-in",
+        target: "bus-cycle-b",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "x" }),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "x" }, 0),
+        resourceKind: "item",
+        resourceId: "x",
+      },
+      {
+        id: "y-out-edge",
+        source: "bus-cycle-b",
+        target: "y-out",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "y" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "y" }),
+        resourceKind: "item",
+        resourceId: "y",
+      },
+      {
+        id: "y-in-edge",
+        source: "y-in",
+        target: "bus-cycle-a",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "y" }),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "y" }, 0),
+        resourceKind: "item",
+        resourceId: "y",
+      },
+    ],
   };
 }
 

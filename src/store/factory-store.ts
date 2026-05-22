@@ -822,13 +822,16 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
 
       let project = state.project;
       let result = state.lastResult;
+      const cyclicNodeIds = getCyclicRecipeNodeIds(project);
       let changed = false;
       const maxPasses = Math.max(1, project.nodes.length + 1);
 
       for (let pass = 0; pass < maxPasses; pass += 1) {
         let passChanged = false;
         const nodes = project.nodes.map((node) => {
-          const nodeResult = result.nodes[node.id];
+          const nodeResult = cyclicNodeIds.has(node.id)
+            ? state.lastResult.nodes[node.id]
+            : result.nodes[node.id];
           if (!node.enabled || !nodeResult || nodeResult.status === "missing-recipe") {
             return node;
           }
@@ -1397,6 +1400,78 @@ function getOptimizedMachineCount(theoreticalMachinesRequired: number, current: 
   }
 
   return Math.max(1, Math.round(theoreticalMachinesRequired));
+}
+
+function getCyclicRecipeNodeIds(project: FactoryProject): Set<string> {
+  const adjacency = new Map<string, string[]>();
+
+  for (const node of project.nodes) {
+    adjacency.set(node.id, []);
+  }
+  for (const storage of project.storages ?? []) {
+    adjacency.set(storage.id, []);
+  }
+  for (const edge of project.edges) {
+    if (!adjacency.has(edge.source) || !adjacency.has(edge.target)) {
+      continue;
+    }
+
+    adjacency.get(edge.source)?.push(edge.target);
+  }
+
+  const storagesByResource = new Map<string, FactoryStorage[]>();
+  for (const storage of project.storages ?? []) {
+    const key = `${storage.kind}:${storage.resourceId}`;
+    storagesByResource.set(key, [...(storagesByResource.get(key) ?? []), storage]);
+  }
+
+  for (const storages of storagesByResource.values()) {
+    if (storages.length < 2) {
+      continue;
+    }
+
+    for (const source of storages) {
+      for (const target of storages) {
+        if (source.id !== target.id) {
+          adjacency.get(source.id)?.push(target.id);
+        }
+      }
+    }
+  }
+
+  const cyclicIds = new Set<string>();
+  for (const node of project.nodes) {
+    if (canReachNode(adjacency, node.id, node.id)) {
+      cyclicIds.add(node.id);
+    }
+  }
+
+  return cyclicIds;
+}
+
+function canReachNode(adjacency: Map<string, string[]>, start: string, target: string): boolean {
+  const visited = new Set<string>();
+  const stack = [...(adjacency.get(start) ?? [])];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+
+    if (current === target) {
+      return true;
+    }
+
+    if (visited.has(current)) {
+      continue;
+    }
+
+    visited.add(current);
+    stack.push(...(adjacency.get(current) ?? []));
+  }
+
+  return false;
 }
 
 function touchProject(project: FactoryProject): FactoryProject {

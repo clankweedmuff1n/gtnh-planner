@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { demoFuelProfiles } from "@/lib/model/fuels";
+import { gtnhFuelProfiles } from "@/lib/model/fuels";
 import { PROJECT_SCHEMA_VERSION, type FactoryProject } from "@/lib/model/types";
 import { calculateThroughput } from "./throughput";
 
@@ -38,8 +38,8 @@ describe("calculateThroughput", () => {
         },
       ],
       edges: [],
-      fuelProfiles: demoFuelProfiles,
-      selectedFuelProfileId: "demo-biodiesel",
+      fuelProfiles: gtnhFuelProfiles,
+      selectedFuelProfileId: "biodiesel",
     };
 
     const result = calculateThroughput(project, { generatedAt: "fixed" });

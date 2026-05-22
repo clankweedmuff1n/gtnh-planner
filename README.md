@@ -20,7 +20,7 @@ export generated from NESQL Exporter, RecEx, or NERD.
 - Pure TypeScript throughput solver under `src/lib/solver/`.
 - Local persistence for plans with `localStorage`.
 - Import/export of factory plans as validated JSON.
-- Fuel estimate abstraction with demo benzene, biodiesel, and steam profiles.
+- Fuel estimate abstraction with canonical GTNH benzene, biodiesel, and steam profiles.
 - Legacy biodiesel demo JSON remains only for solver/import tests; it is not exposed as
   the production recipe source in the UI.
 - Unit tests for the solver and JSON import/export.

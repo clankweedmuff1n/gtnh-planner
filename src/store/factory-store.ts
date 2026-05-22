@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createEmptyProject } from "@/examples";
 import type { DatasetManifest, RecipeDataset } from "@/lib/datasets";
+import { normalizeProjectFuelProfiles } from "@/lib/model/fuels";
 import { calculateThroughput } from "@/lib/solver";
 import {
   getChanceMultiplier,
@@ -188,7 +189,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   selectedRecipeId: undefined,
   lastResult: calculateThroughput(initialProject),
   setProject: (project) => {
-    const nextProject = touchProject(project);
+    const nextProject = touchProject(normalizeProjectFuelProfiles(project));
     set({
       project: nextProject,
       selectedNodeId: nextProject.nodes[0]?.id,
@@ -197,11 +198,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
     });
   },
   markHydratedProject: (project) => {
+    const nextProject = normalizeProjectFuelProfiles(project);
     set({
-      project,
-      selectedNodeId: project.nodes[0]?.id,
-      selectedRecipeId: project.nodes[0]?.recipeId ?? project.recipes[0]?.id,
-      lastResult: calculateThroughput(project),
+      project: nextProject,
+      selectedNodeId: nextProject.nodes[0]?.id,
+      selectedRecipeId: nextProject.nodes[0]?.recipeId ?? nextProject.recipes[0]?.id,
+      lastResult: calculateThroughput(nextProject),
     });
   },
   setDatasetManifest: (manifest, manifestUrl) => {

@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { normalizeProjectFuelProfiles } from "../model/fuels";
 import { factoryProjectSchema } from "../model/schemas";
 import type { FactoryProject } from "../model/types";
 
@@ -21,7 +22,7 @@ export function parseFactoryProjectJson(source: string): FactoryProject {
   }
 
   try {
-    return factoryProjectSchema.parse(raw);
+    return normalizeProjectFuelProfiles(factoryProjectSchema.parse(raw));
   } catch (error) {
     if (error instanceof ZodError) {
       const issues = error.issues
@@ -35,7 +36,7 @@ export function parseFactoryProjectJson(source: string): FactoryProject {
 }
 
 export function serializeFactoryProject(project: FactoryProject): string {
-  const validatedProject = factoryProjectSchema.parse(project);
+  const validatedProject = factoryProjectSchema.parse(normalizeProjectFuelProfiles(project));
   return `${JSON.stringify(validatedProject, null, 2)}\n`;
 }
 

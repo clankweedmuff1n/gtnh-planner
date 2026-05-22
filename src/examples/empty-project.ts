@@ -1,4 +1,4 @@
-import { demoFuelProfiles } from "@/lib/model/fuels";
+import { DEFAULT_FUEL_PROFILE_ID, gtnhFuelProfiles } from "@/lib/model/fuels";
 import { PROJECT_SCHEMA_VERSION, type FactoryProject } from "@/lib/model/types";
 
 export function createEmptyProject(): FactoryProject {
@@ -12,10 +12,9 @@ export function createEmptyProject(): FactoryProject {
     nodes: [],
     storages: [],
     edges: [],
-    fuelProfiles: demoFuelProfiles,
-    selectedFuelProfileId: "demo-biodiesel",
-    notes:
-      "Dataset-backed plan. Recipes must come from a normalized GTNH dataset. Demo fuel values are placeholders and not authoritative GTNH data.",
+    fuelProfiles: gtnhFuelProfiles,
+    selectedFuelProfileId: DEFAULT_FUEL_PROFILE_ID,
+    notes: "Dataset-backed plan. Recipes must come from a normalized GTNH dataset.",
     metadata: {
       createdAt: now,
       updatedAt: now,

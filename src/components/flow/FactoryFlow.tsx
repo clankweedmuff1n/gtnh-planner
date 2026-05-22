@@ -26,7 +26,7 @@ import {
   type ReactFlowInstance,
   useStore,
 } from "@xyflow/react";
-import { toPng, toSvg } from "html-to-image";
+import { toBlob, toSvg } from "html-to-image";
 import { Paintbrush, X } from "lucide-react";
 import {
   useCallback,
@@ -38,7 +38,6 @@ import {
 } from "react";
 import {
   FLOW_IMAGE_EXPORT_EVENT,
-  dataUrlToBlob,
   dataUrlToText,
   embedProjectJsonInPng,
   embedProjectJsonInSvg,
@@ -80,8 +79,9 @@ const RECIPE_SLOT_EDGE_OFFSET = 20;
 const STORAGE_SLOT_EDGE_OFFSET = 55;
 const EDGE_RECONNECT_RADIUS = STORAGE_SLOT_EDGE_OFFSET + 14;
 const EXPORT_IMAGE_MIN_SIZE = 1024;
-const EXPORT_IMAGE_MAX_SIZE = 4096;
+const EXPORT_IMAGE_MAX_SIZE = 2400;
 const EXPORT_IMAGE_PADDING = 80;
+const EXPORT_PNG_PIXEL_RATIO = 1;
 type ResourceEdgeData = {
   resource: Pick<
     ResourceAmount,
@@ -196,6 +196,7 @@ export function FactoryFlow() {
   const lastConnectionPointerRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const connectCompletedRef = useRef(false);
   const reconnectingEdgeRef = useRef(false);
+  const exportInProgressRef = useRef(false);
   const boardRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance<
     RecipeFlowNode | StorageFlowNode,
@@ -534,11 +535,18 @@ export function FactoryFlow() {
 
   const exportFlowImage = useCallback(
     async (format: "svg" | "png", fileName: string, projectJson: string) => {
+      if (exportInProgressRef.current) {
+        return;
+      }
+
       const viewportElement = boardRef.current?.querySelector<HTMLElement>(".react-flow__viewport");
 
       if (!viewportElement) {
         return;
       }
+
+      exportInProgressRef.current = true;
+      await nextAnimationFrame();
 
       const nodesBounds = getNodesBounds(flowNodes);
       const imageWidth = clampImageSize(Math.ceil(nodesBounds.width + EXPORT_IMAGE_PADDING * 2));
@@ -562,20 +570,39 @@ export function FactoryFlow() {
         },
       };
 
-      if (format === "svg") {
-        const svgText = embedProjectJsonInSvg(
-          dataUrlToText(await toSvg(viewportElement, options)),
-          projectJson,
-        );
-        downloadBlob(new Blob([svgText], { type: "image/svg+xml" }), `${fileName}.svg`);
-        return;
-      }
+      try {
+        if (format === "svg") {
+          const svgText = embedProjectJsonInSvg(
+            dataUrlToText(
+              await toSvg(viewportElement, {
+                ...options,
+                filter: exportNodeFilter,
+                skipFonts: true,
+              }),
+            ),
+            projectJson,
+          );
+          downloadBlob(new Blob([svgText], { type: "image/svg+xml" }), `${fileName}.svg`);
+          return;
+        }
 
-      const pngBlob = await embedProjectJsonInPng(
-        await dataUrlToBlob(await toPng(viewportElement, { ...options, pixelRatio: 2 })),
-        projectJson,
-      );
-      downloadBlob(pngBlob, `${fileName}.png`);
+        const imageBlob = await toBlob(viewportElement, {
+          ...options,
+          filter: exportNodeFilter,
+          pixelRatio: EXPORT_PNG_PIXEL_RATIO,
+          skipFonts: true,
+        });
+        if (!imageBlob) {
+          return;
+        }
+
+        const pngBlob = await embedProjectJsonInPng(imageBlob, projectJson);
+        downloadBlob(pngBlob, `${fileName}.png`);
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : "Plan image export failed.");
+      } finally {
+        exportInProgressRef.current = false;
+      }
     },
     [flowNodes],
   );
@@ -1648,4 +1675,17 @@ function edgeMatchesSearch(
   return `${resource.displayName ?? ""} ${resource.id} ${edge.resourceId}`
     .toLowerCase()
     .includes(normalizedQuery);
+}
+
+function exportNodeFilter(domNode: HTMLElement) {
+  return !(
+    domNode.classList?.contains("react-flow__edgeupdater") ||
+    domNode.classList?.contains("react-flow__selection") ||
+    domNode.classList?.contains("react-flow__nodesselection") ||
+    domNode.dataset.resourceHandle === "true"
+  );
+}
+
+function nextAnimationFrame(): Promise<void> {
+  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }

@@ -358,6 +358,35 @@ describe("factory machine count optimization", () => {
     ).toBe(true);
   });
 
+  it("rounds optimized machine counts up to keep logistical surplus", () => {
+    const project = createRatioOptimizationProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) =>
+        node.id === "plate-target"
+          ? {
+              ...node,
+              targetOutput: {
+                kind: "item",
+                resourceId: "plate",
+                amountPerSecond: 1.4,
+              },
+            }
+          : node,
+      ),
+    });
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "dust-source", machineCount: 2 }),
+        expect.objectContaining({ id: "plate-target", machineCount: 2 }),
+      ]),
+    );
+    expect(useFactoryStore.getState().lastResult.externalInputs).toHaveLength(0);
+  });
+
   it("does not amplify cyclic recipe chains across optimization passes", () => {
     useFactoryStore.getState().setProject(createCyclicRatioProject());
 

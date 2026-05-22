@@ -322,7 +322,7 @@ function getSuggestedMachineCount(result: NodeThroughputResult | undefined, curr
     return Math.max(1, Math.round(current));
   }
 
-  return Math.max(1, Math.round(exact));
+  return Math.max(1, Math.ceil(exact));
 }
 
 type ConnectionSlotState = "idle" | "selected" | "compatible";

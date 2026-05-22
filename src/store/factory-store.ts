@@ -1522,7 +1522,7 @@ function getOptimizedMachineCount(theoreticalMachinesRequired: number, current: 
     return Math.max(1, Math.round(current));
   }
 
-  return Math.max(1, Math.round(theoreticalMachinesRequired));
+  return Math.max(1, Math.ceil(theoreticalMachinesRequired));
 }
 
 function getUntargetedCyclicMachineCounts(

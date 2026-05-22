@@ -169,6 +169,7 @@ export function FactoryFlow() {
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
   const lastConnectionPointerRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const connectCompletedRef = useRef(false);
+  const reconnectingEdgeRef = useRef(false);
   const boardRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance<
     RecipeFlowNode | StorageFlowNode,
@@ -327,17 +328,25 @@ export function FactoryFlow() {
           : undefined;
       const nodeId = params.nodeId ?? eventHandle?.nodeId;
       const handleId = params.handleId ?? eventHandle?.handleId;
+      const isEdgeReconnect =
+        reconnectingEdgeRef.current ||
+        (event.target instanceof Element &&
+          Boolean(event.target.closest(".react-flow__edgeupdater")));
 
       connectCompletedRef.current = false;
       lastConnectionPointerRef.current = getClientPosition(event);
       draggedResourceRef.current =
-        nodeId && handleId ? getDraggedResourceForHandle(project, nodeId, handleId) : undefined;
+        !isEdgeReconnect && nodeId && handleId
+          ? getDraggedResourceForHandle(project, nodeId, handleId)
+          : undefined;
     },
     [project],
   );
 
   const handleConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent) => {
+      const isEdgeReconnect = reconnectingEdgeRef.current;
+      reconnectingEdgeRef.current = false;
       const draggedResource = draggedResourceRef.current;
       draggedResourceRef.current = undefined;
       const clientPosition = getClientPosition(event) ?? lastConnectionPointerRef.current;
@@ -349,6 +358,10 @@ export function FactoryFlow() {
         getStorageHandleAtPointer(event, draggedResource);
 
       if (connectCompletedRef.current) {
+        return;
+      }
+
+      if (isEdgeReconnect) {
         return;
       }
 
@@ -438,6 +451,11 @@ export function FactoryFlow() {
     },
     [reconnectEdge],
   );
+
+  const handleReconnectStart = useCallback(() => {
+    reconnectingEdgeRef.current = true;
+    draggedResourceRef.current = undefined;
+  }, []);
 
   const updateFlowViewportCenter = useCallback(() => {
     const instance = flowInstanceRef.current;
@@ -621,6 +639,7 @@ export function FactoryFlow() {
         onConnectStart={handleConnectStart}
         onConnectEnd={handleConnectEnd}
         onReconnect={handleReconnect}
+        onReconnectStart={handleReconnectStart}
         onInit={handleInit}
         onMoveEnd={handleMoveEnd}
         isValidConnection={isCompatibleResourceConnection}

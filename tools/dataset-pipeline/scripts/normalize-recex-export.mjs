@@ -82,11 +82,20 @@ function normalizeGregtechRecipes(source) {
 
       const inputs = [
         ...(rawRecipe.iI ?? []).map((item) =>
-          itemAmount(item, { consumed: !isNonConsumedInput(item) }),
+          itemAmount(item, {
+            consumed: !isNonConsumedInput(item),
+            defaultAmount: isNonConsumedInput(item) ? 1 : undefined,
+          }),
         ),
-        ...(rawRecipe.iNC ?? []).map((item) => itemAmount(item, { consumed: false })),
-        ...(rawRecipe.nCI ?? []).map((item) => itemAmount(item, { consumed: false })),
-        ...(rawRecipe.ncI ?? []).map((item) => itemAmount(item, { consumed: false })),
+        ...(rawRecipe.iNC ?? []).map((item) =>
+          itemAmount(item, { consumed: false, defaultAmount: 1 }),
+        ),
+        ...(rawRecipe.nCI ?? []).map((item) =>
+          itemAmount(item, { consumed: false, defaultAmount: 1 }),
+        ),
+        ...(rawRecipe.ncI ?? []).map((item) =>
+          itemAmount(item, { consumed: false, defaultAmount: 1 }),
+        ),
         ...(rawRecipe.fI ?? []).map(fluidAmount),
       ].filter(Boolean);
       const outputs = [
@@ -243,7 +252,8 @@ function findSource(type) {
 }
 
 function itemAmount(item, options = {}) {
-  if (!item?.id || !Number.isFinite(item.a) || item.a <= 0) {
+  const amount = Number.isFinite(item?.a) && item.a > 0 ? item.a : options.defaultAmount;
+  if (!item?.id || !Number.isFinite(amount) || amount <= 0) {
     return undefined;
   }
 
@@ -252,9 +262,9 @@ function itemAmount(item, options = {}) {
   const resource = {
     kind: "item",
     id,
-    amount: item.a,
+    amount,
     displayName: text(item.lN, id),
-    tooltip: item.nbt ? [`NBT: ${item.nbt}`] : undefined,
+    tooltip: itemTooltip(item, id, options),
     iconPath,
     consumed: options.consumed === false ? false : undefined,
   };
@@ -320,25 +330,63 @@ function outputChance(item) {
 }
 
 function detectProgrammedCircuit(inputs) {
-  const circuit = inputs.find((resource) => {
-    if (resource.kind !== "item") {
-      return false;
-    }
-    const label = `${resource.displayName ?? ""} ${resource.id}`.toLowerCase();
-    return (
-      label.includes("programmed circuit") ||
-      label.includes("integrated circuit") ||
-      label.includes("circuit configuration")
-    );
-  });
+  const circuit = inputs.find(isCircuitResource);
 
-  return circuit?.displayName;
+  if (!circuit) {
+    return undefined;
+  }
+
+  const configuration = circuitConfiguration(circuit);
+  const label = circuit.displayName ?? circuit.id;
+  return configuration ? `${label} (configuration ${configuration})` : label;
 }
 
 function isNonConsumedInput(item) {
   return Boolean(
     item?.nc || item?.nC || item?.notConsumed || item?.nonConsumed || item?.consumed === false,
   );
+}
+
+function itemTooltip(item, id, options) {
+  const configuration = circuitConfiguration({
+    kind: "item",
+    id,
+    displayName: text(item.lN, id),
+  });
+  const tooltip = [
+    item.nbt ? `NBT: ${item.nbt}` : undefined,
+    configuration ? `Configuration: ${configuration}` : undefined,
+    options.consumed === false ? "Does not get consumed in the process" : undefined,
+  ].filter(Boolean);
+
+  return tooltip.length > 0 ? tooltip : undefined;
+}
+
+function isCircuitResource(resource) {
+  if (resource.kind !== "item") {
+    return false;
+  }
+
+  const label = `${resource.displayName ?? ""} ${resource.id}`.toLowerCase();
+  return (
+    label.includes("programmed circuit") ||
+    label.includes("integrated circuit") ||
+    label.includes("circuit configuration") ||
+    label.includes("gt.integrated_circuit")
+  );
+}
+
+function circuitConfiguration(resource) {
+  if (!isCircuitResource(resource)) {
+    return undefined;
+  }
+
+  const meta = /@(\d+)$/.exec(resource.id)?.[1];
+  if (meta) {
+    return meta;
+  }
+
+  return /configuration\s*[:=]\s*(\d+)/i.exec(resource.displayName ?? "")?.[1];
 }
 
 function fluidAmount(fluid) {

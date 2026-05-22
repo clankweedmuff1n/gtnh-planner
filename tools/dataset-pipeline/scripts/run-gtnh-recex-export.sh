@@ -89,11 +89,11 @@ if [[ "$GTNH_EXPORT_DISABLE_CLIENT_UI_MODS" == "true" ]]; then
   disabled_mod_dir="$instance_root/mods/.disabled-for-recex-export"
   mkdir -p "$disabled_mod_dir"
   while IFS= read -r mod_jar; do
-    echo "Disabling client UI-only mod for RecEx export: $(basename "$mod_jar")"
+    echo "Disabling client UI/NEI-only mod for RecEx export: $(basename "$mod_jar")"
     mv "$mod_jar" "$disabled_mod_dir/"
   done < <(
     find "$instance_root/mods" -maxdepth 1 -type f \
-      \( -iname 'NotEnoughEnergistics-*.jar' \) \
+      \( -iname 'NotEnoughEnergistics-*.jar' -o -iname 'visualprospecting-*.jar' \) \
       | sort
   )
 fi

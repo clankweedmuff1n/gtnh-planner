@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync } from "node:fs";
 import path from "node:path";
-import { gzipSync } from "node:zlib";
+import { createGzip } from "node:zlib";
+import { pipeline } from "node:stream/promises";
 
 const channel = requiredEnv("GTNH_CHANNEL");
 const versionId = requiredEnv("GTNH_VERSION_ID");
@@ -77,9 +78,9 @@ await buildRecipeIndex(recipeDatasetPath, outDir);
 dataset = JSON.parse(await fs.readFile(recipeDatasetPath, "utf8"));
 validateDataset(dataset);
 
-const compactDatasetJson = JSON.stringify(dataset);
 const compressedRecipeDatasetPath = `${recipeDatasetPath}.gz`;
-await fs.writeFile(compressedRecipeDatasetPath, gzipSync(compactDatasetJson, { level: 9 }));
+const uncompressedSizeBytes = (await fs.stat(recipeDatasetPath)).size;
+await gzipFile(recipeDatasetPath, compressedRecipeDatasetPath);
 await fs.rm(recipeDatasetPath, { force: true });
 
 await writePipelineRecord({
@@ -89,7 +90,7 @@ await writePipelineRecord({
   resourceCount: dataset.resources.length,
   recipeMapCount: dataset.recipeMaps.length,
   recipeDatasetPath: compressedRecipeDatasetPath,
-  uncompressedSizeBytes: Buffer.byteLength(compactDatasetJson),
+  uncompressedSizeBytes,
   compressedSizeBytes: (await fs.stat(compressedRecipeDatasetPath)).size,
 });
 
@@ -216,4 +217,12 @@ function requiredEnv(name) {
     throw new Error(`Missing required environment variable ${name}.`);
   }
   return value;
+}
+
+async function gzipFile(inputPath, outputPath) {
+  await pipeline(
+    createReadStream(inputPath),
+    createGzip({ level: 9 }),
+    createWriteStream(outputPath),
+  );
 }

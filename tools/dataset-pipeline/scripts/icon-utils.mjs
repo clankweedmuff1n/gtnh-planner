@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { writeDatasetJson } from "./dataset-json-writer.mjs";
 
 export async function readDataset(filePath) {
   const data = await fs.readFile(filePath);
@@ -11,13 +12,13 @@ export async function readDataset(filePath) {
 }
 
 export async function writeDataset(filePath, dataset) {
-  const json = `${JSON.stringify(dataset)}\n`;
   if (filePath.endsWith(".gz")) {
+    const json = `${JSON.stringify(dataset)}\n`;
     await fs.writeFile(filePath, gzipSync(json, { level: 9 }));
     return;
   }
 
-  await fs.writeFile(filePath, json);
+  await writeDatasetJson(filePath, dataset);
 }
 
 export function forEachResource(dataset, callback) {

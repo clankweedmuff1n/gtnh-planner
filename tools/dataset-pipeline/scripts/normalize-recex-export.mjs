@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import { writeDatasetJson } from "./dataset-json-writer.mjs";
 
 const inputPath = process.argv[2];
 const outputPath = process.argv[3];
@@ -563,47 +564,4 @@ function addRenderedFile(iconPath, usedFiles) {
     return;
   }
   usedFiles.add(path.basename(String(iconPath)));
-}
-
-async function writeDatasetJson(filePath, dataset) {
-  const handle = await fs.open(filePath, "w");
-  try {
-    await handle.write("{\n");
-    await writeJsonProperty(handle, "schemaVersion", dataset.schemaVersion, true);
-    await writeJsonProperty(handle, "datasetVersionId", dataset.datasetVersionId);
-    await writeJsonProperty(handle, "gtnhVersion", dataset.gtnhVersion);
-    await writeJsonProperty(handle, "sourceInfo", dataset.sourceInfo);
-    await writeJsonArrayProperty(handle, "resources", dataset.resources);
-    await writeJsonArrayProperty(handle, "recipes", dataset.recipes);
-    await writeJsonObjectProperty(handle, "oreDictionary", dataset.oreDictionary);
-    await writeJsonArrayProperty(handle, "recipeMaps", dataset.recipeMaps);
-    await writeJsonProperty(handle, "generatedAt", dataset.generatedAt);
-    await handle.write("\n}\n");
-  } finally {
-    await handle.close();
-  }
-}
-
-async function writeJsonProperty(handle, key, value, first = false) {
-  await handle.write(`${first ? "" : ",\n"}  ${JSON.stringify(key)}: ${JSON.stringify(value)}`);
-}
-
-async function writeJsonArrayProperty(handle, key, values) {
-  await handle.write(`,\n  ${JSON.stringify(key)}: [`);
-  for (let index = 0; index < values.length; index += 1) {
-    await handle.write(`${index === 0 ? "\n" : ",\n"}    ${JSON.stringify(values[index])}`);
-  }
-  await handle.write(values.length > 0 ? "\n  ]" : "]");
-}
-
-async function writeJsonObjectProperty(handle, key, value) {
-  const entries = Object.entries(value);
-  await handle.write(`,\n  ${JSON.stringify(key)}: {`);
-  for (let index = 0; index < entries.length; index += 1) {
-    const [entryKey, entryValue] = entries[index];
-    await handle.write(
-      `${index === 0 ? "\n" : ",\n"}    ${JSON.stringify(entryKey)}: ${JSON.stringify(entryValue)}`,
-    );
-  }
-  await handle.write(entries.length > 0 ? "\n  }" : "}");
 }

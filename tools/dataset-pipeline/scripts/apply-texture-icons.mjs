@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { writeDatasetJson } from "./dataset-json-writer.mjs";
 
 const instanceRoot = process.argv[2];
 const datasetPath = process.argv[3];
@@ -75,7 +76,7 @@ for (const recipe of dataset.recipes ?? []) {
   }
 }
 
-await fs.writeFile(datasetPath, `${JSON.stringify(dataset, null, 2)}\n`);
+await writeDatasetJson(datasetPath, dataset);
 await fs.writeFile(
   path.join(textureOutDir, "icon-report.json"),
   `${JSON.stringify(

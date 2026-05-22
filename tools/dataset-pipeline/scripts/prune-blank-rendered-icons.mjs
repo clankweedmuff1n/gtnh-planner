@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import zlib from "node:zlib";
+import { writeDatasetJson } from "./dataset-json-writer.mjs";
 
 const datasetPath = process.argv[2];
 const renderedDir = process.argv[3];
@@ -59,11 +60,10 @@ for (const recipe of dataset.recipes ?? []) {
   }
 }
 
-const json = `${JSON.stringify(dataset, null, 2)}\n`;
 if (datasetPath.endsWith(".gz")) {
-  await fs.writeFile(datasetPath, zlib.gzipSync(json));
+  await fs.writeFile(datasetPath, zlib.gzipSync(`${JSON.stringify(dataset)}\n`));
 } else {
-  await fs.writeFile(datasetPath, json);
+  await writeDatasetJson(datasetPath, dataset);
 }
 
 console.log(

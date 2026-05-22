@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { PNG } from "pngjs";
+import { writeDatasetJson } from "./dataset-json-writer.mjs";
 
 const datasetPath = process.argv[2];
 const datasetOutDir = process.argv[3];
@@ -101,7 +102,7 @@ if (slotIndex > 0) {
 }
 
 applyAtlasRefs(dataset, refsByIconPath);
-await fs.writeFile(datasetPath, `${JSON.stringify(dataset)}\n`);
+await writeDatasetJson(datasetPath, dataset);
 
 if (removeRenderedIcons) {
   await fs.rm(renderedDir, { recursive: true, force: true });

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import { createReadStream, createWriteStream, existsSync } from "node:fs";
 import path from "node:path";
+import readline from "node:readline";
 import { createGzip } from "node:zlib";
 import { pipeline } from "node:stream/promises";
 
@@ -69,16 +70,17 @@ if (!existsSync(recipeDatasetPath)) {
   );
 }
 
-let dataset = JSON.parse(await fs.readFile(recipeDatasetPath, "utf8"));
-validateDataset(dataset);
-const datasetStats = {
-  recipeCount: dataset.recipes.length,
-  resourceCount: dataset.resources.length,
-  recipeMapCount: dataset.recipeMaps.length,
-};
-dataset = undefined;
-await pruneRenderedIcons(recipeDatasetPath, path.join(outDir, "textures", "rendered"));
-await finalizeRenderedIcons(recipeDatasetPath, outDir);
+const datasetStats = await readDatasetStatsAndValidate(recipeDatasetPath);
+const postProcessMaxDatasetBytes = positiveIntEnv("GTNH_ICON_POST_PROCESS_MAX_DATASET_BYTES", 450_000_000);
+const recipeDatasetSizeBytes = (await fs.stat(recipeDatasetPath)).size;
+if (recipeDatasetSizeBytes <= postProcessMaxDatasetBytes) {
+  await pruneRenderedIcons(recipeDatasetPath, path.join(outDir, "textures", "rendered"));
+  await finalizeRenderedIcons(recipeDatasetPath, outDir);
+} else {
+  console.log(
+    `Skipping rendered icon cleanup/finalization for ${versionId}: dataset is ${recipeDatasetSizeBytes} bytes.`,
+  );
+}
 await buildResourceIndex(recipeDatasetPath);
 await buildRecipeIndex(recipeDatasetPath, outDir);
 
@@ -125,6 +127,89 @@ function validateDataset(dataset) {
   if (!dataset.oreDictionary || typeof dataset.oreDictionary !== "object") {
     throw new Error("recipes.json oreDictionary must be an object.");
   }
+}
+
+async function readDatasetStatsAndValidate(datasetPath) {
+  const dataset = {};
+  const counts = {
+    recipeCount: 0,
+    resourceCount: 0,
+    recipeMapCount: 0,
+  };
+  const countedArrays = new Map([
+    ["recipes", "recipeCount"],
+    ["resources", "resourceCount"],
+    ["recipeMaps", "recipeMapCount"],
+  ]);
+  let currentArrayKey;
+  let skippingArray = false;
+  let skippingObject = false;
+
+  const lines = readline.createInterface({
+    input: createReadStream(datasetPath, { encoding: "utf8" }),
+    crlfDelay: Infinity,
+  });
+
+  for await (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line === "{" || line === "}") {
+      continue;
+    }
+
+    if (currentArrayKey || skippingArray) {
+      if (line === "]," || line === "]") {
+        currentArrayKey = undefined;
+        skippingArray = false;
+        continue;
+      }
+
+      if (currentArrayKey) {
+        counts[countedArrays.get(currentArrayKey)] += 1;
+      }
+      continue;
+    }
+
+    if (skippingObject) {
+      if (line === "}," || line === "}") {
+        skippingObject = false;
+      }
+      continue;
+    }
+
+    const match = /^("(?:(?:\\.)|[^"\\])*"):\s*(.*)$/.exec(line);
+    if (!match) {
+      continue;
+    }
+
+    const key = JSON.parse(match[1]);
+    const value = match[2].replace(/,$/, "");
+    if (value === "[") {
+      if (countedArrays.has(key)) {
+        dataset[key] = [];
+        currentArrayKey = key;
+      } else {
+        skippingArray = true;
+      }
+      continue;
+    }
+
+    if (value === "{") {
+      dataset[key] = {};
+      skippingObject = true;
+      continue;
+    }
+
+    dataset[key] = JSON.parse(value);
+  }
+
+  validateDataset({
+    ...dataset,
+    recipes: new Array(counts.recipeCount),
+    resources: new Array(counts.resourceCount),
+    recipeMaps: new Array(counts.recipeMapCount),
+  });
+
+  return counts;
 }
 
 async function writePipelineRecord(record) {

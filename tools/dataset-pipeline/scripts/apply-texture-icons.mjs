@@ -19,6 +19,33 @@ if (!existsSync(datasetPath)) {
   throw new Error(`Dataset not found: ${datasetPath}`);
 }
 
+const maxDatasetBytes = positiveIntEnv("GTNH_TEXTURE_ICON_MAX_DATASET_BYTES", 450_000_000);
+const datasetSizeBytes = (await fs.stat(datasetPath)).size;
+if (datasetSizeBytes > maxDatasetBytes) {
+  const versionId = path.basename(outDir);
+  const textureOutDir = path.join(outDir, "textures");
+  await fs.mkdir(textureOutDir, { recursive: true });
+  await fs.writeFile(
+    path.join(textureOutDir, "icon-report.json"),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        datasetVersionId: versionId,
+        generatedAt: new Date().toISOString(),
+        source: "minecraft-asset-pngs",
+        skipped: true,
+        reason: `Dataset is ${datasetSizeBytes} bytes, above GTNH_TEXTURE_ICON_MAX_DATASET_BYTES=${maxDatasetBytes}.`,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  console.log(
+    `Skipping texture icon fallback for ${versionId}: dataset is ${datasetSizeBytes} bytes.`,
+  );
+  process.exit(0);
+}
+
 const dataset = JSON.parse(await fs.readFile(datasetPath, "utf8"));
 const versionId = dataset.datasetVersionId;
 const textureOutDir = path.join(outDir, "textures");
@@ -303,6 +330,20 @@ function addFirst(map, key, value) {
   if (!map.has(key)) {
     map.set(key, value);
   }
+}
+
+function positiveIntEnv(name, fallback) {
+  const rawValue = process.env[name];
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+
+  return parsed;
 }
 
 function unique(values) {

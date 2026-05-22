@@ -78,7 +78,10 @@ function enrichRecipe(
   slotCapacitiesByRecipeMap: Map<string, RecipeMapSlotCapacity>,
 ): Recipe {
   const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
-  const slotCapacity = slotCapacitiesByRecipeMap.get(recipeMap);
+  const slotCapacity = mergeSlotCapacity(
+    slotCapacitiesByRecipeMap.get(recipeMap),
+    recipeMapSlotCapacityOverride(recipeMap),
+  );
 
   return {
     ...recipe,
@@ -138,6 +141,23 @@ function buildRecipeMapSlotCapacities(recipes: Recipe[]): Map<string, RecipeMapS
   }
 
   return capacities;
+}
+
+function recipeMapSlotCapacityOverride(recipeMap: string): RecipeMapSlotCapacity | undefined {
+  const exact = RECIPE_MAP_SLOT_CAPACITY_OVERRIDES[recipeMap];
+  if (exact) {
+    return exact;
+  }
+
+  const normalized = recipeMap.toLowerCase();
+  if (normalized.includes("centrifuge")) {
+    return RECIPE_MAP_SLOT_CAPACITY_OVERRIDES.Centrifuge;
+  }
+  if (normalized.includes("electrolyzer")) {
+    return RECIPE_MAP_SLOT_CAPACITY_OVERRIDES.Electrolyzer;
+  }
+
+  return undefined;
 }
 
 function observedSlotCapacity(recipe: Recipe): RecipeMapSlotCapacity {

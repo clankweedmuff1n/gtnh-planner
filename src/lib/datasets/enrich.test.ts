@@ -86,6 +86,31 @@ describe("enrichDatasetRecipes", () => {
       maxItemOutputs: 6,
     });
   });
+
+  it("applies recipe map slot capacity overrides to exported name variants", () => {
+    const dataset = baseDataset([
+      {
+        id: "partial-multiblock-electrolyzer",
+        name: "Partial Multiblock Electrolyzer",
+        machineType: "Multiblock Electrolyzer",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 8,
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [
+          { kind: "item", id: "a", amount: 1 },
+          { kind: "item", id: "b", amount: 1 },
+        ],
+        source: { recipeMap: "multiblock electrolyzer recipes" },
+      },
+    ]);
+
+    const enriched = enrichDatasetRecipes(dataset);
+
+    expect(enriched.recipes[0]?.nei?.slotCapacity).toMatchObject({
+      maxItemOutputs: 6,
+    });
+  });
 });
 
 function baseDataset(recipes: RecipeDataset["recipes"]): RecipeDataset {

@@ -11,66 +11,32 @@ import { useFactoryStore } from "@/store/factory-store";
 import { ResourceIcon } from "./nei/ResourceIcon";
 
 export function InspectorPanel() {
-  const selectFuelProfile = useFactoryStore((state) => state.selectFuelProfile);
-
   return (
     <aside className="flex h-full min-h-[360px] flex-col bg-white">
-      <SummaryPanel onSelectFuel={selectFuelProfile} />
+      <SummaryPanel />
     </aside>
   );
 }
 
-function SummaryPanel({ onSelectFuel }: { onSelectFuel: (fuelProfileId: string) => void }) {
+function SummaryPanel() {
   const project = useFactoryStore((state) => state.project);
   const result = useFactoryStore((state) => state.lastResult);
   const nodeBottlenecks = result.bottlenecks.filter(
     (bottleneck) => bottleneck.kind === "node-capacity",
   ).length;
-  const missingRecipes = result.bottlenecks.filter(
-    (bottleneck) => bottleneck.kind === "missing-recipe",
-  ).length;
 
   return (
-    <>
-      <div className="border-b border-neutral-200 px-4 py-3">
-        <h2 className="text-sm font-semibold text-neutral-950">Calculation summary</h2>
-        <p className="mt-1 text-xs text-neutral-500">Global flow overview.</p>
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+      <div className="grid shrink-0 grid-cols-2 gap-2">
+        <Metric label="Total EU/t" value={formatRate(result.totalEuT, 0)} />
+        <Metric label="EU/s" value={formatRate(result.totalEuPerSecond, 0)} />
+        <Metric label="Node bottlenecks" value={String(nodeBottlenecks)} />
+        <Metric label="External inputs" value={String(result.externalInputs.length)} />
+        <Metric label="Nodes" value={String(project.nodes.length)} />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-2 gap-2">
-          <Metric label="Total EU/t" value={formatRate(result.totalEuT, 0)} />
-          <Metric label="EU/s" value={formatRate(result.totalEuPerSecond, 0)} />
-          <Metric label="Node bottlenecks" value={String(nodeBottlenecks)} />
-          <Metric label="External inputs" value={String(result.externalInputs.length)} />
-          <Metric label="Missing recipes" value={String(missingRecipes)} />
-          <Metric label="Nodes" value={String(project.nodes.length)} />
-        </div>
 
-        <section className="mt-4 rounded border border-neutral-200 bg-neutral-50 p-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Fuel estimate
-          </h3>
-          <select
-            value={project.selectedFuelProfileId ?? ""}
-            onChange={(event) => onSelectFuel(event.target.value)}
-            className="mt-2 h-9 w-full rounded border border-neutral-300 bg-white px-2 text-sm text-neutral-900"
-          >
-            {project.fuelProfiles.map((fuel) => (
-              <option key={fuel.id} value={fuel.id}>
-                {fuel.name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-2 text-sm font-semibold text-neutral-950">
-            {result.fuelEstimate
-              ? `${formatRate(result.fuelEstimate.fuelPerSecond, 4)} ${result.fuelEstimate.unit}`
-              : "No fuel selected"}
-          </p>
-        </section>
-
-        <FlowIOPanel className="mt-4 rounded border border-neutral-200 bg-white p-3" />
-      </div>
-    </>
+      <FlowIOPanel className="min-h-0 rounded border border-neutral-200 bg-white p-3" />
+    </div>
   );
 }
 
@@ -154,17 +120,14 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
   };
 
   return (
-    <section className={className}>
-      <div className="min-w-0">
+    <section className={["flex min-h-0 flex-1 flex-col", className].join(" ")}>
+      <div className="min-w-0 shrink-0">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Flow I/O
         </h3>
-        <p className="mt-1 text-xs text-neutral-500">
-          Global resources entering, leaving, or balanced inside the chart.
-        </p>
       </div>
 
-      <label className="mt-3 block">
+      <label className="mt-3 block shrink-0">
         <span className="sr-only">Filter Flow I/O resources</span>
         <input
           value={filter}
@@ -174,7 +137,7 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
         />
       </label>
 
-      <div className="mt-3 grid grid-cols-3 gap-1 text-center text-[11px]">
+      <div className="mt-3 grid shrink-0 grid-cols-3 gap-1 text-center text-[11px]">
         {tabs.map((tab) => (
           <FlowTabButton
             key={tab.id}
@@ -271,7 +234,7 @@ function FlowIOSection({
   onInspect: (balance: ResourceBalance, mode: "recipes" | "uses") => void;
 }) {
   return (
-    <div className="mt-3">
+    <div className="mt-3 flex min-h-0 flex-1 flex-col">
       <div className="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
         <span>{title}</span>
         <span>{items.length === totalCount ? items.length : `${items.length} / ${totalCount}`}</span>
@@ -281,7 +244,7 @@ function FlowIOSection({
           {empty}
         </p>
       ) : (
-        <div className="max-h-[420px] space-y-1 overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
           {items.map((balance) => {
             const resource = resourcesByKey.get(balance.key);
             return (

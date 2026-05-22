@@ -59,6 +59,7 @@ const DEFAULT_ITEM_EDGE_COLOR = "#8b8f98";
 const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
 const RECIPE_SLOT_EDGE_OFFSET = 20;
 const STORAGE_SLOT_EDGE_OFFSET = 55;
+const EDGE_RECONNECT_RADIUS = STORAGE_SLOT_EDGE_OFFSET + 14;
 type ResourceEdgeData = {
   resource: Pick<
     ResourceAmount,
@@ -667,7 +668,7 @@ export function FactoryFlow() {
         connectionRadius={18}
         elevateNodesOnSelect={false}
         edgesReconnectable
-        reconnectRadius={12}
+        reconnectRadius={EDGE_RECONNECT_RADIUS}
         onNodeClick={handleNodeClick}
         onNodesChange={handleNodesChange}
         onSelectionChange={handleSelectionChange}

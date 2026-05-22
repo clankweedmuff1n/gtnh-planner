@@ -35,6 +35,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  FLOW_IMAGE_EXPORT_COMPLETE_EVENT,
   FLOW_IMAGE_EXPORT_EVENT,
   dataUrlToText,
   embedProjectJsonInPng,
@@ -78,10 +79,8 @@ const STORAGE_SLOT_EDGE_OFFSET = 55;
 const EDGE_BUNDLE_CLEARANCE = 14;
 const EDGE_LABEL_ZOOM = 0.78;
 const EDGE_ARROW_ZOOM = 0.72;
-const EXPORT_IMAGE_MIN_SIZE = 1024;
-const EXPORT_IMAGE_MAX_SIZE = 2400;
 const EXPORT_IMAGE_PADDING = 80;
-const EXPORT_PNG_PIXEL_RATIO = 1;
+const EXPORT_PNG_PIXEL_RATIO = 2;
 type ResourceEdgeData = {
   resource: Pick<
     ResourceAmount,
@@ -517,14 +516,16 @@ export function FactoryFlow() {
   );
 
   const exportFlowImage = useCallback(
-    async (format: "svg" | "png", fileName: string, projectJson: string) => {
+    async (format: "svg" | "png", requestId: string, fileName: string, projectJson: string) => {
       if (exportInProgressRef.current) {
+        dispatchImageExportComplete(requestId);
         return;
       }
 
       const viewportElement = boardRef.current?.querySelector<HTMLElement>(".react-flow__viewport");
 
       if (!viewportElement) {
+        dispatchImageExportComplete(requestId);
         return;
       }
 
@@ -532,8 +533,8 @@ export function FactoryFlow() {
       await nextAnimationFrame();
 
       const nodesBounds = getNodesBounds(flowNodes);
-      const imageWidth = clampImageSize(Math.ceil(nodesBounds.width + EXPORT_IMAGE_PADDING * 2));
-      const imageHeight = clampImageSize(Math.ceil(nodesBounds.height + EXPORT_IMAGE_PADDING * 2));
+      const imageWidth = getExportImageSize(nodesBounds.width);
+      const imageHeight = getExportImageSize(nodesBounds.height);
       const viewport = getViewportForBounds(
         nodesBounds,
         imageWidth,
@@ -585,6 +586,7 @@ export function FactoryFlow() {
         console.error(error instanceof Error ? error.message : "Plan image export failed.");
       } finally {
         exportInProgressRef.current = false;
+        dispatchImageExportComplete(requestId);
       }
     },
     [flowNodes],
@@ -593,18 +595,19 @@ export function FactoryFlow() {
   useEffect(() => {
     const handleExportImage = (event: Event) => {
       const detail = (event as CustomEvent).detail as
-        | { format?: unknown; fileName?: unknown; projectJson?: unknown }
+        | { format?: unknown; requestId?: unknown; fileName?: unknown; projectJson?: unknown }
         | undefined;
 
       if (
         (detail?.format !== "svg" && detail?.format !== "png") ||
+        typeof detail.requestId !== "string" ||
         typeof detail.fileName !== "string" ||
         typeof detail.projectJson !== "string"
       ) {
         return;
       }
 
-      void exportFlowImage(detail.format, detail.fileName, detail.projectJson);
+      void exportFlowImage(detail.format, detail.requestId, detail.fileName, detail.projectJson);
     };
 
     window.addEventListener(FLOW_IMAGE_EXPORT_EVENT, handleExportImage);
@@ -2219,12 +2222,12 @@ function getClientPosition(event: MouseEvent | TouchEvent) {
   return undefined;
 }
 
-function clampImageSize(size: number) {
-  if (!Number.isFinite(size)) {
-    return EXPORT_IMAGE_MIN_SIZE;
+function getExportImageSize(graphSize: number) {
+  if (!Number.isFinite(graphSize) || graphSize <= 0) {
+    return EXPORT_IMAGE_PADDING * 2;
   }
 
-  return Math.min(Math.max(size, EXPORT_IMAGE_MIN_SIZE), EXPORT_IMAGE_MAX_SIZE);
+  return Math.ceil(graphSize + EXPORT_IMAGE_PADDING * 2);
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -2234,6 +2237,14 @@ function downloadBlob(blob: Blob, fileName: string) {
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function dispatchImageExportComplete(requestId: string) {
+  window.dispatchEvent(
+    new CustomEvent(FLOW_IMAGE_EXPORT_COMPLETE_EVENT, {
+      detail: { requestId },
+    }),
+  );
 }
 
 function getEdgeResource(

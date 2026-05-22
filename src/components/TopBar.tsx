@@ -5,6 +5,7 @@ import {
   Download,
   FileImage,
   ImageDown,
+  LoaderCircle,
   Trash2,
   Upload,
   WandSparkles,
@@ -19,6 +20,7 @@ import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
 import { getRecipeDatasetRecipe } from "@/lib/datasets/browser-loader";
 import type { DatasetVersion } from "@/lib/datasets";
 import {
+  FLOW_IMAGE_EXPORT_COMPLETE_EVENT,
   FLOW_IMAGE_EXPORT_EVENT,
   extractProjectJsonFromPng,
   extractProjectJsonFromSvg,
@@ -33,6 +35,9 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   const projectInputRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [isExportMenuOpen, setExportMenuOpen] = useState(false);
+  const [pendingExport, setPendingExport] = useState<
+    { format: "json" | "svg" | "png"; requestId: string } | undefined
+  >();
   const project = useFactoryStore((state) => state.project);
   const manifest = useFactoryStore((state) => state.datasetManifest);
   const selectedDatasetVersionId = useFactoryStore((state) => state.selectedDatasetVersionId);
@@ -41,7 +46,12 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   const cleanBoard = useFactoryStore((state) => state.cleanBoard);
   const optimizeMachineCounts = useFactoryStore((state) => state.optimizeMachineCounts);
 
-  const exportJson = () => {
+  const exportJson = async () => {
+    const requestId = crypto.randomUUID();
+    setExportMenuOpen(false);
+    setPendingExport({ format: "json", requestId });
+    await nextAnimationFrame();
+
     const json = serializeFactoryProject(project);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -50,14 +60,20 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
     anchor.download = `${project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "factory"}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
+    window.setTimeout(() => {
+      setPendingExport((current) => (current?.requestId === requestId ? undefined : current));
+    }, 450);
   };
 
   const exportImage = (format: "svg" | "png") => {
+    const requestId = crypto.randomUUID();
     setExportMenuOpen(false);
+    setPendingExport({ format, requestId });
     window.dispatchEvent(
       new CustomEvent(FLOW_IMAGE_EXPORT_EVENT, {
         detail: {
           format,
+          requestId,
           fileName: project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "factory",
           projectJson: serializeFactoryProject(project),
         },
@@ -95,6 +111,23 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
 
     window.addEventListener("mousedown", closeExportMenu);
     return () => window.removeEventListener("mousedown", closeExportMenu);
+  }, []);
+
+  useEffect(() => {
+    const handleImageExportComplete = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { requestId?: unknown } | undefined;
+      if (typeof detail?.requestId !== "string") {
+        return;
+      }
+
+      setPendingExport((current) =>
+        current?.requestId === detail.requestId ? undefined : current,
+      );
+    };
+
+    window.addEventListener(FLOW_IMAGE_EXPORT_COMPLETE_EVENT, handleImageExportComplete);
+    return () =>
+      window.removeEventListener(FLOW_IMAGE_EXPORT_COMPLETE_EVENT, handleImageExportComplete);
   }, []);
 
   return (
@@ -162,9 +195,15 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
             title="Export plan"
             aria-label="Export plan"
             aria-expanded={isExportMenuOpen}
-            className="inline-flex h-9 items-center justify-center gap-1 rounded border border-neutral-300 bg-white px-2 text-neutral-800 hover:bg-neutral-50"
+            aria-busy={pendingExport ? true : undefined}
+            disabled={Boolean(pendingExport)}
+            className="inline-flex h-9 items-center justify-center gap-1 rounded border border-neutral-300 bg-white px-2 text-neutral-800 hover:bg-neutral-50 disabled:cursor-wait disabled:bg-neutral-100 disabled:text-neutral-500"
           >
-            <Download className="h-4 w-4" />
+            {pendingExport ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
           {isExportMenuOpen ? (
@@ -173,8 +212,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
                 icon={Download}
                 label="Export plan JSON"
                 onClick={() => {
-                  setExportMenuOpen(false);
-                  exportJson();
+                  void exportJson();
                 }}
               />
               <ExportMenuItem
@@ -206,6 +244,10 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
       />
     </header>
   );
+}
+
+function nextAnimationFrame(): Promise<void> {
+  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 async function readProjectFile(file: File): Promise<string> {

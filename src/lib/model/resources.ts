@@ -19,6 +19,23 @@ export function isOreDictionaryResource(resource: Pick<ResourceAmount, "id">): b
   return resource.id.startsWith("oredict:");
 }
 
+export function isVirtualChoiceResource(
+  resource: Pick<ResourceAmount, "id" | "displayName">,
+): boolean {
+  return (
+    isOreDictionaryResource(resource) ||
+    Boolean(resource.displayName?.match(/^Ore Dictionary:\s*/i)) ||
+    isWildcardChoiceResource(resource)
+  );
+}
+
+function isWildcardChoiceResource(resource: Pick<ResourceAmount, "id" | "displayName">): boolean {
+  const id = resource.id.trim();
+  const displayName = resource.displayName?.trim() ?? "";
+
+  return /^any(?:$|[:@._-])/i.test(id) || /^any(?:$|\s|[:@._-])/i.test(displayName);
+}
+
 export function parseResourceKey(key: ResourceKey): {
   kind: ResourceKind;
   resourceId: string;

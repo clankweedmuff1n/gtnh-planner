@@ -9,7 +9,7 @@ import type {
   RecipeSummary,
 } from "@/lib/datasets/types";
 import type { MachineTier, Recipe, ResourceAmount } from "@/lib/model/types";
-import { getRecipePowerTier, GT_VOLTAGE_TIERS, isOreDictionaryResource } from "@/lib/model";
+import { getRecipePowerTier, GT_VOLTAGE_TIERS, isVirtualChoiceResource } from "@/lib/model";
 
 type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
 
@@ -122,7 +122,7 @@ export async function queryDatasetResources(
 
   for (const resourceIndex of indexes.sortedResourceIndexes) {
     const resource = catalog.resourceIndex[resourceIndex];
-    if (!resource || isOreDictionaryResource(resource) || (!resource.iconPath && !resource.iconAtlas)) {
+    if (!resource || isVirtualChoiceResource(resource) || (!resource.iconPath && !resource.iconAtlas)) {
       continue;
     }
     if (query && !resourceSearchTextMatches(indexes.searchText[resourceIndex] ?? "", query)) {
@@ -682,7 +682,7 @@ function ensureResourceIndexes(catalog: LoadedRecipeIndex): ResourceQueryIndexes
     })
     .filter((index) => {
       const resource = catalog.resourceIndex[index];
-      return Boolean(resource && !isOreDictionaryResource(resource));
+      return Boolean(resource && !isVirtualChoiceResource(resource));
     })
     .sort((leftIndex, rightIndex) => {
       const left = catalog.resourceIndex[leftIndex];
@@ -839,7 +839,7 @@ function getRecipeMapIconCandidates(
     .filter(
       (resource) =>
         resource.kind === "item" &&
-        !isOreDictionaryResource(resource) &&
+        !isVirtualChoiceResource(resource) &&
         (resource.iconPath || resource.iconAtlas),
     )
     .map((resource) => {
@@ -859,6 +859,11 @@ function findRecipeMapIcon(
   recipeMap: string,
   candidates: RecipeMapIconCandidate[],
 ): DatasetResourceIndexEntry | undefined {
+  const explicitIcon = findExplicitRecipeMapIcon(recipeMap, candidates);
+  if (explicitIcon) {
+    return explicitIcon;
+  }
+
   const recipeMapTokens = tokenizeRecipeMap(recipeMap);
   const normalizedMap = normalizeText(recipeMap);
   let best: { resource: DatasetResourceIndexEntry; score: number } | undefined;
@@ -894,6 +899,56 @@ function findRecipeMapIcon(
   }
 
   return best && best.score >= 35 ? best.resource : undefined;
+}
+
+function findExplicitRecipeMapIcon(
+  recipeMap: string,
+  candidates: RecipeMapIconCandidate[],
+): DatasetResourceIndexEntry | undefined {
+  const normalizedMap = normalizeText(recipeMap);
+
+  if (isCraftingRecipeMap(normalizedMap)) {
+    return bestExplicitIcon(candidates, [
+      (candidate) => candidate.label === "crafting table",
+      (candidate) => /\bcrafting[_:\s-]*table\b/i.test(candidate.resource.id),
+      (candidate) => candidate.label.includes("workbench"),
+      (candidate) => /\bworkbench\b/i.test(candidate.resource.id),
+    ]);
+  }
+
+  if (normalizedMap === "furnace") {
+    return bestExplicitIcon(candidates, [
+      (candidate) => candidate.label === "furnace",
+      (candidate) => /\bfurnace\b/i.test(candidate.resource.id),
+    ]);
+  }
+
+  return undefined;
+}
+
+function isCraftingRecipeMap(normalizedMap: string): boolean {
+  return (
+    normalizedMap === "shaped crafting" ||
+    normalizedMap === "shapeless crafting" ||
+    normalizedMap === "crafting table" ||
+    normalizedMap.startsWith("crafting table ")
+  );
+}
+
+function bestExplicitIcon(
+  candidates: RecipeMapIconCandidate[],
+  predicates: Array<(candidate: RecipeMapIconCandidate) => boolean>,
+) {
+  for (const predicate of predicates) {
+    const match = candidates.find(
+      (candidate) => predicate(candidate) && !candidate.penalty && !candidate.exactMachineBonus,
+    );
+    if (match) {
+      return match.resource;
+    }
+  }
+
+  return undefined;
 }
 
 function tokenizeRecipeMap(value: string): string[] {

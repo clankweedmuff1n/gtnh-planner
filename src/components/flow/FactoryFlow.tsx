@@ -78,6 +78,7 @@ const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
 const RECIPE_SLOT_EDGE_OFFSET = 20;
 const STORAGE_SLOT_EDGE_OFFSET = 55;
 const EDGE_RECONNECT_RADIUS = STORAGE_SLOT_EDGE_OFFSET + 14;
+const EDGE_BUNDLE_CLEARANCE = 18;
 const EXPORT_IMAGE_MIN_SIZE = 1024;
 const EXPORT_IMAGE_MAX_SIZE = 2400;
 const EXPORT_IMAGE_PADDING = 80;
@@ -101,6 +102,16 @@ type ResourceEdgeData = {
   targetSlotEndpoint: boolean;
   sourceStorageEndpoint: boolean;
   targetStorageEndpoint: boolean;
+  bundle?: {
+    role: "primary" | "member";
+    mode: "single-target" | "multi-target";
+    size: number;
+    sourceHandleIds: string[];
+    primarySourceHandleId: string;
+    demand?: string;
+    transferred?: string;
+    isLimited: boolean;
+  };
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -222,8 +233,10 @@ export function FactoryFlow() {
   );
 
   const edges = useMemo<ResourceFlowEdge[]>(
-    () =>
-      project.edges.map((edge) => {
+    () => {
+      const edgeBundles = getEdgeBundles(project.edges, result.edges);
+
+      return project.edges.map((edge) => {
         const edgeResult = result.edges[edge.id];
         const unit = edge.resourceKind === "fluid" ? "L/s" : "/s";
         const demand = edgeResult?.demandPerSecond ?? edge.ratePerSecond ?? 0;
@@ -275,6 +288,7 @@ export function FactoryFlow() {
             targetSlotEndpoint: Boolean(targetHandle && !targetStorage),
             sourceStorageEndpoint: Boolean(sourceHandle && sourceStorage),
             targetStorageEndpoint: Boolean(targetHandle && targetStorage),
+            bundle: edgeBundles.get(edge.id),
           },
           style: {
             stroke: edgeColor,
@@ -291,7 +305,8 @@ export function FactoryFlow() {
                   : 2.35,
           },
         };
-      }),
+      });
+    },
     [hoveredStorageResourceKey, isNodeDragging, project, recipeSearch, result.edges],
   );
 
@@ -959,18 +974,46 @@ function ResourceEdge({
     isStorageSlotEndpoint: data?.targetStorageEndpoint,
     preferredSide: "target",
   });
-  const rate = formatEdgeRateLabel(data);
-  const isGlobalView = zoom < 0.35;
-  const showLabel = Boolean(data?.showLabel && (!isGlobalView || selected || !rate.startsWith("0 ")));
+  const rate = data?.bundle?.demand
+    ? `${formatEdgeValue(data.bundle.demand)} ${data.unit}`
+    : formatEdgeRateLabel(data);
+  const isGlobalView = zoom < 0.45;
+  const isHiddenBundleMember =
+    data?.bundle?.role === "member" && data.bundle.mode === "single-target";
+  const showLabel = Boolean(
+    data?.showLabel && !isHiddenBundleMember && (selected || !isGlobalView),
+  );
   const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
-  const routedEdge = getDirectEdgePath({
-    sourceX: visualSource.x,
-    sourceY: visualSource.y,
-    sourcePosition,
-    targetX: visualTarget.x,
-    targetY: visualTarget.y,
-    targetPosition,
-  });
+  const routedEdge =
+    data?.bundle?.role === "primary"
+      ? getBundledEdgePath({
+          sourceNodeId: source,
+          sourceHandleIds: data.bundle.sourceHandleIds,
+          sourcePosition,
+          fallbackSource: visualSource,
+          targetX: visualTarget.x,
+          targetY: visualTarget.y,
+          targetPosition,
+        })
+      : data?.bundle?.mode === "multi-target"
+        ? getBundledMemberEdgePath({
+            sourceNodeId: source,
+            sourceHandleId: data.sourceHandleId ?? sourceHandleId ?? undefined,
+            sourcePosition,
+            fallbackSource: visualSource,
+            targetX: visualTarget.x,
+            targetY: visualTarget.y,
+            targetPosition,
+            bundleSourceHandleIds: data.bundle.sourceHandleIds,
+          })
+      : getDirectEdgePath({
+          sourceX: visualSource.x,
+          sourceY: visualSource.y,
+          sourcePosition,
+          targetX: visualTarget.x,
+          targetY: visualTarget.y,
+          targetPosition,
+        });
   const labelX = routedEdge.labelX + labelOffset.x;
   const labelY = routedEdge.labelY + labelOffset.y;
 
@@ -994,16 +1037,30 @@ function ResourceEdge({
 
   return (
     <>
-      <BaseEdge
-        path={routedEdge.path}
-        style={{
-          ...style,
-          stroke: edgeColor,
-          strokeWidth: selected ? 6 : style?.strokeWidth,
-          filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
-        }}
-      />
-      {selected || !isGlobalView ? (
+      {!isHiddenBundleMember ? (
+        <BaseEdge
+          path={routedEdge.path}
+          style={{
+            ...style,
+            stroke: edgeColor,
+            strokeDasharray: isGlobalView && data?.isLimited ? "2 8" : style?.strokeDasharray,
+            strokeOpacity: selected
+              ? 1
+              : isGlobalView
+                ? data?.isLimited
+                  ? 0.28
+                  : 0.52
+                : style?.strokeOpacity,
+            strokeWidth: selected
+              ? 6
+              : data?.bundle?.role === "primary"
+                ? Math.max(Number(style?.strokeWidth ?? 2.6) + 0.6, 3.2)
+                : style?.strokeWidth,
+            filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
+          }}
+        />
+      ) : null}
+      {!isHiddenBundleMember && (selected || !isGlobalView) ? (
         <polygon
           points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
           fill={edgeColor}
@@ -1134,6 +1191,83 @@ function ResourceConnectionLine({
   );
 }
 
+function getEdgeBundles(
+  edges: FactoryEdge[],
+  edgeResults: Record<
+    string,
+    { demandPerSecond?: number; transferredPerSecond?: number; isLimited?: boolean }
+  >,
+) {
+  const groups = new Map<string, FactoryEdge[]>();
+
+  for (const edge of edges) {
+    const sourceHandle = parseResourceHandleId(edge.sourceHandle);
+    if (!sourceHandle || sourceHandle.side !== "output" || !edge.sourceHandle) {
+      continue;
+    }
+
+    const key = [edge.source, edge.resourceKind, edge.resourceId].join("|");
+    const group = groups.get(key);
+    if (group) {
+      group.push(edge);
+    } else {
+      groups.set(key, [edge]);
+    }
+  }
+
+  const bundles = new Map<string, NonNullable<ResourceEdgeData["bundle"]>>();
+  for (const group of groups.values()) {
+    const sourceHandleIds = [
+      ...new Set(
+        group
+          .map((edge) => edge.sourceHandle)
+          .filter((handleId): handleId is string => Boolean(handleId)),
+      ),
+    ];
+    if (sourceHandleIds.length < 2) {
+      continue;
+    }
+
+    const primaryEdge = group[Math.floor(group.length / 2)];
+    const targetKeys = new Set(
+      group.map((edge) => `${edge.target}|${edge.targetHandle ?? ""}|${edge.resourceKind}`),
+    );
+    const mode = targetKeys.size === 1 ? "single-target" : "multi-target";
+    const demand = group.reduce(
+      (sum, edge) => sum + (edgeResults[edge.id]?.demandPerSecond ?? edge.ratePerSecond ?? 0),
+      0,
+    );
+    const transferred = group.reduce(
+      (sum, edge) =>
+        sum +
+        (edgeResults[edge.id]?.isLimited
+          ? (edgeResults[edge.id]?.transferredPerSecond ?? 0)
+          : (edgeResults[edge.id]?.demandPerSecond ?? edge.ratePerSecond ?? 0)),
+      0,
+    );
+    const isLimited = group.some((edge) => edgeResults[edge.id]?.isLimited === true);
+    const primarySourceHandleId = primaryEdge.sourceHandle ?? sourceHandleIds[0];
+    if (!primarySourceHandleId) {
+      continue;
+    }
+
+    for (const edge of group) {
+      bundles.set(edge.id, {
+        role: edge.id === primaryEdge.id ? "primary" : "member",
+        mode,
+        size: group.length,
+        sourceHandleIds,
+        primarySourceHandleId,
+        demand: mode === "single-target" ? formatRate(demand) : undefined,
+        transferred: mode === "single-target" && isLimited ? formatRate(transferred) : undefined,
+        isLimited,
+      });
+    }
+  }
+
+  return bundles;
+}
+
 function getDirectEdgePath({
   sourceX,
   sourceY,
@@ -1173,6 +1307,152 @@ function getDirectEdgePath({
   };
 }
 
+function getBundledEdgePath({
+  sourceNodeId,
+  sourceHandleIds,
+  sourcePosition,
+  fallbackSource,
+  targetX,
+  targetY,
+  targetPosition,
+}: {
+  sourceNodeId: string;
+  sourceHandleIds: string[];
+  sourcePosition: Position;
+  fallbackSource: { x: number; y: number };
+  targetX: number;
+  targetY: number;
+  targetPosition: Position;
+}) {
+  const sourcePoints = sourceHandleIds
+    .map((handleId) =>
+      getMeasuredSlotEndpoint({
+        nodeId: sourceNodeId,
+        handleId,
+        edgeSide: String(sourcePosition),
+      }),
+    )
+    .filter((point): point is { x: number; y: number } => Boolean(point))
+    .sort((left, right) => left.y - right.y || left.x - right.x);
+
+  if (sourcePoints.length < 2) {
+    return getDirectEdgePath({
+      sourceX: fallbackSource.x,
+      sourceY: fallbackSource.y,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    });
+  }
+
+  const isLeft = String(sourcePosition) === "left";
+  const busX = isLeft
+    ? Math.min(...sourcePoints.map((point) => point.x)) - EDGE_BUNDLE_CLEARANCE
+    : Math.max(...sourcePoints.map((point) => point.x)) + EDGE_BUNDLE_CLEARANCE;
+  const minY = Math.min(...sourcePoints.map((point) => point.y));
+  const maxY = Math.max(...sourcePoints.map((point) => point.y));
+  const trunkY = sourcePoints[Math.floor(sourcePoints.length / 2)].y;
+  const midX = (busX + targetX) / 2;
+  const trunkPoints = compactPolylinePoints([
+    { x: busX, y: trunkY },
+    { x: midX, y: trunkY },
+    { x: midX, y: targetY },
+    { x: targetX, y: targetY },
+  ]);
+  const path = [
+    ...sourcePoints.map((point) => `M ${point.x},${point.y} L ${busX},${point.y}`),
+    `M ${busX},${minY} L ${busX},${maxY}`,
+    pointsToSvgPath(trunkPoints),
+  ].join(" ");
+  const labelPoint = getPointAtPolylineRatio(trunkPoints, 0.55) ?? {
+    x: (busX + targetX) / 2,
+    y: (trunkY + targetY) / 2,
+  };
+
+  return {
+    path,
+    labelX: labelPoint.x,
+    labelY: labelPoint.y,
+    points: trunkPoints,
+  };
+}
+
+function getBundledMemberEdgePath({
+  sourceNodeId,
+  sourceHandleId,
+  sourcePosition,
+  fallbackSource,
+  targetX,
+  targetY,
+  targetPosition,
+  bundleSourceHandleIds,
+}: {
+  sourceNodeId: string;
+  sourceHandleId?: string;
+  sourcePosition: Position;
+  fallbackSource: { x: number; y: number };
+  targetX: number;
+  targetY: number;
+  targetPosition: Position;
+  bundleSourceHandleIds: string[];
+}) {
+  const allSourcePoints = bundleSourceHandleIds
+    .map((handleId) =>
+      getMeasuredSlotEndpoint({
+        nodeId: sourceNodeId,
+        handleId,
+        edgeSide: String(sourcePosition),
+      }),
+    )
+    .filter((point): point is { x: number; y: number } => Boolean(point));
+  const ownSourcePoint = sourceHandleId
+    ? getMeasuredSlotEndpoint({
+        nodeId: sourceNodeId,
+        handleId: sourceHandleId,
+        edgeSide: String(sourcePosition),
+      })
+    : undefined;
+
+  if (allSourcePoints.length < 2 || !ownSourcePoint) {
+    return getDirectEdgePath({
+      sourceX: fallbackSource.x,
+      sourceY: fallbackSource.y,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    });
+  }
+
+  const isLeft = String(sourcePosition) === "left";
+  const busX = isLeft
+    ? Math.min(...allSourcePoints.map((point) => point.x)) - EDGE_BUNDLE_CLEARANCE
+    : Math.max(...allSourcePoints.map((point) => point.x)) + EDGE_BUNDLE_CLEARANCE;
+  const midX = (busX + targetX) / 2;
+  const points = compactPolylinePoints([
+    { x: busX, y: ownSourcePoint.y },
+    { x: midX, y: ownSourcePoint.y },
+    { x: midX, y: targetY },
+    { x: targetX, y: targetY },
+  ]);
+  const [path, labelX, labelY] = getSmoothStepPath({
+    sourceX: busX,
+    sourceY: ownSourcePoint.y,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  return {
+    path,
+    labelX,
+    labelY,
+    points,
+  };
+}
+
 function compactPolylinePoints(points: Array<{ x: number; y: number } | undefined>) {
   const compacted: Array<{ x: number; y: number }> = [];
   for (const point of points) {
@@ -1189,6 +1469,38 @@ function compactPolylinePoints(points: Array<{ x: number; y: number } | undefine
   }
 
   return compacted;
+}
+
+function pointsToSvgPath(points: Array<{ x: number; y: number }>) {
+  const [first, ...rest] = points;
+  if (!first) {
+    return "";
+  }
+
+  return [`M ${first.x},${first.y}`, ...rest.map((point) => `L ${point.x},${point.y}`)].join(" ");
+}
+
+function getPointAtPolylineRatio(points: Array<{ x: number; y: number }>, ratio: number) {
+  const segments = getPolylineSegments(points);
+  const totalLength = segments.reduce((sum, segment) => sum + segment.length, 0);
+  if (totalLength <= 0) {
+    return points[0];
+  }
+
+  let remaining = totalLength * clamp(ratio, 0, 1);
+  for (const segment of segments) {
+    if (remaining <= segment.length) {
+      const t = segment.length <= 0 ? 0 : remaining / segment.length;
+      return {
+        x: segment.start.x + (segment.end.x - segment.start.x) * t,
+        y: segment.start.y + (segment.end.y - segment.start.y) * t,
+      };
+    }
+
+    remaining -= segment.length;
+  }
+
+  return points[points.length - 1];
 }
 
 function getClosestPointOnPolyline(

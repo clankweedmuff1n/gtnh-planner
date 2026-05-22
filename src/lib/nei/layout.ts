@@ -336,7 +336,7 @@ function getProgressTextureForRecipeMap(recipeMap: string): NeiProgressTexture {
 }
 
 function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLayoutDefinition {
-  const exact = RECIPE_MAP_LAYOUTS[recipeMap];
+  const exact = findRecipeMapLayout(recipeMap);
   const exportedGrid = exportedGridLayout(recipe);
   if (exportedGrid) {
     return exact ? withMinimumSlotCapacity(exportedGrid, exact) : exportedGrid;
@@ -344,7 +344,7 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
 
   if (exact) return exact;
 
-  if (ASSEMBLY_LINE_MAPS.has(recipeMap)) {
+  if (matchesKnownRecipeMap(recipeMap, ASSEMBLY_LINE_MAPS)) {
     return {
       id: "assembly-line",
       maxItemInputs: 16,
@@ -358,7 +358,7 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
     };
   }
 
-  if (FLUID_ONLY_MAPS.has(recipeMap)) {
+  if (matchesKnownRecipeMap(recipeMap, FLUID_ONLY_MAPS)) {
     return {
       id: "fluid-only",
       maxItemInputs: 0,
@@ -370,7 +370,7 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
     };
   }
 
-  if (LARGE_NEI_MAPS.has(recipeMap) || needsLargeLayout(recipe)) {
+  if (matchesKnownRecipeMap(recipeMap, LARGE_NEI_MAPS) || needsLargeLayout(recipe)) {
     const maxItemInputs = Math.max(6, countKind(recipe.inputs, "item"));
     const maxItemOutputs = Math.max(6, countKind(recipe.outputs, "item"));
     const maxFluidInputs = Math.max(6, countKind(recipe.inputs, "fluid"));
@@ -395,6 +395,33 @@ function resolveLayoutDefinition(recipeMap: string, recipe: Recipe): RecipeMapLa
   return {
     id: "default",
   };
+}
+
+function findRecipeMapLayout(recipeMap: string): RecipeMapLayoutDefinition | undefined {
+  return (
+    RECIPE_MAP_LAYOUTS[recipeMap] ??
+    Object.entries(RECIPE_MAP_LAYOUTS).find(([knownRecipeMap]) =>
+      recipeMapMatches(recipeMap, knownRecipeMap),
+    )?.[1]
+  );
+}
+
+function matchesKnownRecipeMap(recipeMap: string, knownRecipeMaps: Set<string>): boolean {
+  return [...knownRecipeMaps].some((knownRecipeMap) => recipeMapMatches(recipeMap, knownRecipeMap));
+}
+
+function recipeMapMatches(recipeMap: string, knownRecipeMap: string): boolean {
+  const normalized = normalizeRecipeMapName(recipeMap);
+  const known = normalizeRecipeMapName(knownRecipeMap);
+  return normalized === known || normalized.includes(known);
+}
+
+function normalizeRecipeMapName(recipeMap: string): string {
+  return recipeMap
+    .toLowerCase()
+    .replace(/\b(recipes?|recipe map|map)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function withMinimumSlotCapacity(

@@ -165,6 +165,7 @@ export const factoryEdgeSchema = z.object({
   resourceId: z.string().min(1),
   label: z.string().optional(),
   ratePerSecond: z.number().positive().optional(),
+  labelOffset: z.object({ x: z.number(), y: z.number() }).optional(),
 });
 
 export const fuelProfileSchema = z

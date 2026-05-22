@@ -120,6 +120,7 @@ interface FactoryStore {
       targetHandle?: string | null;
     },
   ) => void;
+  updateEdge: (edgeId: string, patch: Partial<FactoryEdge>) => void;
   autoConnectNode: (nodeId: string) => void;
   deleteEdge: (edgeId: string) => void;
   setTargetRate: (targetRate?: TargetRate) => void;
@@ -749,6 +750,21 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
             : [...projectWithoutOld.edges, edge],
         }),
       );
+
+      return {
+        project,
+        lastResult: calculateThroughput(project),
+      };
+    });
+  },
+  updateEdge: (edgeId, patch) => {
+    set((state) => {
+      const project = touchProject({
+        ...state.project,
+        edges: state.project.edges.map((edge) =>
+          edge.id === edgeId ? { ...edge, ...patch } : edge,
+        ),
+      });
 
       return {
         project,

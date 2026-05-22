@@ -146,6 +146,31 @@ describe("NEI layout", () => {
     expect(itemOutputFrames.filter((frame) => frame.resource)).toHaveLength(3);
   });
 
+  it("keeps known machine empty slots for exported recipe map name variants", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Chemical Plant",
+        sourceRecipeMap: "chemical plant recipe map",
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [{ kind: "fluid", id: "acid", amount: 1000 }],
+      }),
+    );
+
+    expect(layout.id).toBe("gtpp-chemical-plant");
+    expect(
+      layout.frames.filter((frame) => frame.kind === "item" && frame.side === "input"),
+    ).toHaveLength(4);
+    expect(
+      layout.frames.filter((frame) => frame.kind === "item" && frame.side === "output"),
+    ).toHaveLength(6);
+    expect(
+      layout.frames.filter((frame) => frame.kind === "fluid" && frame.side === "input"),
+    ).toHaveLength(4);
+    expect(
+      layout.frames.filter((frame) => frame.kind === "fluid" && frame.side === "output"),
+    ).toHaveLength(3);
+  });
+
   it("marks known machine output overflow without changing the full expanded layout", () => {
     const layout = getNeiRecipeLayout(
       recipe({

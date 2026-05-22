@@ -87,7 +87,7 @@ describe("enrichDatasetRecipes", () => {
     });
   });
 
-  it("applies recipe map slot capacity overrides to exported name variants", () => {
+  it("applies known recipe map slot capacity overrides to exported name variants", () => {
     const dataset = baseDataset([
       {
         id: "partial-multiblock-electrolyzer",
@@ -103,12 +103,31 @@ describe("enrichDatasetRecipes", () => {
         ],
         source: { recipeMap: "multiblock electrolyzer recipes" },
       },
+      {
+        id: "partial-chemical-plant",
+        name: "Partial Chemical Plant",
+        machineType: "Chemical Plant",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 8,
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [{ kind: "fluid", id: "acid", amount: 1000 }],
+        source: { recipeMap: "chemical plant recipe map" },
+      },
     ]);
 
     const enriched = enrichDatasetRecipes(dataset);
 
     expect(enriched.recipes[0]?.nei?.slotCapacity).toMatchObject({
       maxItemOutputs: 6,
+      maxFluidInputs: 6,
+      maxFluidOutputs: 6,
+    });
+    expect(enriched.recipes[1]?.nei?.slotCapacity).toMatchObject({
+      maxItemInputs: 4,
+      maxItemOutputs: 6,
+      maxFluidInputs: 4,
+      maxFluidOutputs: 3,
     });
   });
 });

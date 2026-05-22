@@ -8,14 +8,46 @@ interface RecipeMapSlotCapacity {
   maxFluidOutputs?: number;
 }
 
-const RECIPE_MAP_SLOT_CAPACITY_OVERRIDES: Record<string, RecipeMapSlotCapacity> = {
-  Centrifuge: {
-    maxItemOutputs: 6,
+const RECIPE_MAP_SLOT_CAPACITY_OVERRIDES: Array<{
+  patterns: string[];
+  capacity: RecipeMapSlotCapacity;
+}> = [
+  {
+    patterns: ["centrifuge"],
+    capacity: { maxItemOutputs: 6, maxFluidOutputs: 1 },
   },
-  Electrolyzer: {
-    maxItemOutputs: 6,
+  {
+    patterns: ["chemical plant"],
+    capacity: { maxItemInputs: 4, maxItemOutputs: 6, maxFluidInputs: 4, maxFluidOutputs: 3 },
   },
-};
+  {
+    patterns: ["distillation tower"],
+    capacity: { maxItemOutputs: 1, maxFluidOutputs: 11 },
+  },
+  {
+    patterns: ["zhuhai", "fishing port"],
+    capacity: { maxItemInputs: 1, maxItemOutputs: 25 },
+  },
+  {
+    patterns: [
+      "entropic processing",
+      "large chemical reactor",
+      "plasma arc furnace",
+      "vacuum furnace",
+      "vacuum freezer",
+      "multiblock centrifuge",
+      "multiblock electrolyzer",
+      "multiblock mixer",
+      "multiblock dehydrator",
+      "transcendent plasma mixer",
+    ],
+    capacity: { maxItemInputs: 6, maxItemOutputs: 6, maxFluidInputs: 6, maxFluidOutputs: 6 },
+  },
+  {
+    patterns: ["electrolyzer"],
+    capacity: { maxItemOutputs: 6 },
+  },
+];
 
 export function enrichDatasetRecipes(dataset: RecipeDataset): RecipeDataset {
   const resourcesByKey = new Map(
@@ -136,28 +168,14 @@ function buildRecipeMapSlotCapacities(recipes: Recipe[]): Map<string, RecipeMapS
     capacities.set(recipeMap, mergeSlotCapacity(existing, observedSlotCapacity(recipe)));
   }
 
-  for (const [recipeMap, override] of Object.entries(RECIPE_MAP_SLOT_CAPACITY_OVERRIDES)) {
-    capacities.set(recipeMap, mergeSlotCapacity(capacities.get(recipeMap), override));
-  }
-
   return capacities;
 }
 
 function recipeMapSlotCapacityOverride(recipeMap: string): RecipeMapSlotCapacity | undefined {
-  const exact = RECIPE_MAP_SLOT_CAPACITY_OVERRIDES[recipeMap];
-  if (exact) {
-    return exact;
-  }
-
   const normalized = recipeMap.toLowerCase();
-  if (normalized.includes("centrifuge")) {
-    return RECIPE_MAP_SLOT_CAPACITY_OVERRIDES.Centrifuge;
-  }
-  if (normalized.includes("electrolyzer")) {
-    return RECIPE_MAP_SLOT_CAPACITY_OVERRIDES.Electrolyzer;
-  }
-
-  return undefined;
+  return RECIPE_MAP_SLOT_CAPACITY_OVERRIDES.find((override) =>
+    override.patterns.some((pattern) => normalized.includes(pattern)),
+  )?.capacity;
 }
 
 function observedSlotCapacity(recipe: Recipe): RecipeMapSlotCapacity {

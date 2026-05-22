@@ -23,10 +23,18 @@ import {
   type NodeTypes,
   type OnSelectionChangeParams,
   type ReactFlowInstance,
+  useStore,
 } from "@xyflow/react";
 import { toPng, toSvg } from "html-to-image";
 import { Paintbrush, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   FLOW_IMAGE_EXPORT_EVENT,
   dataUrlToBlob,
@@ -85,6 +93,7 @@ type ResourceEdgeData = {
   isLimited: boolean;
   isStorageEdge: boolean;
   showLabel: boolean;
+  labelOffset?: { x: number; y: number };
   sourceHandleId?: string | null;
   targetHandleId?: string | null;
   sourceSlotEndpoint: boolean;
@@ -257,6 +266,7 @@ export function FactoryFlow() {
             isLimited: edgeResult?.isLimited === true,
             isStorageEdge,
             showLabel: true,
+            labelOffset: edge.labelOffset,
             sourceHandleId: edge.sourceHandle,
             targetHandleId: edge.targetHandle,
             sourceSlotEndpoint: Boolean(sourceHandle && !sourceStorage),
@@ -270,11 +280,11 @@ export function FactoryFlow() {
             strokeOpacity: isStorageEdge ? 0.9 : 1,
             strokeWidth: isStorageEdge
               ? isStorageEdgeEmphasized
-                ? 3
-                : 2
+                ? 5
+                : 4
               : edgeResult?.isLimited
-                ? 3
-                : 2,
+                ? 5
+                : 4,
           },
         };
       }),
@@ -856,6 +866,7 @@ function PaintToolbar({
 }
 
 function ResourceEdge({
+  id,
   sourceX,
   sourceY,
   sourcePosition,
@@ -870,6 +881,22 @@ function ResourceEdge({
   selected,
   data,
 }: EdgeProps<ResourceFlowEdge>) {
+  const updateEdge = useFactoryStore((state) => state.updateEdge);
+  const zoom = useStore((store) => store.transform[2]);
+  const storedLabelOffsetX = data?.labelOffset?.x ?? 0;
+  const storedLabelOffsetY = data?.labelOffset?.y ?? 0;
+  const storedLabelOffset = { x: storedLabelOffsetX, y: storedLabelOffsetY };
+  const [draftLabelOffset, setDraftLabelOffset] = useState(storedLabelOffset);
+  const [isLabelDragging, setLabelDragging] = useState(false);
+  const labelDragRef = useRef<
+    | {
+        pointerId: number;
+        clientX: number;
+        clientY: number;
+        offset: { x: number; y: number };
+      }
+    | undefined
+  >(undefined);
   const resourceColor = data?.resource
     ? getInitialResourceColor(data.resource)
     : (data?.color ?? DEFAULT_ITEM_EDGE_COLOR);
@@ -904,6 +931,21 @@ function ResourceEdge({
   });
 
   const rate = formatEdgeRateLabel(data);
+  const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
+
+  const stopLabelDrag = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!labelDragRef.current) {
+        return;
+      }
+
+      event.currentTarget.releasePointerCapture(labelDragRef.current.pointerId);
+      labelDragRef.current = undefined;
+      setLabelDragging(false);
+      updateEdge(id, { labelOffset: draftLabelOffset });
+    },
+    [draftLabelOffset, id, updateEdge],
+  );
 
   return (
     <>
@@ -912,7 +954,7 @@ function ResourceEdge({
         style={{
           ...style,
           stroke: edgeColor,
-          strokeWidth: selected ? 5 : style?.strokeWidth,
+          strokeWidth: selected ? 7 : style?.strokeWidth,
           filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
         }}
       />
@@ -920,7 +962,7 @@ function ResourceEdge({
         points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
         fill={edgeColor}
         stroke="#252525"
-        strokeWidth={selected ? 1.4 : 0.8}
+        strokeWidth={selected ? 1.8 : 1.2}
         style={{
           filter: selected ? "drop-shadow(0 0 4px rgba(34,211,238,0.9))" : undefined,
         }}
@@ -928,15 +970,47 @@ function ResourceEdge({
       {data?.showLabel ? (
         <EdgeLabelRenderer>
           <div
-            className="nodrag nopan absolute flex items-center gap-1 border border-[#252525] bg-[#2b2d32] px-1.5 py-1 text-[11px] font-medium text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.18),inset_-1px_-1px_0_rgba(0,0,0,0.55)]"
+            className="nodrag nopan absolute flex cursor-grab items-center gap-1 border border-[#252525] bg-[#2b2d32] px-1.5 py-1 text-[11px] font-medium text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.18),inset_-1px_-1px_0_rgba(0,0,0,0.55)] active:cursor-grabbing"
             style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX + labelOffset.x}px, ${labelY + labelOffset.y}px)`,
               pointerEvents: "all",
               color: data.isLimited ? "#fecaca" : "#f8fafc",
               borderColor: edgeColor,
               boxShadow: selected ? "0 0 0 2px rgba(34,211,238,0.9)" : undefined,
             }}
-            title={`${data.resource.displayName ?? data.resource.id}: ${rate}`}
+            title={`${data.resource.displayName ?? data.resource.id}: ${rate}. Drag to move label. Double click to reset.`}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              labelDragRef.current = {
+                pointerId: event.pointerId,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                offset: labelOffset,
+              };
+              setLabelDragging(true);
+              setDraftLabelOffset(labelOffset);
+            }}
+            onPointerMove={(event) => {
+              const drag = labelDragRef.current;
+              if (!drag) {
+                return;
+              }
+
+              event.stopPropagation();
+              const scale = zoom > 0 ? zoom : 1;
+              setDraftLabelOffset({
+                x: drag.offset.x + (event.clientX - drag.clientX) / scale,
+                y: drag.offset.y + (event.clientY - drag.clientY) / scale,
+              });
+            }}
+            onPointerUp={stopLabelDrag}
+            onPointerCancel={stopLabelDrag}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              setDraftLabelOffset({ x: 0, y: 0 });
+              updateEdge(id, { labelOffset: undefined });
+            }}
           >
             <ResourceIcon
               resource={data.resource}

@@ -173,6 +173,10 @@ export interface FactoryEdge {
   resourceId: ResourceId;
   label?: string;
   ratePerSecond?: number;
+  labelOffset?: {
+    x: number;
+    y: number;
+  };
 }
 
 export interface FuelProfile {

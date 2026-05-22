@@ -85,7 +85,7 @@ function normalizeGregtechRecipes(source) {
       const inputs = [
         ...(rawRecipe.iI ?? []).map((item) =>
           itemAmount(item, {
-            consumed: !isNonConsumedInput(item),
+            consumed: !isNonConsumedInput(item) && !isCircuitItem(item),
             defaultAmount: isNonConsumedInput(item) ? 1 : undefined,
           }),
         ),
@@ -367,6 +367,10 @@ function outputChance(item) {
     return undefined;
   }
 
+  if (item.ch <= 0) {
+    return undefined;
+  }
+
   const chance = item.ch / 10000;
   if (chance >= 1) {
     return undefined;
@@ -390,6 +394,19 @@ function detectProgrammedCircuit(inputs) {
 function isNonConsumedInput(item) {
   return Boolean(
     item?.nc || item?.nC || item?.notConsumed || item?.nonConsumed || item?.consumed === false,
+  );
+}
+
+function isCircuitItem(item) {
+  if (!item?.id) {
+    return false;
+  }
+
+  const label = `${item.id} ${text(item.lN, "")}`.toLowerCase();
+  return (
+    label.includes("programmed circuit") ||
+    label.includes("integrated circuit") ||
+    label.includes("circuit configuration")
   );
 }
 

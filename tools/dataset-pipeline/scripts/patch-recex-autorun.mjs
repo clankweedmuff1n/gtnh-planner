@@ -213,6 +213,11 @@ const exporterPath = path.join(
 let exporterSource = await fs.readFile(exporterPath, "utf8");
 
 exporterSource = exporterSource.replace(
+  "import java.util.ArrayList;",
+  ["import java.lang.reflect.Field;", "import java.util.ArrayList;"].join("\n"),
+);
+
+exporterSource = exporterSource.replace(
   "        out.mInputChances = recipe.mInputChances;\n",
   [
     "        // GTNH stable 2.8.x runtime GregTech does not expose mInputChances.",

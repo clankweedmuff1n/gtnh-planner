@@ -96,8 +96,9 @@ Useful knobs:
   kept because the Minecraft renderer and cache already use it.
 - `GTNH_ICON_CACHE_DIR=$HOME/.cache/gtnh-factory-flow/icons/<size>` stores rendered
   icons reused between stable and daily when the item/fluid key resolves to the same
-  filename. It intentionally lives outside the Actions workspace so `actions/checkout`
-  cannot delete it between matrix jobs.
+  stack/fluid key. In CI it is mounted from the self-hosted runner's persistent
+  `$HOME/data/gtnh-factory-flow/icon-cache/<size>` directory, so `actions/checkout`
+  and Docker container cleanup cannot delete it between builds.
 - `GTNH_ATLAS_MAX_SIZE` and `GTNH_ATLAS_KEEP_RENDERED` are legacy knobs for the old
   atlas packer. The default pipeline now removes `textures/rendered/` after writing
   `textures/icons/*.png`.

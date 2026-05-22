@@ -378,9 +378,15 @@ public final class ClientItemStackIconRenderer {
             return MaterializedIconResult.SKIPPED;
         }
 
-        File cachedFile = cacheFile(filename);
+        File cachedFile = cacheFileForKey(key, filename);
         if (cachedFile.isFile()) {
             Files.copy(cachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return MaterializedIconResult.CACHE_HIT;
+        }
+        File legacyCachedFile = cacheFile(filename);
+        if (legacyCachedFile.isFile()) {
+            Files.copy(legacyCachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(legacyCachedFile.toPath(), cachedFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return MaterializedIconResult.CACHE_HIT;
         }
 
@@ -611,6 +617,14 @@ public final class ClientItemStackIconRenderer {
 
     static File cacheFile(String filename) {
         return new File(cacheDir(), filename);
+    }
+
+    static File cacheFileForKey(String key, String fallbackFilename) {
+        try {
+            return new File(cacheDir(), "stack-" + sha1(key) + ".png");
+        } catch (Throwable t) {
+            return cacheFile(fallbackFilename);
+        }
     }
 
     static void resetTessellator() {

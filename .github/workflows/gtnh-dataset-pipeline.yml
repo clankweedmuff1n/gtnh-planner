@@ -99,8 +99,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           staging_root="$HOME/data/gtnh-factory-flow/staging/${GITHUB_RUN_ID}/datasets/gtnh"
+          icon_cache_root="$HOME/data/gtnh-factory-flow/icon-cache/${GTNH_ATLAS_ICON_SIZE}"
           rm -rf "$staging_root/${GTNH_VERSION_ID}"
           mkdir -p "$staging_root"
+          mkdir -p "$icon_cache_root"
           container_name="gtnh-export-${GTNH_VERSION_ID}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
           docker run --rm \
@@ -125,9 +127,11 @@ jobs:
             -e GTNH_RENDER_STACK_ICONS \
             -e GTNH_ATLAS_ICON_SIZE \
             -e GTNH_ATLAS_MAX_SIZE \
+            -e GTNH_ICON_CACHE_DIR=/icon-cache \
             -e GTNH_EXPORT_DISABLE_CLIENT_UI_MODS \
             -e GTNH_DATASETS_ROOT=/datasets \
             -v "$staging_root:/datasets" \
+            -v "$icon_cache_root:/icon-cache" \
             -v "$PWD:/workspace" \
             -w /workspace \
             gtnh-factory-flow-dataset:ci \

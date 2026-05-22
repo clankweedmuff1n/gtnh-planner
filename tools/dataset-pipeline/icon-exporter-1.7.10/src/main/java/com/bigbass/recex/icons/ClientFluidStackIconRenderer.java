@@ -184,9 +184,15 @@ public final class ClientFluidStackIconRenderer {
             return MaterializedFluidIconResult.SKIPPED;
         }
 
-        File cachedFile = ClientItemStackIconRenderer.cacheFile(filename);
+        File cachedFile = ClientItemStackIconRenderer.cacheFileForKey("fluid:" + key, filename);
         if (cachedFile.isFile()) {
             Files.copy(cachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            return MaterializedFluidIconResult.CACHE_HIT;
+        }
+        File legacyCachedFile = ClientItemStackIconRenderer.cacheFile(filename);
+        if (legacyCachedFile.isFile()) {
+            Files.copy(legacyCachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(legacyCachedFile.toPath(), cachedFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return MaterializedFluidIconResult.CACHE_HIT;
         }
 

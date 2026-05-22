@@ -531,6 +531,7 @@ export function RecipeBrowser() {
           }}
           onRecipeMapHover={prefetchRecipeMap}
           onSelectRecipe={selectRecipe}
+          onClose={clearResourceBrowser}
         />
       ) : null}
     </>
@@ -929,6 +930,7 @@ function RecipeBookOverlay({
   onRecipeMapChange,
   onRecipeMapHover,
   onSelectRecipe,
+  onClose,
 }: {
   activeRecipeMap: string;
   activeResource: IndexedResource & { anchorNodeId?: string };
@@ -943,6 +945,7 @@ function RecipeBookOverlay({
   onRecipeMapChange: (recipeMap: string) => void;
   onRecipeMapHover: (recipeMap: string) => void;
   onSelectRecipe: (recipeId: string) => void;
+  onClose: () => void;
 }) {
   const panelRef = useRef<HTMLElement>(null);
   const initialPanelSize = getInitialRecipeBookSize();
@@ -1000,11 +1003,15 @@ function RecipeBookOverlay({
   };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center px-3 py-4 lg:left-[360px] lg:right-[440px]">
+    <div
+      className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center px-3 py-4 lg:left-[360px] lg:right-[440px]"
+      onPointerDown={onClose}
+    >
       <section
         ref={panelRef}
         className="pointer-events-auto relative flex flex-col font-mono"
         aria-label="Recipe book"
+        onPointerDown={(event) => event.stopPropagation()}
         style={{
           transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)`,
           width: `min(${panelSize.width}px, calc(100vw - 24px))`,

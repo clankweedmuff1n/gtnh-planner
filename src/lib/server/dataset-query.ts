@@ -8,7 +8,7 @@ import type {
   DatasetVersion,
   RecipeSummary,
 } from "@/lib/datasets/types";
-import type { MachineTier, Recipe, ResourceAmount } from "@/lib/model/types";
+import type { MachineTier, Recipe, RecipeOutput, ResourceAmount } from "@/lib/model/types";
 import { getRecipePowerTier, GT_VOLTAGE_TIERS, isVirtualChoiceResource } from "@/lib/model";
 
 type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
@@ -33,6 +33,16 @@ interface LoadedRecipeIndex {
   resourcesByKey?: Map<string, DatasetResource | DatasetResourceIndexEntry>;
   recipeMapIconCandidates?: RecipeMapIconCandidate[];
   recipeMapIconCache?: Map<string, DatasetResourceIndexEntry | undefined>;
+  recipesByRawRecipeId?: Map<string, Recipe[]>;
+}
+
+export interface DatasetRecipeRef {
+  id: string;
+  name: string;
+  machineType: string;
+  recipeMap?: string;
+  rawRecipeId?: string;
+  outputs: Array<Pick<RecipeOutput, "kind" | "id">>;
 }
 
 interface RecipeLookupIndexFile {
@@ -107,6 +117,49 @@ export async function getDatasetCatalog(versionId: string) {
   };
 }
 
+export async function getDatasetRecipeIds(versionId: string): Promise<string[]> {
+  const catalog = await loadCatalog(versionId);
+  if (catalog.version.recipeLookupIndexPath) {
+    return (await loadRecipeLookupIndex(catalog.version)).recipeIds;
+  }
+
+  const recipeCatalog = await loadRecipeIndex(versionId);
+  return recipeCatalog.recipes?.map((recipe) => recipe.id) ?? [];
+}
+
+export async function resolveDatasetRecipeRefs(
+  versionId: string,
+  refs: DatasetRecipeRef[],
+): Promise<Array<{ importedId: string; recipeId: string }>> {
+  if (!refs.some((ref) => ref.rawRecipeId)) {
+    return [];
+  }
+
+  const catalog = await loadCatalog(versionId);
+  const recipesByRawRecipeId = await getRecipesByRawRecipeId(catalog);
+
+  return refs
+    .map((ref) => {
+      if (!ref.rawRecipeId) {
+        return undefined;
+      }
+
+      const match = recipesByRawRecipeId
+        .get(ref.rawRecipeId)
+        ?.find(
+          (recipe) =>
+            recipe.id !== ref.id &&
+            recipe.name === ref.name &&
+            recipe.machineType === ref.machineType &&
+            (!ref.recipeMap || recipe.source?.recipeMap === ref.recipeMap) &&
+            outputsAreCompatible(ref.outputs, recipe.outputs),
+        );
+
+      return match ? { importedId: ref.id, recipeId: match.id } : undefined;
+    })
+    .filter((match): match is { importedId: string; recipeId: string } => Boolean(match));
+}
+
 export async function queryDatasetResources(
   versionId: string,
   request: {
@@ -122,7 +175,11 @@ export async function queryDatasetResources(
 
   for (const resourceIndex of indexes.sortedResourceIndexes) {
     const resource = catalog.resourceIndex[resourceIndex];
-    if (!resource || isVirtualChoiceResource(resource) || (!resource.iconPath && !resource.iconAtlas)) {
+    if (
+      !resource ||
+      isVirtualChoiceResource(resource) ||
+      (!resource.iconPath && !resource.iconAtlas)
+    ) {
       continue;
     }
     if (query && !resourceSearchTextMatches(indexes.searchText[resourceIndex] ?? "", query)) {
@@ -485,6 +542,47 @@ async function loadShard(version: DatasetVersion, shard: RecipeIndexShard): Prom
   return promise;
 }
 
+async function getRecipesByRawRecipeId(catalog: LoadedRecipeIndex): Promise<Map<string, Recipe[]>> {
+  if (catalog.recipesByRawRecipeId) {
+    return catalog.recipesByRawRecipeId;
+  }
+
+  const recipesByRawRecipeId = new Map<string, Recipe[]>();
+  const shardRecipes = await Promise.all(
+    catalog.shards.map((shard) => loadShard(catalog.version, shard)),
+  );
+  for (const recipe of shardRecipes.flat()) {
+    const rawRecipeId = recipe.source?.rawRecipeId;
+    if (!rawRecipeId) {
+      continue;
+    }
+
+    const existing = recipesByRawRecipeId.get(rawRecipeId);
+    if (existing) {
+      existing.push(recipe);
+    } else {
+      recipesByRawRecipeId.set(rawRecipeId, [recipe]);
+    }
+  }
+
+  catalog.recipesByRawRecipeId = recipesByRawRecipeId;
+  return recipesByRawRecipeId;
+}
+
+function outputsAreCompatible(
+  importedOutputs: Array<Pick<RecipeOutput, "kind" | "id">>,
+  candidateOutputs: RecipeOutput[],
+): boolean {
+  if (importedOutputs.length === 0) {
+    return true;
+  }
+
+  const candidateResources = new Set(
+    candidateOutputs.map((output) => `${output.kind}:${output.id}`),
+  );
+  return importedOutputs.every((output) => candidateResources.has(`${output.kind}:${output.id}`));
+}
+
 async function readGzipJson<T>(filePath: string): Promise<T> {
   const data = await fs.readFile(filePath);
   return JSON.parse(gunzipSync(data).toString("utf8")) as T;
@@ -521,7 +619,8 @@ function hydrateResource<T extends ResourceAmount>(
       indexed.dominantColor ??
       resource.iconAtlas?.dominantColor ??
       indexed.iconAtlas?.dominantColor,
-    alternatives: resource.alternatives ?? ("alternatives" in indexed ? indexed.alternatives : undefined),
+    alternatives:
+      resource.alternatives ?? ("alternatives" in indexed ? indexed.alternatives : undefined),
   };
 }
 

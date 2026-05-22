@@ -17,8 +17,14 @@ import {
   serializeFactoryProject,
 } from "@/lib/import-export";
 import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
-import { getRecipeDatasetRecipe } from "@/lib/datasets/browser-loader";
+import {
+  getRecipeDatasetRecipe,
+  getRecipeDatasetRecipeIds,
+  queryRecipeDatasetRecipes,
+  resolveRecipeDatasetRecipes,
+} from "@/lib/datasets/browser-loader";
 import type { DatasetVersion } from "@/lib/datasets";
+import type { FactoryProject, Recipe, RecipeOutput } from "@/lib/model/types";
 import {
   FLOW_IMAGE_EXPORT_COMPLETE_EVENT,
   FLOW_IMAGE_EXPORT_EVENT,
@@ -31,6 +37,17 @@ interface TopBarProps {
   onLoadDatasetVersion: (versionId: string) => void;
 }
 
+type ImportNotice =
+  | {
+      kind: "success";
+      message: string;
+    }
+  | {
+      kind: "warning" | "error";
+      message: string;
+      details?: string[];
+    };
+
 export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   const projectInputRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -38,6 +55,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   const [pendingExport, setPendingExport] = useState<
     { format: "json" | "svg" | "png"; requestId: string } | undefined
   >();
+  const [importNotice, setImportNotice] = useState<ImportNotice>();
   const project = useFactoryStore((state) => state.project);
   const manifest = useFactoryStore((state) => state.datasetManifest);
   const selectedDatasetVersionId = useFactoryStore((state) => state.selectedDatasetVersionId);
@@ -82,19 +100,83 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   };
 
   const importProjectJson = async (file: File) => {
+    setImportNotice(undefined);
+
     try {
       const text = await readProjectFile(file);
       const selectedDatasetVersion = manifest?.versions.find(
         (version) => version.id === selectedDatasetVersionId,
       );
       const importedProject = cloneImportedProject(parseFactoryProjectJson(text));
-      setProject(
-        selectedDatasetVersion
-          ? await hydrateImportedProjectRecipes(importedProject, selectedDatasetVersion)
-          : importedProject,
+
+      if (!selectedDatasetVersion) {
+        setProject(importedProject);
+        setImportNotice({
+          kind: "warning",
+          message: "Plan imported without an active GTNH dataset; embedded recipe data was kept.",
+        });
+        return;
+      }
+
+      const hydration = await hydrateImportedProjectRecipes(
+        importedProject,
+        selectedDatasetVersion,
       );
+      setProject(hydration.project);
+
+      if (hydration.missingRecipes.length || hydration.migratedRecipes.length) {
+        const recipeLabel =
+          hydration.missingRecipes.length === 1 ? "recipe ID was" : "recipe IDs were";
+        const migrationLabel =
+          hydration.migratedRecipes.length === 1
+            ? "legacy recipe ID was"
+            : "legacy recipe IDs were";
+        const messageParts = [];
+        if (hydration.migratedRecipes.length) {
+          messageParts.push(
+            `${hydration.migratedRecipes.length} ${migrationLabel} updated during import`,
+          );
+        }
+        if (hydration.missingRecipes.length) {
+          messageParts.push(
+            `${hydration.missingRecipes.length} ${recipeLabel} not found in ${selectedDatasetVersion.gtnhVersion}`,
+          );
+        }
+        setImportNotice({
+          kind: hydration.missingRecipes.length ? "warning" : "success",
+          message: `${messageParts.join("; ")}${
+            hydration.missingRecipes.length
+              ? "; embedded legacy recipes were kept for those nodes"
+              : ""
+          }.`,
+          details: [
+            ...hydration.migratedRecipes
+              .slice(0, 8)
+              .map((recipe) => `${recipe.name}: ${recipe.fromId} -> ${recipe.toId}`),
+            ...hydration.missingRecipes
+              .slice(0, 8)
+              .map((recipe) => `${recipe.name}: unresolved ${recipe.id}`),
+          ],
+        });
+        if (hydration.missingRecipes.length) {
+          console.warn(
+            "Imported plan contains recipe IDs that are not present in the selected dataset.",
+            hydration.missingRecipes,
+          );
+        }
+      } else {
+        setImportNotice({
+          kind: "success",
+          message: `Plan imported and recipes matched ${selectedDatasetVersion.gtnhVersion}.`,
+        });
+      }
     } catch (error) {
-      console.error(error instanceof Error ? error.message : "Plan import failed.");
+      const message = error instanceof Error ? error.message : "Plan import failed.";
+      console.error(message);
+      setImportNotice({
+        kind: "error",
+        message,
+      });
     } finally {
       if (projectInputRef.current) {
         projectInputRef.current.value = "";
@@ -230,6 +312,8 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
         </div>
       </div>
 
+      {importNotice ? <ImportNoticeBanner notice={importNotice} /> : null}
+
       <input
         ref={projectInputRef}
         type="file"
@@ -273,23 +357,140 @@ async function readProjectFile(file: File): Promise<string> {
 }
 
 async function hydrateImportedProjectRecipes(
-  project: ReturnType<typeof parseFactoryProjectJson>,
+  project: FactoryProject,
   version: DatasetVersion,
-) {
+): Promise<{
+  project: FactoryProject;
+  missingRecipes: Array<Pick<FactoryProject["recipes"][number], "id" | "name">>;
+  migratedRecipes: Array<{
+    fromId: string;
+    toId: string;
+    name: string;
+  }>;
+}> {
+  const availableRecipeIds = new Set(
+    await getRecipeDatasetRecipeIds(DEFAULT_DATASET_MANIFEST_URL, version),
+  );
+  const importRecipesToResolve = project.recipes.filter(
+    (recipe) => !availableRecipeIds.has(recipe.id),
+  );
+  const resolvedRecipeIds = new Map(
+    importRecipesToResolve.length
+      ? (
+          await resolveRecipeDatasetRecipes(
+            DEFAULT_DATASET_MANIFEST_URL,
+            version,
+            importRecipesToResolve.map((recipe) => ({
+              id: recipe.id,
+              name: recipe.name,
+              machineType: recipe.machineType,
+              recipeMap: recipe.source?.recipeMap,
+              rawRecipeId: recipe.source?.rawRecipeId,
+              outputs: recipe.outputs.map((output) => ({
+                kind: output.kind,
+                id: output.id,
+              })),
+            })),
+          )
+        ).matches.map((match) => [match.importedId, match.recipeId] as const)
+      : [],
+  );
+  const missingRecipes: Array<Pick<FactoryProject["recipes"][number], "id" | "name">> = [];
+  const migratedRecipes: Array<{ fromId: string; toId: string; name: string }> = [];
+
   const hydratedRecipes = await Promise.all(
     project.recipes.map(async (recipe) => {
-      try {
-        return await getRecipeDatasetRecipe(DEFAULT_DATASET_MANIFEST_URL, version, recipe.id);
-      } catch {
+      if (!availableRecipeIds.has(recipe.id)) {
+        const rawRecipeIdMatch = resolvedRecipeIds.get(recipe.id);
+        const migratedRecipe = rawRecipeIdMatch
+          ? await getRecipeDatasetRecipe(DEFAULT_DATASET_MANIFEST_URL, version, rawRecipeIdMatch)
+          : await resolveImportedRecipe(version, recipe);
+        if (migratedRecipe) {
+          migratedRecipes.push({
+            fromId: recipe.id,
+            toId: migratedRecipe.id,
+            name: recipe.name,
+          });
+          return migratedRecipe;
+        }
+
+        missingRecipes.push({ id: recipe.id, name: recipe.name });
         return recipe;
       }
+
+      return getRecipeDatasetRecipe(DEFAULT_DATASET_MANIFEST_URL, version, recipe.id);
     }),
   );
 
   return {
-    ...project,
-    recipes: hydratedRecipes,
+    project: {
+      ...project,
+      recipes: hydratedRecipes,
+    },
+    missingRecipes,
+    migratedRecipes,
   };
+}
+
+async function resolveImportedRecipe(
+  version: DatasetVersion,
+  importedRecipe: Recipe,
+): Promise<Recipe | undefined> {
+  const candidates = await queryRecipeDatasetRecipes(DEFAULT_DATASET_MANIFEST_URL, version, {
+    query: importedRecipe.name,
+    mode: "recipes",
+    maxTier: "all",
+    offset: 0,
+    limit: 40,
+  });
+  const sourceRecipeMap = importedRecipe.source?.recipeMap;
+  const match = candidates.recipes.find(
+    (candidate) =>
+      candidate.id !== importedRecipe.id &&
+      candidate.name === importedRecipe.name &&
+      candidate.machineType === importedRecipe.machineType &&
+      (!sourceRecipeMap ||
+        candidate.recipeMap === sourceRecipeMap ||
+        candidate.source?.recipeMap === sourceRecipeMap) &&
+      outputsAreCompatible(importedRecipe.outputs, candidate.outputs),
+  );
+
+  return match
+    ? getRecipeDatasetRecipe(DEFAULT_DATASET_MANIFEST_URL, version, match.id)
+    : undefined;
+}
+
+function outputsAreCompatible(
+  importedOutputs: RecipeOutput[],
+  candidateOutputs: RecipeOutput[],
+): boolean {
+  if (importedOutputs.length === 0) {
+    return true;
+  }
+
+  const candidateResources = new Set(
+    candidateOutputs.map((output) => `${output.kind}:${output.id}`),
+  );
+  return importedOutputs.every((output) => candidateResources.has(`${output.kind}:${output.id}`));
+}
+
+function ImportNoticeBanner({ notice }: { notice: ImportNotice }) {
+  const details =
+    "details" in notice && notice.details?.length
+      ? `${notice.details.join("\n")}${notice.details.length === 12 ? "\n..." : ""}`
+      : undefined;
+  const className =
+    notice.kind === "error"
+      ? "basis-full border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900"
+      : notice.kind === "warning"
+        ? "basis-full border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+        : "basis-full border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900";
+
+  return (
+    <div role={notice.kind === "error" ? "alert" : "status"} className={className} title={details}>
+      {notice.message}
+    </div>
+  );
 }
 
 function ExportMenuItem({

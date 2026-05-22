@@ -1,6 +1,6 @@
 "use client";
 
-import type { MachineTier, Recipe, ResourceAmount } from "@/lib/model/types";
+import type { MachineTier, Recipe, RecipeOutput, ResourceAmount } from "@/lib/model/types";
 import type {
   DatasetResourceIndexEntry,
   DatasetVersion,
@@ -44,6 +44,22 @@ export interface RecipeDatasetResourceQueryResult {
   hasMore: boolean;
 }
 
+export interface RecipeDatasetResolveRef {
+  id: string;
+  name: string;
+  machineType: string;
+  recipeMap?: string;
+  rawRecipeId?: string;
+  outputs: Array<Pick<RecipeOutput, "kind" | "id">>;
+}
+
+export interface RecipeDatasetResolveResult {
+  matches: Array<{
+    importedId: string;
+    recipeId: string;
+  }>;
+}
+
 export async function initRecipeDatasetVersion(
   _manifestUrl: string,
   version: DatasetVersion,
@@ -67,6 +83,35 @@ export async function getRecipeDatasetRecipe(
   );
   addDatasetCacheKey(url, version);
   return fetchJson<Recipe>(url.toString());
+}
+
+export async function getRecipeDatasetRecipeIds(
+  _manifestUrl: string,
+  version: DatasetVersion,
+): Promise<string[]> {
+  const url = new URL(
+    `/api/datasets/${encodeURIComponent(version.id)}/recipe-ids`,
+    window.location.origin,
+  );
+  addDatasetCacheKey(url, version);
+  const result = await fetchJson<{ recipeIds: string[] }>(url.toString());
+  return result.recipeIds;
+}
+
+export async function resolveRecipeDatasetRecipes(
+  _manifestUrl: string,
+  version: DatasetVersion,
+  recipes: RecipeDatasetResolveRef[],
+): Promise<RecipeDatasetResolveResult> {
+  const url = new URL(
+    `/api/datasets/${encodeURIComponent(version.id)}/resolve-recipes`,
+    window.location.origin,
+  );
+  addDatasetCacheKey(url, version);
+  return fetchJson<RecipeDatasetResolveResult>(url.toString(), {
+    method: "POST",
+    body: JSON.stringify({ recipes }),
+  });
 }
 
 export async function queryRecipeDatasetRecipes(
@@ -114,12 +159,14 @@ export async function queryRecipeDatasetResources(
 
 export const loadRecipeDatasetVersion = initRecipeDatasetVersion;
 
-async function fetchJson<T>(url: string): Promise<T> {
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
       Accept: "application/json",
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
     },
+    ...init,
   });
 
   const payload = (await response.json()) as T | { error?: string };

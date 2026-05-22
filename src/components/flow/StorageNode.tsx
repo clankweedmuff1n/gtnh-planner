@@ -62,25 +62,6 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
       }
       title={`${title}\nIn ${formatRate(produced, 3)}${unit}\nOut ${formatRate(consumed, 3)}${unit}\nNet ${net >= 0 ? "+" : ""}${formatRate(net, 3)}${unit}`}
     >
-      <Handle
-        id={inputHandleId}
-        type="target"
-        position={Position.Left}
-        data-resource-handle="true"
-        data-resource-node-id={storage.id}
-        data-resource-handle-id={inputHandleId}
-        className="nodrag !absolute !bottom-0 !left-0 !top-0 !z-30 !h-full !w-3 !min-w-0 !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !opacity-0"
-      />
-      <Handle
-        id={outputHandleId}
-        type="source"
-        position={Position.Right}
-        data-resource-handle="true"
-        data-resource-node-id={storage.id}
-        data-resource-handle-id={outputHandleId}
-        className="nodrag !absolute !bottom-0 !left-auto !right-0 !top-0 !z-30 !h-full !w-3 !min-w-0 !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !opacity-0"
-      />
-
       {storage.kind === "fluid" ? (
         <FluidStorageCard
           storage={storage}
@@ -230,6 +211,24 @@ function StorageEdgeAnchors({
 }) {
   return (
     <>
+      <Handle
+        id={inputHandleId}
+        type="target"
+        position={Position.Left}
+        data-resource-handle="true"
+        data-resource-node-id={nodeId}
+        data-resource-handle-id={inputHandleId}
+        className="nodrag !absolute !bottom-0 !left-0 !top-0 !z-30 !h-full !w-1/2 !min-w-0 !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !opacity-0"
+      />
+      <Handle
+        id={outputHandleId}
+        type="source"
+        position={Position.Right}
+        data-resource-handle="true"
+        data-resource-node-id={nodeId}
+        data-resource-handle-id={outputHandleId}
+        className="nodrag !absolute !bottom-0 !left-auto !right-0 !top-0 !z-30 !h-full !w-1/2 !min-w-0 !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-transparent !opacity-0"
+      />
       <span
         data-resource-edge-anchor="true"
         data-resource-node-id={nodeId}

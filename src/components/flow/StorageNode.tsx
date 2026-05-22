@@ -16,7 +16,7 @@ export interface StorageNodeData extends Record<string, unknown> {
 
 export type StorageFlowNode = Node<StorageNodeData, "storageNode">;
 
-export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
+export function StorageNode({ data, selected }: NodeProps<StorageFlowNode>) {
   const { storage, result } = data;
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
   const hoveredStorageResourceKey = useFactoryStore((state) => state.hoveredStorageResourceKey);
@@ -48,9 +48,11 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
       data-storage-resource-id={storage.resourceId}
       onMouseEnter={() => setHoveredStorageResourceKey(resourceKey)}
       onMouseLeave={() => setHoveredStorageResourceKey(undefined)}
-      className={["group relative text-[#202020]", storageColor ? "storage-node-tinted" : ""].join(
-        " ",
-      )}
+      className={[
+        "group relative text-[#202020]",
+        storageColor ? "storage-node-tinted" : "",
+        selected ? "ring-2 ring-cyan-300" : "",
+      ].join(" ")}
       style={
         storageColor
           ? ({

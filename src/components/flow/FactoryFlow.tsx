@@ -78,6 +78,8 @@ const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
 const RECIPE_SLOT_EDGE_OFFSET = 20;
 const STORAGE_SLOT_EDGE_OFFSET = 55;
 const EDGE_RECONNECT_RADIUS = STORAGE_SLOT_EDGE_OFFSET + 14;
+const EDGE_NODE_CLEARANCE = 18;
+const EDGE_LANE_SPACING = 14;
 const EXPORT_IMAGE_MIN_SIZE = 1024;
 const EXPORT_IMAGE_MAX_SIZE = 2400;
 const EXPORT_IMAGE_PADDING = 80;
@@ -101,6 +103,8 @@ type ResourceEdgeData = {
   targetSlotEndpoint: boolean;
   sourceStorageEndpoint: boolean;
   targetStorageEndpoint: boolean;
+  sourceLaneOffset: number;
+  targetLaneOffset: number;
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -222,8 +226,10 @@ export function FactoryFlow() {
   );
 
   const edges = useMemo<ResourceFlowEdge[]>(
-    () =>
-      project.edges.map((edge) => {
+    () => {
+      const laneOffsets = getEndpointLaneOffsets(project.edges);
+
+      return project.edges.map((edge) => {
         const edgeResult = result.edges[edge.id];
         const unit = edge.resourceKind === "fluid" ? "L/s" : "/s";
         const demand = edgeResult?.demandPerSecond ?? edge.ratePerSecond ?? 0;
@@ -275,21 +281,26 @@ export function FactoryFlow() {
             targetSlotEndpoint: Boolean(targetHandle && !targetStorage),
             sourceStorageEndpoint: Boolean(sourceHandle && sourceStorage),
             targetStorageEndpoint: Boolean(targetHandle && targetStorage),
+            sourceLaneOffset: laneOffsets.source.get(edge.id) ?? 0,
+            targetLaneOffset: laneOffsets.target.get(edge.id) ?? 0,
           },
           style: {
             stroke: edgeColor,
-            strokeDasharray: edgeResult?.isLimited ? "7 4" : undefined,
+            strokeDasharray: edgeResult?.isLimited ? "8 6" : undefined,
             strokeOpacity: isStorageEdge ? 0.9 : 1,
             strokeWidth: isStorageEdge
               ? isStorageEdgeEmphasized
                 ? 5
-                : 4
+                : 3.5
               : edgeResult?.isLimited
-                ? 5
-                : 4,
+                ? 4.5
+                : edge.resourceKind === "fluid"
+                  ? 4
+                  : 3.25,
           },
         };
-      }),
+      });
+    },
     [hoveredStorageResourceKey, isNodeDragging, project, recipeSearch, result.edges],
   );
 
@@ -951,15 +962,22 @@ function ResourceEdge({
   });
   const rate = formatEdgeRateLabel(data);
   const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
-  const [edgePath, labelX, labelY] = getOffsetEdgePath({
+  const routedEdge = getRoutedEdgePath({
+    sourceNodeId: source,
     sourceX: visualSource.x,
     sourceY: visualSource.y,
     sourcePosition,
+    sourceSlotEndpoint: data?.sourceSlotEndpoint,
+    sourceLaneOffset: data?.sourceLaneOffset ?? 0,
+    targetNodeId: target,
     targetX: visualTarget.x,
     targetY: visualTarget.y,
     targetPosition,
-    offset: labelOffset,
+    targetSlotEndpoint: data?.targetSlotEndpoint,
+    targetLaneOffset: data?.targetLaneOffset ?? 0,
   });
+  const labelX = routedEdge.labelX + labelOffset.x;
+  const labelY = routedEdge.labelY + labelOffset.y;
 
   const stopLabelDrag = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -970,7 +988,11 @@ function ResourceEdge({
       event.currentTarget.releasePointerCapture(labelDragRef.current.pointerId);
       labelDragRef.current = undefined;
       setLabelDragging(false);
-      updateEdge(id, { labelOffset: draftLabelOffset });
+      const nextOffset =
+        Math.abs(draftLabelOffset.x) < 1 && Math.abs(draftLabelOffset.y) < 1
+          ? undefined
+          : draftLabelOffset;
+      updateEdge(id, { labelOffset: nextOffset });
     },
     [draftLabelOffset, id, updateEdge],
   );
@@ -978,7 +1000,7 @@ function ResourceEdge({
   return (
     <>
       <BaseEdge
-        path={edgePath}
+        path={routedEdge.path}
         style={{
           ...style,
           stroke: edgeColor,
@@ -1006,7 +1028,7 @@ function ResourceEdge({
               borderColor: edgeColor,
               boxShadow: selected ? "0 0 0 2px rgba(34,211,238,0.9)" : undefined,
             }}
-            title={`${data.resource.displayName ?? data.resource.id}: ${rate}. Drag to move link. Double click to reset.`}
+            title={`${data.resource.displayName ?? data.resource.id}: ${rate}. Drag along cable. Double click to reset label.`}
             onPointerDown={(event) => {
               event.stopPropagation();
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -1026,11 +1048,26 @@ function ResourceEdge({
               }
 
               event.stopPropagation();
-              const scale = zoom > 0 ? zoom : 1;
-              setDraftLabelOffset({
-                x: drag.offset.x + (event.clientX - drag.clientX) / scale,
-                y: drag.offset.y + (event.clientY - drag.clientY) / scale,
-              });
+              const flowPoint = screenToFlowPoint(
+                { x: event.clientX, y: event.clientY },
+                event.currentTarget,
+              );
+              const cablePoint = flowPoint
+                ? getClosestPointOnPolyline(flowPoint, routedEdge.points)
+                : undefined;
+
+              if (cablePoint) {
+                setDraftLabelOffset({
+                  x: cablePoint.x - routedEdge.labelX,
+                  y: cablePoint.y - routedEdge.labelY,
+                });
+              } else {
+                const scale = zoom > 0 ? zoom : 1;
+                setDraftLabelOffset({
+                  x: drag.offset.x + (event.clientX - drag.clientX) / scale,
+                  y: drag.offset.y + (event.clientY - drag.clientY) / scale,
+                });
+              }
             }}
             onPointerUp={stopLabelDrag}
             onPointerCancel={stopLabelDrag}
@@ -1098,51 +1135,296 @@ function ResourceConnectionLine({
   );
 }
 
-function getOffsetEdgePath({
+function getEndpointLaneOffsets(edges: FactoryEdge[]) {
+  const sourceGroups = new Map<string, string[]>();
+  const targetGroups = new Map<string, string[]>();
+
+  for (const edge of edges) {
+    const sourceKey = getEndpointLaneGroupKey(edge, "source");
+    const targetKey = getEndpointLaneGroupKey(edge, "target");
+    if (sourceKey) {
+      pushGroupedEdgeId(sourceGroups, sourceKey, edge.id);
+    }
+    if (targetKey) {
+      pushGroupedEdgeId(targetGroups, targetKey, edge.id);
+    }
+  }
+
+  return {
+    source: buildLaneOffsetMap(sourceGroups),
+    target: buildLaneOffsetMap(targetGroups),
+  };
+}
+
+function getEndpointLaneGroupKey(edge: FactoryEdge, endpoint: "source" | "target") {
+  const handleId = endpoint === "source" ? edge.sourceHandle : edge.targetHandle;
+  const handle = parseResourceHandleId(handleId);
+  if (!handle) {
+    return undefined;
+  }
+
+  const nodeId = endpoint === "source" ? edge.source : edge.target;
+  return `${nodeId}:${handle.side}`;
+}
+
+function pushGroupedEdgeId(groups: Map<string, string[]>, key: string, edgeId: string) {
+  const group = groups.get(key);
+  if (group) {
+    group.push(edgeId);
+  } else {
+    groups.set(key, [edgeId]);
+  }
+}
+
+function buildLaneOffsetMap(groups: Map<string, string[]>) {
+  const offsets = new Map<string, number>();
+  for (const group of groups.values()) {
+    const middle = (group.length - 1) / 2;
+    group.forEach((edgeId, index) => {
+      offsets.set(edgeId, (index - middle) * EDGE_LANE_SPACING);
+    });
+  }
+
+  return offsets;
+}
+
+function getRoutedEdgePath({
+  sourceNodeId,
   sourceX,
   sourceY,
   sourcePosition,
+  sourceSlotEndpoint,
+  sourceLaneOffset,
+  targetNodeId,
   targetX,
   targetY,
   targetPosition,
-  offset,
+  targetSlotEndpoint,
+  targetLaneOffset,
 }: {
+  sourceNodeId: string;
   sourceX: number;
   sourceY: number;
   sourcePosition: Position;
+  sourceSlotEndpoint?: boolean;
+  sourceLaneOffset: number;
+  targetNodeId: string;
   targetX: number;
   targetY: number;
   targetPosition: Position;
-  offset: { x: number; y: number };
-}): [string, number, number] {
-  if (Math.abs(offset.x) < 0.5 && Math.abs(offset.y) < 0.5) {
-    const [path, labelX, labelY] = getSmoothStepPath({
-      sourceX,
-      sourceY,
-      sourcePosition,
-      targetX,
-      targetY,
-      targetPosition,
-    });
-    return [path, labelX, labelY];
+  targetSlotEndpoint?: boolean;
+  targetLaneOffset: number;
+}) {
+  const sourcePoint = { x: sourceX, y: sourceY };
+  const targetPoint = { x: targetX, y: targetY };
+  const sourceOutlet = sourceSlotEndpoint
+    ? getOutsideNodeEndpoint({
+        nodeId: sourceNodeId,
+        slotPoint: sourcePoint,
+        position: sourcePosition,
+        laneOffset: sourceLaneOffset,
+      })
+    : undefined;
+  const targetOutlet = targetSlotEndpoint
+    ? getOutsideNodeEndpoint({
+        nodeId: targetNodeId,
+        slotPoint: targetPoint,
+        position: targetPosition,
+        laneOffset: targetLaneOffset,
+      })
+    : undefined;
+
+  const routeStart = sourceOutlet ?? sourcePoint;
+  const routeEnd = targetOutlet ?? targetPoint;
+  const midX = (routeStart.x + routeEnd.x) / 2;
+  const points = compactPolylinePoints([
+    sourcePoint,
+    sourceOutlet ? { x: sourceOutlet.x, y: sourcePoint.y } : undefined,
+    sourceOutlet,
+    { x: midX, y: routeStart.y },
+    { x: midX, y: routeEnd.y },
+    targetOutlet,
+    targetOutlet ? { x: targetOutlet.x, y: targetPoint.y } : undefined,
+    targetPoint,
+  ]);
+  const labelPoint = getPointAtPolylineRatio(points, 0.5) ?? {
+    x: (sourceX + targetX) / 2,
+    y: (sourceY + targetY) / 2,
+  };
+
+  return {
+    path: pointsToSvgPath(points),
+    labelX: labelPoint.x,
+    labelY: labelPoint.y,
+    points,
+  };
+}
+
+function getOutsideNodeEndpoint({
+  nodeId,
+  slotPoint,
+  position,
+  laneOffset,
+}: {
+  nodeId: string;
+  slotPoint: { x: number; y: number };
+  position: Position;
+  laneOffset: number;
+}) {
+  const bounds = getMeasuredNodeBounds(nodeId);
+  if (!bounds) {
+    const direction = String(position) === "left" ? -1 : 1;
+    return {
+      x: slotPoint.x + direction * (RECIPE_SLOT_EDGE_OFFSET + EDGE_NODE_CLEARANCE),
+      y: slotPoint.y + laneOffset,
+    };
   }
 
-  const middleX = (sourceX + targetX) / 2;
-  const middleY = (sourceY + targetY) / 2;
-  const labelX = middleX + offset.x;
-  const labelY = middleY + offset.y;
+  if (String(position) === "left") {
+    return {
+      x: bounds.left - EDGE_NODE_CLEARANCE,
+      y: clamp(slotPoint.y + laneOffset, bounds.top + 10, bounds.bottom - 10),
+    };
+  }
 
-  return [
-    [
-      `M ${sourceX},${sourceY}`,
-      `L ${labelX},${sourceY}`,
-      `L ${labelX},${labelY}`,
-      `L ${targetX},${labelY}`,
-      `L ${targetX},${targetY}`,
-    ].join(" "),
-    labelX,
-    labelY,
-  ];
+  return {
+    x: bounds.right + EDGE_NODE_CLEARANCE,
+    y: clamp(slotPoint.y + laneOffset, bounds.top + 10, bounds.bottom - 10),
+  };
+}
+
+function getMeasuredNodeBounds(nodeId: string) {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const nodeElement = document.querySelector<HTMLElement>(
+    `.react-flow__node[data-id="${cssEscape(nodeId)}"]`,
+  );
+  if (!nodeElement) {
+    return undefined;
+  }
+
+  const rect = nodeElement.getBoundingClientRect();
+  const topLeft = screenToFlowPoint({ x: rect.left, y: rect.top }, nodeElement);
+  const bottomRight = screenToFlowPoint({ x: rect.right, y: rect.bottom }, nodeElement);
+  if (!topLeft || !bottomRight) {
+    return undefined;
+  }
+
+  return {
+    left: topLeft.x,
+    top: topLeft.y,
+    right: bottomRight.x,
+    bottom: bottomRight.y,
+  };
+}
+
+function compactPolylinePoints(points: Array<{ x: number; y: number } | undefined>) {
+  const compacted: Array<{ x: number; y: number }> = [];
+  for (const point of points) {
+    if (!point) {
+      continue;
+    }
+
+    const previous = compacted[compacted.length - 1];
+    if (previous && Math.abs(previous.x - point.x) < 0.5 && Math.abs(previous.y - point.y) < 0.5) {
+      continue;
+    }
+
+    compacted.push(point);
+  }
+
+  return compacted;
+}
+
+function pointsToSvgPath(points: Array<{ x: number; y: number }>) {
+  const [first, ...rest] = points;
+  if (!first) {
+    return "";
+  }
+
+  return [`M ${first.x},${first.y}`, ...rest.map((point) => `L ${point.x},${point.y}`)].join(" ");
+}
+
+function getPointAtPolylineRatio(points: Array<{ x: number; y: number }>, ratio: number) {
+  const segments = getPolylineSegments(points);
+  const totalLength = segments.reduce((sum, segment) => sum + segment.length, 0);
+  if (totalLength <= 0) {
+    return points[0];
+  }
+
+  let remaining = totalLength * clamp(ratio, 0, 1);
+  for (const segment of segments) {
+    if (remaining <= segment.length) {
+      const t = segment.length <= 0 ? 0 : remaining / segment.length;
+      return {
+        x: segment.start.x + (segment.end.x - segment.start.x) * t,
+        y: segment.start.y + (segment.end.y - segment.start.y) * t,
+      };
+    }
+
+    remaining -= segment.length;
+  }
+
+  return points[points.length - 1];
+}
+
+function getClosestPointOnPolyline(
+  point: { x: number; y: number },
+  points: Array<{ x: number; y: number }>,
+) {
+  return getPolylineSegments(points)
+    .map((segment) => getClosestPointOnSegment(point, segment.start, segment.end))
+    .sort((left, right) => left.distanceSquared - right.distanceSquared)[0]?.point;
+}
+
+function getPolylineSegments(points: Array<{ x: number; y: number }>) {
+  const segments: Array<{
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    length: number;
+  }> = [];
+
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
+    if (length > 0.5) {
+      segments.push({ start, end, length });
+    }
+  }
+
+  return segments;
+}
+
+function getClosestPointOnSegment(
+  point: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const t =
+    lengthSquared <= 0
+      ? 0
+      : clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared, 0, 1);
+  const closest = {
+    x: start.x + dx * t,
+    y: start.y + dy * t,
+  };
+  const distanceX = point.x - closest.x;
+  const distanceY = point.y - closest.y;
+
+  return {
+    point: closest,
+    distanceSquared: distanceX * distanceX + distanceY * distanceY,
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function getSlotEdgeEndpoint({
@@ -1229,8 +1511,13 @@ function getMeasuredSlotEndpoint({
 }
 
 function screenToFlowPoint(point: { x: number; y: number }, element: HTMLElement) {
-  const viewport = element.closest<HTMLElement>(".react-flow__viewport");
-  const renderer = element.closest<HTMLElement>(".react-flow__renderer");
+  const root = element.closest<HTMLElement>(".react-flow");
+  const viewport =
+    element.closest<HTMLElement>(".react-flow__viewport") ??
+    root?.querySelector<HTMLElement>(".react-flow__viewport");
+  const renderer =
+    element.closest<HTMLElement>(".react-flow__renderer") ??
+    root?.querySelector<HTMLElement>(".react-flow__renderer");
   if (!viewport || !renderer) {
     return undefined;
   }

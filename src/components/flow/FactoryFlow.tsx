@@ -16,8 +16,6 @@ import {
   type Edge,
   type EdgeProps,
   type EdgeTypes,
-  type FinalConnectionState,
-  type HandleType,
   type Node,
   type NodeChange,
   type NodeTypes,
@@ -77,7 +75,6 @@ const DEFAULT_ITEM_EDGE_COLOR = "#8b8f98";
 const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
 const RECIPE_SLOT_EDGE_OFFSET = 20;
 const STORAGE_SLOT_EDGE_OFFSET = 55;
-const EDGE_RECONNECT_RADIUS = 12;
 const EDGE_BUNDLE_CLEARANCE = 14;
 const EDGE_LABEL_ZOOM = 0.78;
 const EDGE_ARROW_ZOOM = 0.72;
@@ -144,7 +141,6 @@ export function FactoryFlow() {
   const updateStorage = useFactoryStore((state) => state.updateStorage);
   const setStoragePosition = useFactoryStore((state) => state.setStoragePosition);
   const connectNodes = useFactoryStore((state) => state.connectNodes);
-  const reconnectEdge = useFactoryStore((state) => state.reconnectEdge);
   const addStorageForConnection = useFactoryStore((state) => state.addStorageForConnection);
   const selectedNodeId = useFactoryStore((state) => state.selectedNodeId);
   const deleteNode = useFactoryStore((state) => state.deleteNode);
@@ -208,7 +204,6 @@ export function FactoryFlow() {
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
   const lastConnectionPointerRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const connectCompletedRef = useRef(false);
-  const reconnectingEdgeRef = useRef(false);
   const exportInProgressRef = useRef(false);
   const boardRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance<
@@ -375,25 +370,17 @@ export function FactoryFlow() {
           : undefined;
       const nodeId = params.nodeId ?? eventHandle?.nodeId;
       const handleId = params.handleId ?? eventHandle?.handleId;
-      const isEdgeReconnect =
-        reconnectingEdgeRef.current ||
-        (event.target instanceof Element &&
-          Boolean(event.target.closest(".react-flow__edgeupdater")));
 
       connectCompletedRef.current = false;
       lastConnectionPointerRef.current = getClientPosition(event);
       draggedResourceRef.current =
-        !isEdgeReconnect && nodeId && handleId
-          ? getDraggedResourceForHandle(project, nodeId, handleId)
-          : undefined;
+        nodeId && handleId ? getDraggedResourceForHandle(project, nodeId, handleId) : undefined;
     },
     [project],
   );
 
   const handleConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent) => {
-      const isEdgeReconnect = reconnectingEdgeRef.current;
-      reconnectingEdgeRef.current = false;
       const draggedResource = draggedResourceRef.current;
       draggedResourceRef.current = undefined;
       const clientPosition = getClientPosition(event) ?? lastConnectionPointerRef.current;
@@ -405,10 +392,6 @@ export function FactoryFlow() {
         getStorageHandleAtPointer(event, draggedResource);
 
       if (connectCompletedRef.current) {
-        return;
-      }
-
-      if (isEdgeReconnect) {
         return;
       }
 
@@ -503,33 +486,6 @@ export function FactoryFlow() {
       window.removeEventListener("touchmove", updatePointerPosition);
     };
   }, []);
-
-  const handleReconnect = useCallback(
-    (oldEdge: ResourceFlowEdge, connection: Connection) => {
-      reconnectEdge(oldEdge.id, connection);
-    },
-    [reconnectEdge],
-  );
-
-  const handleReconnectStart = useCallback(() => {
-    reconnectingEdgeRef.current = true;
-    draggedResourceRef.current = undefined;
-  }, []);
-
-  const handleReconnectEnd = useCallback(
-    (
-      _event: MouseEvent | TouchEvent,
-      edge: ResourceFlowEdge,
-      _handleType: HandleType,
-      connectionState: FinalConnectionState,
-    ) => {
-      reconnectingEdgeRef.current = false;
-      if (connectionState.isValid !== true) {
-        deleteEdge(edge.id);
-      }
-    },
-    [deleteEdge],
-  );
 
   const updateFlowViewportCenter = useCallback(() => {
     const instance = flowInstanceRef.current;
@@ -807,9 +763,6 @@ export function FactoryFlow() {
         onConnect={handleConnect}
         onConnectStart={handleConnectStart}
         onConnectEnd={handleConnectEnd}
-        onReconnect={handleReconnect}
-        onReconnectStart={handleReconnectStart}
-        onReconnectEnd={handleReconnectEnd}
         onInit={handleInit}
         onMoveEnd={handleMoveEnd}
         isValidConnection={isCompatibleResourceConnection}
@@ -818,8 +771,7 @@ export function FactoryFlow() {
         connectionMode={ConnectionMode.Loose}
         connectionRadius={18}
         elevateNodesOnSelect={false}
-        edgesReconnectable
-        reconnectRadius={EDGE_RECONNECT_RADIUS}
+        edgesReconnectable={false}
         onNodeClick={handleNodeClick}
         onNodesChange={handleNodesChange}
         onSelectionChange={handleSelectionChange}

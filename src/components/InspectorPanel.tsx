@@ -23,6 +23,12 @@ export function InspectorPanel() {
 function SummaryPanel({ onSelectFuel }: { onSelectFuel: (fuelProfileId: string) => void }) {
   const project = useFactoryStore((state) => state.project);
   const result = useFactoryStore((state) => state.lastResult);
+  const nodeBottlenecks = result.bottlenecks.filter(
+    (bottleneck) => bottleneck.kind === "node-capacity",
+  ).length;
+  const missingRecipes = result.bottlenecks.filter(
+    (bottleneck) => bottleneck.kind === "missing-recipe",
+  ).length;
 
   return (
     <>
@@ -34,7 +40,9 @@ function SummaryPanel({ onSelectFuel }: { onSelectFuel: (fuelProfileId: string) 
         <div className="grid grid-cols-2 gap-2">
           <Metric label="Total EU/t" value={formatRate(result.totalEuT, 0)} />
           <Metric label="EU/s" value={formatRate(result.totalEuPerSecond, 0)} />
-          <Metric label="Bottlenecks" value={String(result.bottlenecks.length)} />
+          <Metric label="Node bottlenecks" value={String(nodeBottlenecks)} />
+          <Metric label="External inputs" value={String(result.externalInputs.length)} />
+          <Metric label="Missing recipes" value={String(missingRecipes)} />
           <Metric label="Nodes" value={String(project.nodes.length)} />
         </div>
 

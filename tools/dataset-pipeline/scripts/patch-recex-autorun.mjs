@@ -298,6 +298,24 @@ exporterSource = exporterSource.replace(
 );
 
 exporterSource = exporterSource.replace(
+  [
+    "                    if (item == null) {",
+    "                        continue;",
+    "                    }",
+    "",
+    "                    int outputChance = rec.getOutputChance(outputIndex);",
+  ].join("\n"),
+  [
+    "                    if (item == null) {",
+    "                        outputIndex++;",
+    "                        continue;",
+    "                    }",
+    "",
+    "                    int outputChance = rec.getOutputChance(outputIndex);",
+  ].join("\n"),
+);
+
+exporterSource = exporterSource.replace(
   "\n    private List<ShapedRecipe> getShapedRecipes() {",
   [
     "",

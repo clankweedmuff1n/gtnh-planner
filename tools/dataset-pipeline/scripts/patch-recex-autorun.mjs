@@ -226,6 +226,37 @@ exporterSource = exporterSource.replace(
 );
 
 exporterSource = exporterSource.replace(
+  "                // item inputs\n",
+  [
+    "                // item inputs",
+    "                int[] inputChances = getInputChances(rec, rec.mInputs.length);",
+    "                int inputIndex = 0;",
+  ].join("\n") + "\n",
+);
+
+exporterSource = exporterSource.replace(
+  "                    if (item == null) {\n                        continue;\n                    }\n",
+  [
+    "                    if (item == null) {",
+    "                        inputIndex++;",
+    "                        continue;",
+    "                    }",
+  ].join("\n") + "\n",
+);
+
+exporterSource = exporterSource.replace(
+  "                    gtr.iI.add(item);\n",
+  [
+    "                    if (inputChances != null && inputIndex < inputChances.length && inputChances[inputIndex] <= 0) {",
+    "                        item.nc = Boolean.TRUE;",
+    "                    }",
+    "                    inputIndex++;",
+    "",
+    "                    gtr.iI.add(item);",
+  ].join("\n") + "\n",
+);
+
+exporterSource = exporterSource.replace(
   "                // item outputs\n",
   [
     "                // non-consumed item inputs / special items",
@@ -269,6 +300,15 @@ exporterSource = exporterSource.replace(
 exporterSource = exporterSource.replace(
   "\n    private List<ShapedRecipe> getShapedRecipes() {",
   [
+    "",
+    "    private static int[] getInputChances(Object recipe, int inputCount) {",
+    '        int[] fieldChances = readIntArrayField(recipe, new String[] { "mInputChances", "mInputChance" });',
+    "        if (fieldChances != null) {",
+    "            return fieldChances;",
+    "        }",
+    "",
+    '        return callChanceGetter(recipe, "getInputChance", inputCount);',
+    "    }",
     "",
     "    private static int[] getOutputChances(Object recipe, int outputCount) {",
     '        int[] fieldChances = readIntArrayField(recipe, new String[] { "mOutputChances", "mChances", "mOutputChance" });',
@@ -319,7 +359,7 @@ exporterSource = exporterSource.replace(
     "                Object value = method.invoke(target, Integer.valueOf(index));",
     "                if (value instanceof Number) {",
     "                    chances[index] = ((Number) value).intValue();",
-    "                    if (chances[index] > 0 && chances[index] < 10000) {",
+    "                    if (chances[index] >= 0 && chances[index] < 10000) {",
     "                        hasChance = true;",
     "                    }",
     "                }",
@@ -333,6 +373,32 @@ exporterSource = exporterSource.replace(
     "    private List<ShapedRecipe> getShapedRecipes() {",
   ].join("\n"),
 );
+
+if (!exporterSource.includes("item.nc = Boolean.TRUE;")) {
+  exporterSource = replaceRequired(
+    exporterSource,
+    /\/\/ item inputs\s+for\(ItemStack stack : rec\.mInputs\)\{\s+Item item = RecipeUtil\.formatGregtechItemStack\(stack\);\s+if\(item == null\)\{\s+continue;\s+\}\s+gtr\.iI\.add\(item\);\s+\}\s+\/\/ item outputs/,
+    [
+      "// item inputs",
+      "int[] inputChances = getInputChances(rec, rec.mInputs.length);",
+      "int inputIndex = 0;",
+      "for(ItemStack stack : rec.mInputs){",
+      "    Item item = RecipeUtil.formatGregtechItemStack(stack);",
+      "    if(item == null){",
+      "        inputIndex++;",
+      "        continue;",
+      "    }",
+      "    if (inputChances != null && inputIndex < inputChances.length && inputChances[inputIndex] <= 0) {",
+      "        item.nc = Boolean.TRUE;",
+      "    }",
+      "    inputIndex++;",
+      "    gtr.iI.add(item);",
+      "}",
+      "// item outputs",
+    ].join("\n"),
+    "GregTech item input chance export loop",
+  );
+}
 
 if (!exporterSource.includes("item.ch = Integer.valueOf(outputChances[outputIndex]);")) {
   exporterSource = replaceRequired(
@@ -385,6 +451,13 @@ if (!exporterSource.includes("private static int[] getOutputChances(")) {
     /\}\s+private Object getShapedRecipes\(\)\{/,
     [
       "}",
+      "private static int[] getInputChances(Object recipe, int inputCount) {",
+      '    int[] fieldChances = readIntArrayField(recipe, new String[] { "mInputChances", "mInputChance" });',
+      "    if (fieldChances != null) {",
+      "        return fieldChances;",
+      "    }",
+      '    return callChanceGetter(recipe, "getInputChance", inputCount);',
+      "}",
       "private static int[] getOutputChances(Object recipe, int outputCount) {",
       '    int[] fieldChances = readIntArrayField(recipe, new String[] { "mOutputChances", "mChances", "mOutputChance" });',
       "    if (fieldChances != null) {",
@@ -427,7 +500,7 @@ if (!exporterSource.includes("private static int[] getOutputChances(")) {
       "            Object value = method.invoke(target, Integer.valueOf(index));",
       "            if (value instanceof Number) {",
       "                chances[index] = ((Number) value).intValue();",
-      "                if (chances[index] > 0 && chances[index] < 10000) {",
+      "                if (chances[index] >= 0 && chances[index] < 10000) {",
       "                    hasChance = true;",
       "                }",
       "            }",
@@ -480,6 +553,9 @@ itemSource = itemSource.replace(
     "    /** output chance, 10000 = 100% */",
     "    public Integer ch;",
     "",
+    "    /** non-consumed input */",
+    "    public Boolean nc;",
+    "",
     "    /** rendered item stack icon filename */",
     "    public String ic;",
     "",
@@ -498,11 +574,28 @@ if (!itemSource.includes("public Integer ch;")) {
       "/** output chance, 10000 = 100% */",
       "public Integer ch;",
       "",
+      "/** non-consumed input */",
+      "public Boolean nc;",
+      "",
       "/** rendered item stack icon filename */",
       "public String ic;",
       "",
     ].join("\n"),
     "RecEx item metadata fields",
+  );
+}
+if (!itemSource.includes("public Boolean nc;")) {
+  itemSource = replaceRequired(
+    itemSource,
+    /public Integer ch;\s*/,
+    [
+      "public Integer ch;",
+      "",
+      "/** non-consumed input */",
+      "public Boolean nc;",
+      "",
+    ].join("\n"),
+    "RecEx item non-consumed field",
   );
 }
 await fs.writeFile(itemPath, itemSource);

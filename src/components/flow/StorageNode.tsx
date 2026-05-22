@@ -54,6 +54,8 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
       style={
         storageColor
           ? ({
+              "--storage-node-tint": storageColor.panel,
+              "--storage-node-tint-header": storageColor.header,
               "--storage-node-tint-border": storageColor.border,
             } as CSSProperties)
           : undefined
@@ -87,7 +89,6 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
           net={net}
           unit={unit}
           isHighlighted={isHighlighted || isSearchHighlighted}
-          storageColor={storageColor}
           inputHandleId={inputHandleId}
           outputHandleId={outputHandleId}
         />
@@ -99,7 +100,6 @@ export function StorageNode({ data }: NodeProps<StorageFlowNode>) {
           net={net}
           unit={unit}
           isHighlighted={isHighlighted || isSearchHighlighted}
-          storageColor={storageColor}
           inputHandleId={inputHandleId}
           outputHandleId={outputHandleId}
         />
@@ -123,8 +123,6 @@ function StorageHeader({ title, variant }: { title: string; variant: "tank" | "d
   );
 }
 
-type StorageColor = (typeof GT_NODE_COLORS)[keyof typeof GT_NODE_COLORS] | undefined;
-
 function FluidStorageCard({
   storage,
   produced,
@@ -132,7 +130,6 @@ function FluidStorageCard({
   net,
   unit,
   isHighlighted,
-  storageColor,
   inputHandleId,
   outputHandleId,
 }: {
@@ -142,7 +139,6 @@ function FluidStorageCard({
   net: number;
   unit: string;
   isHighlighted: boolean;
-  storageColor: StorageColor;
   inputHandleId: string;
   outputHandleId: string;
 }) {
@@ -152,11 +148,6 @@ function FluidStorageCard({
         "storage-node-card storage-node-card--tank w-[174px] border-2 border-[#565f72] bg-[#b9c2d4] p-1 shadow-[inset_2px_2px_0_#e8edf7,inset_-2px_-2px_0_#7b8497]",
         isHighlighted ? "brightness-110" : "",
       ].join(" ")}
-      style={
-        {
-          borderColor: storageColor?.border,
-        } as CSSProperties
-      }
     >
       <StorageHeader title="Super Tank" variant="tank" />
       <div className="storage-node-body mx-auto mt-3 grid h-[96px] w-[132px] place-items-center border-2 border-[#1f1f1f] bg-black shadow-[inset_7px_7px_0_#1f2933,inset_-7px_-7px_0_#050505]">
@@ -187,7 +178,6 @@ function ItemStorageCard({
   net,
   unit,
   isHighlighted,
-  storageColor,
   inputHandleId,
   outputHandleId,
 }: {
@@ -197,7 +187,6 @@ function ItemStorageCard({
   net: number;
   unit: string;
   isHighlighted: boolean;
-  storageColor: StorageColor;
   inputHandleId: string;
   outputHandleId: string;
 }) {
@@ -207,11 +196,6 @@ function ItemStorageCard({
         "storage-node-card w-[174px] border-2 border-[#2b1c0e] bg-[#8a6030] p-1 shadow-[inset_3px_3px_0_#ad7b3e,inset_-3px_-3px_0_#3e2a13]",
         isHighlighted ? "brightness-110" : "",
       ].join(" ")}
-      style={
-        {
-          borderColor: storageColor?.border,
-        } as CSSProperties
-      }
     >
       <StorageHeader title="Drawer" variant="drawer" />
       <div className="storage-node-body mx-auto mt-3 grid h-[96px] w-[132px] place-items-center border-2 border-[#3a260f] bg-[#7a5427] shadow-[inset_7px_7px_0_#5a3b1b,inset_-7px_-7px_0_#4a3117]">

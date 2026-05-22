@@ -730,9 +730,13 @@ function ResourceEdge({
   sourceX,
   sourceY,
   sourcePosition,
+  source,
+  sourceHandleId,
   targetX,
   targetY,
   targetPosition,
+  target,
+  targetHandleId,
   style,
   selected,
   data,
@@ -742,6 +746,8 @@ function ResourceEdge({
     : (data?.color ?? DEFAULT_ITEM_EDGE_COLOR);
   const edgeColor = resourceColor;
   const visualSource = getSlotEdgeEndpoint({
+    nodeId: source,
+    handleId: sourceHandleId,
     position: sourcePosition,
     fallbackX: sourceX,
     fallbackY: sourceY,
@@ -750,6 +756,8 @@ function ResourceEdge({
     preferredSide: "source",
   });
   const visualTarget = getSlotEdgeEndpoint({
+    nodeId: target,
+    handleId: targetHandleId,
     position: targetPosition,
     fallbackX: targetX,
     fallbackY: targetY,
@@ -860,6 +868,8 @@ function ResourceConnectionLine({
 }
 
 function getSlotEdgeEndpoint({
+  nodeId,
+  handleId,
   position,
   fallbackX,
   fallbackY,
@@ -867,6 +877,8 @@ function getSlotEdgeEndpoint({
   isStorageSlotEndpoint,
   preferredSide,
 }: {
+  nodeId: string;
+  handleId?: string | null;
   position: unknown;
   fallbackX: number;
   fallbackY: number;
@@ -878,13 +890,24 @@ function getSlotEdgeEndpoint({
     return { x: fallbackX, y: fallbackY };
   }
 
-  const offset = isStorageSlotEndpoint ? STORAGE_SLOT_EDGE_OFFSET : RECIPE_SLOT_EDGE_OFFSET;
-
   const edgeSide = isStorageSlotEndpoint
     ? preferredSide === "source"
       ? "right"
       : "left"
     : String(position);
+
+  const measuredEndpoint = getMeasuredSlotEndpoint({
+    nodeId,
+    handleId,
+    edgeSide,
+    fallbackX,
+    fallbackY,
+  });
+  if (measuredEndpoint) {
+    return measuredEndpoint;
+  }
+
+  const offset = isStorageSlotEndpoint ? STORAGE_SLOT_EDGE_OFFSET : RECIPE_SLOT_EDGE_OFFSET;
 
   switch (edgeSide) {
     case "right":
@@ -894,6 +917,64 @@ function getSlotEdgeEndpoint({
     default:
       return { x: fallbackX, y: fallbackY };
   }
+}
+
+function getMeasuredSlotEndpoint({
+  nodeId,
+  handleId,
+  edgeSide,
+  fallbackX,
+  fallbackY,
+}: {
+  nodeId: string;
+  handleId?: string | null;
+  edgeSide: string;
+  fallbackX: number;
+  fallbackY: number;
+}) {
+  if (!handleId || typeof document === "undefined") {
+    return undefined;
+  }
+
+  const nodeElement = document.querySelector<HTMLElement>(
+    `.react-flow__node[data-id="${cssEscape(nodeId)}"]`,
+  );
+  const slotElement =
+    findResourceEndpointElement("[data-resource-edge-anchor='true']", nodeId, handleId) ??
+    findResourceEndpointElement("[data-resource-handle='true']", nodeId, handleId);
+
+  if (!nodeElement || !slotElement) {
+    return undefined;
+  }
+
+  const nodeRect = nodeElement.getBoundingClientRect();
+  const slotRect = slotElement.getBoundingClientRect();
+  const nodeWidth = nodeElement.offsetWidth || nodeRect.width;
+  const nodeHeight = nodeElement.offsetHeight || nodeRect.height;
+  const zoomX = nodeWidth > 0 ? nodeRect.width / nodeWidth : 1;
+  const zoomY = nodeHeight > 0 ? nodeRect.height / nodeHeight : zoomX;
+  const zoom = zoomX || zoomY || 1;
+
+  const screenX = edgeSide === "right" ? slotRect.right : slotRect.left;
+  const screenY = slotRect.top + slotRect.height / 2;
+  const fallbackScreenX = edgeSide === "right" ? nodeRect.right : nodeRect.left;
+  const fallbackScreenY = nodeRect.top + nodeRect.height / 2;
+
+  return {
+    x: fallbackX + (screenX - fallbackScreenX) / zoom,
+    y: fallbackY + (screenY - fallbackScreenY) / zoom,
+  };
+}
+
+function findResourceEndpointElement(selector: string, nodeId: string, handleId: string) {
+  return [...document.querySelectorAll<HTMLElement>(selector)].find(
+    (element) =>
+      element.dataset.resourceNodeId === nodeId && element.dataset.resourceHandleId === handleId,
+  );
+}
+
+function cssEscape(value: string) {
+  return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(value) : value.replace(/"/g, '\\"');
 }
 
 function formatEdgeRateLabel(data: ResourceEdgeData | undefined) {

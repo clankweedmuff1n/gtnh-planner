@@ -36,15 +36,15 @@ textarea {
 }
 
 .factory-flow-board .react-flow__edges {
-  z-index: 80 !important;
+  z-index: 10 !important;
 }
 
 .factory-flow-board .react-flow__nodes {
-  z-index: 20 !important;
+  z-index: 30 !important;
 }
 
 .factory-flow-board .react-flow__node.selected {
-  z-index: 20 !important;
+  z-index: 30 !important;
 }
 
 .factory-flow-board .react-flow__node.dragging {
@@ -60,7 +60,7 @@ textarea {
 }
 
 .factory-flow-board .react-flow__edgelabel-renderer {
-  z-index: 90;
+  z-index: 40;
 }
 
 .factory-flow-board .react-flow__panel {

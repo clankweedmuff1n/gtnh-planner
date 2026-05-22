@@ -54,7 +54,7 @@ import { useFactoryStore } from "@/store/factory-store";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
 import { RecipeNode, type RecipeFlowNode } from "./RecipeNode";
 import { GT_NODE_COLORS, GT_NODE_COLOR_PALETTE } from "./node-colors";
-import { parseResourceHandleId } from "./resource-handles";
+import { makeResourceHandleId, parseResourceHandleId } from "./resource-handles";
 import { StorageNode, type StorageFlowNode } from "./StorageNode";
 
 const nodeTypes = {
@@ -78,7 +78,9 @@ const DEFAULT_FLUID_EDGE_COLOR = "#2f89c5";
 const RECIPE_SLOT_EDGE_OFFSET = 20;
 const STORAGE_SLOT_EDGE_OFFSET = 55;
 const EDGE_RECONNECT_RADIUS = STORAGE_SLOT_EDGE_OFFSET + 14;
-const EDGE_BUNDLE_CLEARANCE = 18;
+const EDGE_BUNDLE_CLEARANCE = 14;
+const EDGE_LABEL_ZOOM = 1.35;
+const EDGE_ARROW_ZOOM = 0.72;
 const EXPORT_IMAGE_MIN_SIZE = 1024;
 const EXPORT_IMAGE_MAX_SIZE = 2400;
 const EXPORT_IMAGE_PADDING = 80;
@@ -234,7 +236,7 @@ export function FactoryFlow() {
 
   const edges = useMemo<ResourceFlowEdge[]>(
     () => {
-      const edgeBundles = getEdgeBundles(project.edges, result.edges);
+      const edgeBundles = getEdgeBundles(project, project.edges, result.edges);
 
       return project.edges.map((edge) => {
         const edgeResult = result.edges[edge.id];
@@ -981,8 +983,9 @@ function ResourceEdge({
   const isHiddenBundleMember =
     data?.bundle?.role === "member" && data.bundle.mode === "single-target";
   const showLabel = Boolean(
-    data?.showLabel && !isHiddenBundleMember && (selected || !isGlobalView),
+    data?.showLabel && !isHiddenBundleMember && (selected || zoom >= EDGE_LABEL_ZOOM),
   );
+  const showArrowHead = selected || zoom >= EDGE_ARROW_ZOOM;
   const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
   const routedEdge =
     data?.bundle?.role === "primary"
@@ -1040,6 +1043,7 @@ function ResourceEdge({
       {!isHiddenBundleMember ? (
         <BaseEdge
           path={routedEdge.path}
+          interactionWidth={selected ? 14 : 6}
           style={{
             ...style,
             stroke: edgeColor,
@@ -1060,7 +1064,7 @@ function ResourceEdge({
           }}
         />
       ) : null}
-      {!isHiddenBundleMember && (selected || !isGlobalView) ? (
+      {!isHiddenBundleMember && showArrowHead ? (
         <polygon
           points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
           fill={edgeColor}
@@ -1192,6 +1196,7 @@ function ResourceConnectionLine({
 }
 
 function getEdgeBundles(
+  project: FactoryProject,
   edges: FactoryEdge[],
   edgeResults: Record<
     string,
@@ -1202,7 +1207,7 @@ function getEdgeBundles(
 
   for (const edge of edges) {
     const sourceHandle = parseResourceHandleId(edge.sourceHandle);
-    if (!sourceHandle || sourceHandle.side !== "output" || !edge.sourceHandle) {
+    if (edge.sourceHandle && (!sourceHandle || sourceHandle.side !== "output")) {
       continue;
     }
 
@@ -1217,13 +1222,18 @@ function getEdgeBundles(
 
   const bundles = new Map<string, NonNullable<ResourceEdgeData["bundle"]>>();
   for (const group of groups.values()) {
-    const sourceHandleIds = [
+    const explicitSourceHandleIds = [
       ...new Set(
         group
           .map((edge) => edge.sourceHandle)
           .filter((handleId): handleId is string => Boolean(handleId)),
       ),
     ];
+    const inferredSourceHandleIds = group.some((edge) => edge.sourceHandle)
+      ? []
+      : inferRepeatedOutputHandleIds(project, group[0]);
+    const sourceHandleIds =
+      explicitSourceHandleIds.length > 1 ? explicitSourceHandleIds : inferredSourceHandleIds;
     if (sourceHandleIds.length < 2) {
       continue;
     }
@@ -1266,6 +1276,31 @@ function getEdgeBundles(
   }
 
   return bundles;
+}
+
+function inferRepeatedOutputHandleIds(project: FactoryProject, edge: FactoryEdge | undefined) {
+  if (!edge) {
+    return [];
+  }
+
+  const sourceStorage = (project.storages ?? []).find((storage) => storage.id === edge.source);
+  if (sourceStorage) {
+    return [];
+  }
+
+  const sourceNode = project.nodes.find((node) => node.id === edge.source);
+  const sourceRecipe = project.recipes.find((recipe) => recipe.id === sourceNode?.recipeId);
+  if (!sourceRecipe) {
+    return [];
+  }
+
+  return sourceRecipe.outputs
+    .map((output, outputIndex) =>
+      output.kind === edge.resourceKind && output.id === edge.resourceId
+        ? makeResourceHandleId("output", output, outputIndex)
+        : undefined,
+    )
+    .filter((handleId): handleId is string => Boolean(handleId));
 }
 
 function getDirectEdgePath({
@@ -1347,9 +1382,12 @@ function getBundledEdgePath({
   }
 
   const isLeft = String(sourcePosition) === "left";
+  const sourceBounds = getMeasuredNodeBounds(sourceNodeId);
   const busX = isLeft
-    ? Math.min(...sourcePoints.map((point) => point.x)) - EDGE_BUNDLE_CLEARANCE
-    : Math.max(...sourcePoints.map((point) => point.x)) + EDGE_BUNDLE_CLEARANCE;
+    ? (sourceBounds?.left ?? Math.min(...sourcePoints.map((point) => point.x))) -
+      EDGE_BUNDLE_CLEARANCE
+    : (sourceBounds?.right ?? Math.max(...sourcePoints.map((point) => point.x))) +
+      EDGE_BUNDLE_CLEARANCE;
   const minY = Math.min(...sourcePoints.map((point) => point.y));
   const maxY = Math.max(...sourcePoints.map((point) => point.y));
   const trunkY = sourcePoints[Math.floor(sourcePoints.length / 2)].y;
@@ -1426,9 +1464,12 @@ function getBundledMemberEdgePath({
   }
 
   const isLeft = String(sourcePosition) === "left";
+  const sourceBounds = getMeasuredNodeBounds(sourceNodeId);
   const busX = isLeft
-    ? Math.min(...allSourcePoints.map((point) => point.x)) - EDGE_BUNDLE_CLEARANCE
-    : Math.max(...allSourcePoints.map((point) => point.x)) + EDGE_BUNDLE_CLEARANCE;
+    ? (sourceBounds?.left ?? Math.min(...allSourcePoints.map((point) => point.x))) -
+      EDGE_BUNDLE_CLEARANCE
+    : (sourceBounds?.right ?? Math.max(...allSourcePoints.map((point) => point.x))) +
+      EDGE_BUNDLE_CLEARANCE;
   const midX = (busX + targetX) / 2;
   const points = compactPolylinePoints([
     { x: busX, y: ownSourcePoint.y },
@@ -1641,6 +1682,33 @@ function getMeasuredSlotEndpoint({
   };
 
   return screenToFlowPoint(screenPoint, nodeElement);
+}
+
+function getMeasuredNodeBounds(nodeId: string) {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const nodeElement = document.querySelector<HTMLElement>(
+    `.react-flow__node[data-id="${cssEscape(nodeId)}"]`,
+  );
+  if (!nodeElement) {
+    return undefined;
+  }
+
+  const rect = nodeElement.getBoundingClientRect();
+  const topLeft = screenToFlowPoint({ x: rect.left, y: rect.top }, nodeElement);
+  const bottomRight = screenToFlowPoint({ x: rect.right, y: rect.bottom }, nodeElement);
+  if (!topLeft || !bottomRight) {
+    return undefined;
+  }
+
+  return {
+    left: Math.min(topLeft.x, bottomRight.x),
+    right: Math.max(topLeft.x, bottomRight.x),
+    top: Math.min(topLeft.y, bottomRight.y),
+    bottom: Math.max(topLeft.y, bottomRight.y),
+  };
 }
 
 function screenToFlowPoint(point: { x: number; y: number }, element: HTMLElement) {

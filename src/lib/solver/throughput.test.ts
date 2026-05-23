@@ -125,6 +125,78 @@ describe("calculateThroughput", () => {
     expect(result.resources["fluid:water"].netPerSecond).toBeCloseTo(0);
   });
 
+  it("scales edge labels from final target utilization", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "edge-utilization-project",
+      name: "Edge utilization label test",
+      targetRate: {
+        kind: "item",
+        resourceId: "dust",
+        amountPerSecond: 0.25,
+      },
+      recipes: [
+        {
+          id: "source-recipe",
+          name: "Powder source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "item", id: "powder", amount: 10 }],
+        },
+        {
+          id: "consumer-recipe",
+          name: "Dust consumer",
+          machineType: "Mixer",
+          minimumTier: "LV",
+          durationTicks: 20,
+          eut: 30,
+          inputs: [{ kind: "item", id: "powder", amount: 10 }],
+          outputs: [{ kind: "item", id: "dust", amount: 1 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "source",
+          recipeId: "source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "consumer",
+          recipeId: "consumer-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 200, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "powder-edge",
+          source: "source",
+          target: "consumer",
+          resourceKind: "item",
+          resourceId: "powder",
+          label: "Powder",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.nodes.consumer.utilization).toBeCloseTo(0.25);
+    expect(result.edges["powder-edge"].demandPerSecond).toBeCloseTo(2.5);
+    expect(result.edges["powder-edge"].transferredPerSecond).toBeCloseTo(2.5);
+  });
+
   it("uses concrete item edges to satisfy ore dictionary input demand", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,

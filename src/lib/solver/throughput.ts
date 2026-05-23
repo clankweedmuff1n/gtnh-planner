@@ -281,6 +281,14 @@ export function calculateThroughput(
     }
   }
 
+  refreshEdgeResultsFromNodeUtilization(
+    project,
+    nodes,
+    edgeResults,
+    incomingEdgeCounts,
+    storagesById,
+  );
+
   const resourceResults = Object.fromEntries(balances) as Record<ResourceKey, ResourceBalance>;
   const externalInputs = Object.values(resourceResults)
     .filter((balance) => balance.deficitPerSecond > EPSILON)
@@ -450,6 +458,59 @@ function countIncomingEdgesToStorageResource(
   }
 
   return counts;
+}
+
+function refreshEdgeResultsFromNodeUtilization(
+  project: FactoryProject,
+  nodes: Record<string, NodeThroughputResult>,
+  edgeResults: Record<string, EdgeThroughput>,
+  incomingEdgeCounts: Map<string, number>,
+  storagesById: Map<string, FactoryStorage>,
+): void {
+  for (const edge of project.edges) {
+    const key = makeResourceKey(edge.resourceKind, edge.resourceId);
+    const targetDemandKey = getEdgeTargetDemandKey(project, edge) ?? key;
+    const sourceStorage = storagesById.get(edge.source);
+    const targetStorage = storagesById.get(edge.target);
+
+    if (sourceStorage && targetStorage) {
+      continue;
+    }
+
+    const sourceResult = nodes[edge.source];
+    const targetResult = nodes[edge.target];
+    const sourceCapacity =
+      sourceStorage || !sourceResult
+        ? Number.POSITIVE_INFINITY
+        : getEffectiveFlowRate(sourceResult.outputs[key], sourceResult.utilization);
+    const targetCount = incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
+    const targetDemand =
+      targetStorage || !targetResult
+        ? sourceCapacity
+        : getEffectiveFlowRate(targetResult.inputs[targetDemandKey], targetResult.utilization) /
+          targetCount;
+    const demandPerSecond = Number.isFinite(targetDemand) ? targetDemand : 0;
+    const transferredPerSecond = Math.min(sourceCapacity, demandPerSecond);
+
+    edgeResults[edge.id] = buildEdgeResult(
+      edge,
+      key,
+      demandPerSecond,
+      Number.isFinite(transferredPerSecond) ? transferredPerSecond : demandPerSecond,
+    );
+  }
+}
+
+function getEffectiveFlowRate(flow: ResourceFlow | undefined, utilization: number): number {
+  return (flow?.amountPerSecond ?? 0) * clampUtilization(utilization);
+}
+
+function clampUtilization(utilization: number): number {
+  if (!Number.isFinite(utilization)) {
+    return 1;
+  }
+
+  return Math.min(Math.max(utilization, 0), 1);
 }
 
 function calculateStorageOutgoingDemand(

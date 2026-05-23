@@ -1060,6 +1060,8 @@ function ResourceEdge({
     nodeId: source,
     handleId: data?.sourceHandleId ?? sourceHandleId,
     position: sourcePosition,
+    peerX: targetX,
+    peerY: targetY,
     fallbackX: sourceX,
     fallbackY: sourceY,
     isRecipeSlotEndpoint: data?.sourceSlotEndpoint,
@@ -1070,6 +1072,8 @@ function ResourceEdge({
     nodeId: target,
     handleId: data?.targetHandleId ?? targetHandleId,
     position: targetPosition,
+    peerX: sourceX,
+    peerY: sourceY,
     fallbackX: targetX,
     fallbackY: targetY,
     isRecipeSlotEndpoint: data?.targetSlotEndpoint,
@@ -1095,23 +1099,23 @@ function ResourceEdge({
       ? getBundledEdgePath({
           sourceNodeId: source,
           sourceHandleIds: data.bundle.sourceHandleIds,
-          sourcePosition,
+          sourcePosition: visualSource.side,
           fallbackSource: visualSource,
           targetNodeId: target,
           targetX: visualTarget.x,
           targetY: visualTarget.y,
-          targetPosition,
+          targetPosition: visualTarget.side,
         })
       : data?.bundle?.mode === "multi-target"
         ? getBundledMemberEdgePath({
             sourceNodeId: source,
             sourceHandleId: data.sourceHandleId ?? sourceHandleId ?? undefined,
-            sourcePosition,
+            sourcePosition: visualSource.side,
             fallbackSource: visualSource,
             targetNodeId: target,
             targetX: visualTarget.x,
             targetY: visualTarget.y,
-            targetPosition,
+            targetPosition: visualTarget.side,
             bundleSourceHandleIds: data.bundle.sourceHandleIds,
           })
         : getDirectEdgePath({
@@ -1119,12 +1123,12 @@ function ResourceEdge({
             sourceIsRecipeNode: !data?.sourceStorageEndpoint,
             sourceX: visualSource.x,
             sourceY: visualSource.y,
-            sourcePosition,
+            sourcePosition: visualSource.side,
             targetNodeId: target,
             targetIsRecipeNode: !data?.targetStorageEndpoint,
             targetX: visualTarget.x,
             targetY: visualTarget.y,
-            targetPosition,
+            targetPosition: visualTarget.side,
           });
   const labelX = routedEdge.labelX + labelOffset.x;
   const labelY = routedEdge.labelY + labelOffset.y;
@@ -1197,7 +1201,7 @@ function ResourceEdge({
       ) : null}
       {!isHiddenBundleMember && showArrowHead ? (
         <polygon
-          points={getArrowHeadPoints(visualTarget.x, visualTarget.y, targetPosition)}
+          points={getArrowHeadPoints(visualTarget.x, visualTarget.y, visualTarget.side)}
           fill={edgeColor}
           stroke="#252525"
           strokeWidth={isHighlighted ? 1.8 : 1.2}
@@ -2088,6 +2092,8 @@ function getSlotEdgeEndpoint({
   nodeId,
   handleId,
   position,
+  peerX,
+  peerY,
   fallbackX,
   fallbackY,
   isRecipeSlotEndpoint,
@@ -2097,6 +2103,8 @@ function getSlotEdgeEndpoint({
   nodeId: string;
   handleId?: string | null;
   position: unknown;
+  peerX: number;
+  peerY: number;
   fallbackX: number;
   fallbackY: number;
   isRecipeSlotEndpoint?: boolean;
@@ -2104,14 +2112,17 @@ function getSlotEdgeEndpoint({
   preferredSide: "source" | "target";
 }) {
   if (!isRecipeSlotEndpoint && !isStorageSlotEndpoint) {
-    return { x: fallbackX, y: fallbackY };
+    return { x: fallbackX, y: fallbackY, side: positionToEdgeSide(position) };
   }
 
-  const edgeSide = isStorageSlotEndpoint
-    ? preferredSide === "source"
-      ? "right"
-      : "left"
-    : String(position);
+  const edgeSide = getAutoEndpointSide({
+    nodeId,
+    handleId,
+    position,
+    peerX,
+    peerY,
+    preferredSide,
+  });
 
   const measuredEndpoint = getMeasuredSlotEndpoint({
     nodeId,
@@ -2119,18 +2130,92 @@ function getSlotEdgeEndpoint({
     edgeSide,
   });
   if (measuredEndpoint) {
-    return measuredEndpoint;
+    return { ...measuredEndpoint, side: edgeSide };
   }
 
   const offset = isStorageSlotEndpoint ? STORAGE_SLOT_EDGE_OFFSET : RECIPE_SLOT_EDGE_OFFSET;
 
   switch (edgeSide) {
     case "right":
-      return { x: fallbackX + (isStorageSlotEndpoint ? -offset : offset), y: fallbackY };
+      return {
+        x: fallbackX + (isStorageSlotEndpoint ? -offset : offset),
+        y: fallbackY,
+        side: edgeSide,
+      };
     case "left":
-      return { x: fallbackX + (isStorageSlotEndpoint ? offset : -offset), y: fallbackY };
+      return {
+        x: fallbackX + (isStorageSlotEndpoint ? offset : -offset),
+        y: fallbackY,
+        side: edgeSide,
+      };
+    case "top":
+      return { x: fallbackX, y: fallbackY - offset, side: edgeSide };
+    case "bottom":
+      return { x: fallbackX, y: fallbackY + offset, side: edgeSide };
     default:
-      return { x: fallbackX, y: fallbackY };
+      return { x: fallbackX, y: fallbackY, side: edgeSide };
+  }
+}
+
+function getAutoEndpointSide({
+  nodeId,
+  handleId,
+  position,
+  peerX,
+  peerY,
+  preferredSide,
+}: {
+  nodeId: string;
+  handleId?: string | null;
+  position: unknown;
+  peerX: number;
+  peerY: number;
+  preferredSide: "source" | "target";
+}): Position {
+  const fallbackSide =
+    positionToEdgeSide(position) ?? (preferredSide === "source" ? Position.Right : Position.Left);
+  const bounds = getMeasuredNodeBounds(nodeId);
+
+  if (!bounds) {
+    return fallbackSide;
+  }
+
+  const slotCenter = handleId
+    ? getMeasuredSlotCenter({
+        nodeId,
+        handleId,
+      })
+    : undefined;
+  const reference = slotCenter ?? {
+    x: (bounds.left + bounds.right) / 2,
+    y: (bounds.top + bounds.bottom) / 2,
+  };
+  const dx = peerX - reference.x;
+  const dy = peerY - reference.y;
+
+  if (Math.abs(dx) >= Math.abs(dy) * 1.2) {
+    return dx >= 0 ? Position.Right : Position.Left;
+  }
+
+  if (Math.abs(dy) >= Math.abs(dx) * 1.2) {
+    return dy >= 0 ? Position.Bottom : Position.Top;
+  }
+
+  return fallbackSide;
+}
+
+function positionToEdgeSide(position: unknown): Position {
+  switch (String(position)) {
+    case "right":
+      return Position.Right;
+    case "left":
+      return Position.Left;
+    case "top":
+      return Position.Top;
+    case "bottom":
+      return Position.Bottom;
+    default:
+      return Position.Right;
   }
 }
 
@@ -2159,12 +2244,49 @@ function getMeasuredSlotEndpoint({
   }
 
   const slotRect = slotElement.getBoundingClientRect();
-  const screenPoint = {
-    x: edgeSide === "right" ? slotRect.right : slotRect.left,
-    y: slotRect.top + slotRect.height / 2,
-  };
+  const screenPoint = getSlotRectEdgePoint(slotRect, edgeSide);
 
   return screenToFlowPoint(screenPoint, nodeElement);
+}
+
+function getMeasuredSlotCenter({ nodeId, handleId }: { nodeId: string; handleId: string }) {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const slotElement =
+    findResourceEndpointElement("[data-resource-edge-anchor='true']", nodeId, handleId) ??
+    findResourceEndpointElement("[data-resource-handle='true']", nodeId, handleId);
+  const nodeElement =
+    slotElement?.closest<HTMLElement>(".react-flow__node") ??
+    document.querySelector<HTMLElement>(`.react-flow__node[data-id="${cssEscape(nodeId)}"]`);
+
+  if (!nodeElement || !slotElement) {
+    return undefined;
+  }
+
+  const slotRect = slotElement.getBoundingClientRect();
+  return screenToFlowPoint(
+    {
+      x: slotRect.left + slotRect.width / 2,
+      y: slotRect.top + slotRect.height / 2,
+    },
+    nodeElement,
+  );
+}
+
+function getSlotRectEdgePoint(rect: DOMRect, edgeSide: string) {
+  switch (edgeSide) {
+    case "right":
+      return { x: rect.right, y: rect.top + rect.height / 2 };
+    case "top":
+      return { x: rect.left + rect.width / 2, y: rect.top };
+    case "bottom":
+      return { x: rect.left + rect.width / 2, y: rect.bottom };
+    case "left":
+    default:
+      return { x: rect.left, y: rect.top + rect.height / 2 };
+  }
 }
 
 function getMeasuredNodeBounds(nodeId: string) {

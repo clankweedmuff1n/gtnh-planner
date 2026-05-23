@@ -3,7 +3,13 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useState, type CSSProperties } from "react";
 import { AlertTriangle, WandSparkles } from "lucide-react";
-import type { FactoryNode, MachineTier, NodeThroughputResult, Recipe } from "@/lib/model/types";
+import type {
+  FactoryNode,
+  MachineTier,
+  NodeThroughputResult,
+  Recipe,
+  ResourceAmount,
+} from "@/lib/model/types";
 import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
 import {
   formatRate,
@@ -49,6 +55,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const nodeColorPaintMode = useFactoryStore((state) => state.nodeColorPaintMode);
   const maxTierFilter = useFactoryStore((state) => state.maxTierFilter);
   const pendingResourceConnection = useFactoryStore((state) => state.pendingResourceConnection);
+  const dataset = useFactoryStore((state) => state.dataset);
   const utilization = result?.utilization ?? 0;
   const utilizationPercent = Number.isFinite(utilization) ? utilization * 100 : 999;
   const isSearchHighlighted = recipeContainsSearchResource(recipe, recipeSearch);
@@ -63,6 +70,9 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const recipePowerTier = getRecipePowerTier(recipe);
   const tierControl = getNodeTierControl(recipe, projectNode);
   const coilControl = getRecipeCoilTierControl(recipe, projectNode);
+  const coilResource = coilControl
+    ? resolveDatasetCoilResource(heatingCoilTierResource(coilControl.current), dataset)
+    : undefined;
   const overclockedRecipe = { ...recipe, ...getOverclockedRecipeStats(recipe, projectNode) };
   const tierColor = GT_TIER_COLORS[tierControl.current];
   const exceedsMaxTier =
@@ -160,7 +170,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
               aria-label={`Coil ${coilControl.current.label}`}
             >
               <ResourceIcon
-                resource={heatingCoilTierResource(coilControl.current)}
+                resource={coilResource}
                 bare
                 tooltip={false}
                 showAmount={false}
@@ -366,6 +376,32 @@ function clampTier(tier: VoltageTier, minimum: VoltageTier) {
 function resolveVoltageTier(value: string, fallback: VoltageTier): VoltageTier {
   const tier = GT_VOLTAGE_TIERS.find((entry) => entry.tier === value)?.tier;
   return tier ?? fallback;
+}
+
+function resolveDatasetCoilResource(
+  fallback: ResourceAmount,
+  dataset: ReturnType<typeof useFactoryStore.getState>["dataset"],
+): ResourceAmount {
+  const normalizedLabel = normalizeSearch(fallback.displayName ?? fallback.id);
+  const indexed = [...(dataset?.resources ?? []), ...(dataset?.resourceIndex ?? [])].find(
+    (resource) =>
+      resource.kind === fallback.kind &&
+      (resource.id === fallback.id ||
+        normalizeSearch(resource.displayName ?? resource.id) === normalizedLabel),
+  );
+
+  if (!indexed) {
+    return fallback;
+  }
+
+  return {
+    ...fallback,
+    id: indexed.id,
+    displayName: indexed.displayName ?? fallback.displayName,
+    iconPath: indexed.iconPath ?? fallback.iconPath,
+    iconAtlas: indexed.iconAtlas ?? fallback.iconAtlas,
+    dominantColor: indexed.dominantColor ?? fallback.dominantColor,
+  };
 }
 
 function getSuggestedMachineCount(result: NodeThroughputResult | undefined, current: number) {

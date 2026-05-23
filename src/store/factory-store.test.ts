@@ -443,6 +443,28 @@ describe("factory machine count optimization", () => {
     expect(Math.max(...machineCounts)).toBeLessThanOrEqual(2);
   });
 
+  it("rounds small cyclic bottlenecks below full usage", () => {
+    const project = createSmallCyclicBottleneckProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) =>
+        node.id === "small-cycle-source"
+          ? { ...node, machineCount: 50 }
+          : { ...node, machineCount: 51 },
+      ),
+    });
+
+    useFactoryStore.getState().optimizeMachineCount("small-cycle-source");
+
+    const source = useFactoryStore
+      .getState()
+      .project.nodes.find((node) => node.id === "small-cycle-source");
+    const sourceResult = useFactoryStore.getState().lastResult.nodes["small-cycle-source"];
+
+    expect(source?.machineCount).toBe(52);
+    expect(sourceResult?.utilization).toBeLessThan(1);
+  });
+
   it("keeps global optimization idempotent across repeated clicks", () => {
     useFactoryStore.getState().setProject(createStorageBusCycleProject());
 
@@ -884,6 +906,69 @@ function createStorageBusCycleProject(): FactoryProject {
         resourceId: "y",
       },
     ],
+  };
+}
+
+function createSmallCyclicBottleneckProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "small-cycle-bottleneck",
+    name: "Small cycle bottleneck",
+    recipes: [
+      {
+        id: "small-cycle-source-recipe",
+        name: "Small Cycle Source",
+        machineType: "A",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "seed", amount: 1 }],
+        outputs: [{ kind: "item", id: "product", amount: 1 }],
+      },
+      {
+        id: "small-cycle-return-recipe",
+        name: "Small Cycle Return",
+        machineType: "B",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "product", amount: 1 }],
+        outputs: [{ kind: "item", id: "seed", amount: 1 }],
+      },
+    ],
+    nodes: [
+      makeNode("small-cycle-source", "small-cycle-source-recipe", 0),
+      {
+        ...makeNode("small-cycle-return", "small-cycle-return-recipe", 240),
+        targetOutput: {
+          kind: "item",
+          resourceId: "seed",
+          amountPerSecond: 50.2,
+        },
+      },
+    ],
+    storages: [],
+    edges: [
+      {
+        id: "small-cycle-product-edge",
+        source: "small-cycle-source",
+        target: "small-cycle-return",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "product" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "product" }, 0),
+        resourceKind: "item",
+        resourceId: "product",
+      },
+      {
+        id: "small-cycle-seed-edge",
+        source: "small-cycle-return",
+        target: "small-cycle-source",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "seed" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "seed" }, 0),
+        resourceKind: "item",
+        resourceId: "seed",
+      },
+    ],
+    fuelProfiles: [],
   };
 }
 

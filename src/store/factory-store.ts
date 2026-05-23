@@ -31,6 +31,7 @@ import { TICKS_PER_SECOND } from "@/lib/model/types";
 export const LOCAL_STORAGE_KEY = "gtnh-factory-flow.project.v2";
 export const RESOURCE_HISTORY_STORAGE_KEY = "gtnh-factory-flow.resource-history.v1";
 const RESOURCE_HISTORY_LIMIT = 8;
+const CYCLIC_SMALL_BOTTLENECK_UTILIZATION = 1.05;
 
 interface FactoryStore {
   project: FactoryProject;
@@ -1554,9 +1555,15 @@ function getUntargetedCyclicMachineCounts(
     const nodeResult = result.nodes[node.id];
     const theoreticalMachinesRequired = nodeResult?.theoreticalMachinesRequired ?? 0;
     const machineCount = getOptimizedMachineCount(theoreticalMachinesRequired, node.machineCount);
+    if (isSmallCyclicBottleneck(nodeResult)) {
+      machineCounts.set(node.id, machineCount + 1);
+      continue;
+    }
+
     if (
       node.machineCount <= 1 ||
-      machineCount < node.machineCount ||
+      (machineCount < node.machineCount &&
+        isProjectedBelowFullUsage(theoreticalMachinesRequired, machineCount)) ||
       (nodeResult?.status === "bottleneck" &&
         hasDemandOutsideCyclicFeedback(project, node, cyclicNodeIds))
     ) {
@@ -1567,6 +1574,25 @@ function getUntargetedCyclicMachineCounts(
   }
 
   return machineCounts;
+}
+
+function isProjectedBelowFullUsage(theoreticalMachinesRequired: number, machineCount: number) {
+  return (
+    Number.isFinite(theoreticalMachinesRequired) &&
+    machineCount > 0 &&
+    theoreticalMachinesRequired / machineCount < 1
+  );
+}
+
+function isSmallCyclicBottleneck(
+  nodeResult: ThroughputResult["nodes"][string] | undefined,
+): boolean {
+  return (
+    nodeResult?.status === "bottleneck" &&
+    Number.isFinite(nodeResult.utilization) &&
+    nodeResult.utilization > 1 &&
+    nodeResult.utilization <= CYCLIC_SMALL_BOTTLENECK_UTILIZATION
+  );
 }
 
 function hasDemandOutsideCyclicFeedback(

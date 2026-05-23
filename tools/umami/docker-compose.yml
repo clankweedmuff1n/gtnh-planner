@@ -1,6 +1,11 @@
 services:
   umami:
-    image: docker.umami.is/umami-software/umami:postgresql-latest
+    image: gtnh-factory-flow-umami:local
+    build:
+      context: https://github.com/umami-software/umami.git
+      args:
+        BASE_PATH: "${BASE_PATH:-}"
+        DATABASE_TYPE: "postgresql"
     restart: unless-stopped
     depends_on:
       db:

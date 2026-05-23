@@ -55,7 +55,8 @@ jobs:
           cp tools/umami/docker-compose.yml "$compose_file"
 
           cd "$umami_root"
-          docker compose pull
+          docker compose pull db
+          docker compose build umami
           docker compose up -d
           docker compose ps
 
@@ -65,7 +66,7 @@ jobs:
           prod_analytics_env="$HOME/apps/gtnh-factory-flow/analytics.env"
 
           for attempt in $(seq 1 30); do
-            if curl -fsS "$umami_url" >/dev/null; then
+            if curl -fsS "$umami_url/umami" >/dev/null; then
               break
             fi
             sleep 2

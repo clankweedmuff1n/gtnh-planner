@@ -1064,6 +1064,8 @@ function ResourceEdge({
     fallbackY: sourceY,
     isRecipeSlotEndpoint: data?.sourceSlotEndpoint,
     isStorageSlotEndpoint: data?.sourceStorageEndpoint,
+    counterpartX: targetX,
+    counterpartY: targetY,
   });
   const visualTarget = getSlotEdgeEndpoint({
     nodeId: target,
@@ -1073,6 +1075,8 @@ function ResourceEdge({
     fallbackY: targetY,
     isRecipeSlotEndpoint: data?.targetSlotEndpoint,
     isStorageSlotEndpoint: data?.targetStorageEndpoint,
+    counterpartX: sourceX,
+    counterpartY: sourceY,
   });
   const rate = data?.bundle?.demand
     ? `${formatEdgeValue(data.bundle.demand)} ${data.unit}`
@@ -1677,6 +1681,20 @@ function getHorizontalLaneDirectPoints(
   const goesRight = end.x >= start.x;
   const sourceWantsRight = sourceSide === "right";
   const targetWantsLeft = targetSide === "left";
+  const targetWantsRight = targetSide === "right";
+  const hasVerticalGap =
+    sourceBounds && targetBounds ? !boundsOverlapVertically(sourceBounds, targetBounds) : false;
+
+  if (hasVerticalGap && targetBounds && (targetWantsLeft || targetWantsRight)) {
+    const targetLaneX = targetWantsLeft
+      ? Math.min(end.x, targetBounds.left - DIRECT_EDGE_NODE_CLEARANCE)
+      : Math.max(end.x, targetBounds.right + DIRECT_EDGE_NODE_CLEARANCE);
+    return [
+      { x: targetLaneX, y: start.y },
+      { x: targetLaneX, y: end.y },
+    ];
+  }
+
   const routeOutsideRight =
     (sourceWantsRight && !targetWantsLeft) || (!sourceSide && goesRight) || sourceSide === "right";
   const routeX = routeOutsideRight
@@ -1730,6 +1748,13 @@ function getVerticalLaneDirectPoints(
 
 function isHorizontalSide(side: string) {
   return side === "left" || side === "right";
+}
+
+function boundsOverlapVertically(
+  left: { top: number; bottom: number },
+  right: { top: number; bottom: number },
+) {
+  return left.bottom >= right.top && right.bottom >= left.top;
 }
 
 function getBundledEdgePath({
@@ -2090,6 +2115,8 @@ function getSlotEdgeEndpoint({
   fallbackY,
   isRecipeSlotEndpoint,
   isStorageSlotEndpoint,
+  counterpartX,
+  counterpartY,
 }: {
   nodeId: string;
   handleId?: string | null;
@@ -2098,12 +2125,25 @@ function getSlotEdgeEndpoint({
   fallbackY: number;
   isRecipeSlotEndpoint?: boolean;
   isStorageSlotEndpoint?: boolean;
+  counterpartX?: number;
+  counterpartY?: number;
 }) {
   if (!isRecipeSlotEndpoint && !isStorageSlotEndpoint) {
     return { x: fallbackX, y: fallbackY, side: positionToEdgeSide(position) };
   }
 
-  const edgeSide = positionToEdgeSide(position);
+  const edgeSide =
+    isStorageSlotEndpoint && counterpartX !== undefined && counterpartY !== undefined
+      ? getStorageEdgeSideTowardPoint({
+          nodeId,
+          handleId,
+          fallbackX,
+          fallbackY,
+          counterpartX,
+          counterpartY,
+          fallbackSide: positionToEdgeSide(position),
+        })
+      : positionToEdgeSide(position);
 
   const measuredEndpoint = getMeasuredSlotEndpoint({
     nodeId,
@@ -2153,6 +2193,38 @@ function positionToEdgeSide(position: unknown): Position {
   }
 }
 
+function getStorageEdgeSideTowardPoint({
+  nodeId,
+  handleId,
+  fallbackX,
+  fallbackY,
+  counterpartX,
+  counterpartY,
+  fallbackSide,
+}: {
+  nodeId: string;
+  handleId?: string | null;
+  fallbackX: number;
+  fallbackY: number;
+  counterpartX: number;
+  counterpartY: number;
+  fallbackSide: Position;
+}) {
+  const center = getMeasuredSlotCenter({ nodeId, handleId }) ?? { x: fallbackX, y: fallbackY };
+  const distanceX = counterpartX - center.x;
+  const distanceY = counterpartY - center.y;
+
+  if (Math.abs(distanceY) > Math.abs(distanceX) * 1.15) {
+    return distanceY >= 0 ? Position.Bottom : Position.Top;
+  }
+
+  if (Math.abs(distanceX) > 1) {
+    return distanceX >= 0 ? Position.Right : Position.Left;
+  }
+
+  return fallbackSide;
+}
+
 function getMeasuredSlotEndpoint({
   nodeId,
   handleId,
@@ -2181,6 +2253,35 @@ function getMeasuredSlotEndpoint({
   const screenPoint = getSlotRectEdgePoint(slotRect, edgeSide);
 
   return screenToFlowPoint(screenPoint, nodeElement);
+}
+
+function getMeasuredSlotCenter({
+  nodeId,
+  handleId,
+}: {
+  nodeId: string;
+  handleId?: string | null;
+}) {
+  if (!handleId || typeof document === "undefined") {
+    return undefined;
+  }
+
+  const slotElement =
+    findResourceEndpointElement("[data-resource-edge-anchor='true']", nodeId, handleId) ??
+    findResourceEndpointElement("[data-resource-handle='true']", nodeId, handleId);
+  const nodeElement =
+    slotElement?.closest<HTMLElement>(".react-flow__node") ??
+    document.querySelector<HTMLElement>(`.react-flow__node[data-id="${cssEscape(nodeId)}"]`);
+
+  if (!nodeElement || !slotElement) {
+    return undefined;
+  }
+
+  const slotRect = slotElement.getBoundingClientRect();
+  return screenToFlowPoint(
+    { x: slotRect.left + slotRect.width / 2, y: slotRect.top + slotRect.height / 2 },
+    nodeElement,
+  );
 }
 
 function getSlotRectEdgePoint(rect: DOMRect, edgeSide: string) {

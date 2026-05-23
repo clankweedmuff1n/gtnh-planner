@@ -99,8 +99,9 @@ and environment files stay out of git. Publishing the source should not require 
 the recipe dataset or rendered icons. The hosted app still needs either the server symlink
 described above or a public `NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL`.
 
-No project license is declared yet. Add a `LICENSE` file before relying on public reuse
-permissions.
+Code is licensed under the MIT License. GTNH, Minecraft, mod assets, generated recipe
+datasets, textures, and icons are not included in this repository and remain under their
+respective owners' licenses.
 
 ## Dataset Automation
 

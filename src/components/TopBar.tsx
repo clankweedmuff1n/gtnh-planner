@@ -103,7 +103,9 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
       const selectedDatasetVersion = manifest?.versions.find(
         (version) => version.id === selectedDatasetVersionId,
       );
-      const importedProject = cloneImportedProject(parseFactoryProjectJson(text));
+      const importedProject = refreshImportedProjectEdges(
+        cloneImportedProject(parseFactoryProjectJson(text)),
+      );
 
       if (!selectedDatasetVersion) {
         setProject(importedProject);
@@ -117,7 +119,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
         importedProject,
         selectedDatasetVersion,
       );
-      setProject(hydration.project);
+      setProject(refreshImportedProjectEdges(hydration.project));
 
       if (hydration.missingRecipes.length) {
         console.warn(
@@ -413,6 +415,69 @@ function remapMigratedRecipeReferences(
         edge,
       ),
     ),
+  };
+}
+
+function refreshImportedProjectEdges(project: FactoryProject): FactoryProject {
+  if (project.edges.length === 0) {
+    return project;
+  }
+
+  const nodesById = new Map(project.nodes.map((node) => [node.id, node] as const));
+  const recipesById = new Map(project.recipes.map((recipe) => [recipe.id, recipe] as const));
+  const storagesById = new Map(
+    (project.storages ?? []).map((storage) => [storage.id, storage] as const),
+  );
+  const edges = project.edges.map((edge) =>
+    refreshImportedProjectEdgeHandles(edge, nodesById, recipesById, storagesById),
+  );
+
+  return { ...project, edges };
+}
+
+function refreshImportedProjectEdgeHandles(
+  edge: FactoryEdge,
+  nodesById: Map<string, FactoryProject["nodes"][number]>,
+  recipesById: Map<string, Recipe>,
+  storagesById: Map<string, NonNullable<FactoryProject["storages"]>[number]>,
+): FactoryEdge {
+  const sourceNode = nodesById.get(edge.source);
+  const targetNode = nodesById.get(edge.target);
+  const sourceRecipe = sourceNode ? recipesById.get(sourceNode.recipeId) : undefined;
+  const targetRecipe = targetNode ? recipesById.get(targetNode.recipeId) : undefined;
+  const sourceStorage = storagesById.get(edge.source);
+  const targetStorage = storagesById.get(edge.target);
+
+  return {
+    ...edge,
+    sourceHandle: sourceRecipe
+      ? remapRecipeHandle(
+          sourceRecipe,
+          edge.sourceHandle,
+          "output",
+          edge.resourceKind,
+          edge.resourceId,
+        )
+      : sourceStorage
+        ? makeResourceHandleId("output", {
+            kind: sourceStorage.kind,
+            id: sourceStorage.resourceId,
+          })
+        : edge.sourceHandle,
+    targetHandle: targetRecipe
+      ? remapRecipeHandle(
+          targetRecipe,
+          edge.targetHandle,
+          "input",
+          edge.resourceKind,
+          edge.resourceId,
+        )
+      : targetStorage
+        ? makeResourceHandleId("input", {
+            kind: targetStorage.kind,
+            id: targetStorage.resourceId,
+          })
+        : edge.targetHandle,
   };
 }
 

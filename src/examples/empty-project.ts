@@ -7,7 +7,7 @@ export function createEmptyProject(): FactoryProject {
   return {
     schemaVersion: PROJECT_SCHEMA_VERSION,
     id: "manual-project",
-    name: "GTNH Factory Flow",
+    name: "GTNH Planner",
     recipes: [],
     nodes: [],
     storages: [],

@@ -170,7 +170,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
     <header className="flex min-h-16 flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-3">
       <div className="flex min-w-[260px] flex-1 items-start gap-2">
         <div className="grid min-w-0 gap-1">
-          <h1 className="truncate text-lg font-semibold text-neutral-950">GTNH Factory Flow</h1>
+          <h1 className="truncate text-lg font-semibold text-neutral-950">GTNH Planner</h1>
           <label className="grid max-w-52 gap-0.5">
             <span className="sr-only">GTNH version</span>
             <select
@@ -293,7 +293,7 @@ async function readProjectFile(file: File): Promise<string> {
   if (extension === "svg" || file.type === "image/svg+xml") {
     const projectJson = extractProjectJsonFromSvg(await file.text());
     if (!projectJson) {
-      throw new Error("This SVG does not contain a GTNH Factory Flow plan.");
+      throw new Error("This SVG does not contain a GTNH Planner plan.");
     }
     return projectJson;
   }
@@ -301,7 +301,7 @@ async function readProjectFile(file: File): Promise<string> {
   if (extension === "png" || file.type === "image/png") {
     const projectJson = await extractProjectJsonFromPng(file);
     if (!projectJson) {
-      throw new Error("This PNG does not contain a GTNH Factory Flow plan.");
+      throw new Error("This PNG does not contain a GTNH Planner plan.");
     }
     return projectJson;
   }

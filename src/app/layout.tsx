@@ -16,8 +16,31 @@ const monocraft = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "GTNH Factory Flow",
-  description: "Manual GTNH factory flowchart and throughput planner.",
+  applicationName: "GTNH Planner",
+  title: "GTNH Planner | GregTech New Horizons Factory Calculator",
+  description:
+    "Plan and optimize GregTech: New Horizons factories with a GTNH recipe flowchart, throughput calculator, machine ratios, and dataset-backed production chains.",
+  keywords: [
+    "GTNH Planner",
+    "GregTech New Horizons planner",
+    "GTNH factory planner",
+    "GTNH recipe calculator",
+    "GTNH throughput calculator",
+    "GregTech factory calculator",
+  ],
+  openGraph: {
+    title: "GTNH Planner | GregTech New Horizons Factory Calculator",
+    description:
+      "Build GTNH recipe flowcharts, calculate throughput, balance machine ratios, and plan production chains for GregTech: New Horizons.",
+    siteName: "GTNH Planner",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "GTNH Planner | GregTech New Horizons Factory Calculator",
+    description:
+      "Build GTNH recipe flowcharts, calculate throughput, balance machine ratios, and plan production chains for GregTech: New Horizons.",
+  },
   icons: {
     icon: "/site-icon.png",
     shortcut: "/site-icon.png",

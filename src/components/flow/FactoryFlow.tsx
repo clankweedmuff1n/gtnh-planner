@@ -86,8 +86,6 @@ const EDGE_BUNDLE_CLEARANCE = 30;
 const DIRECT_EDGE_NODE_CLEARANCE = 18;
 const EDGE_LANE_SPACING = 8;
 const EDGE_LANE_BUCKETS = 4;
-const EDGE_ARROW_SPACING = 5;
-const EDGE_ARROW_BUCKETS = 5;
 const EDGE_PATH_SPREAD_SPACING = 3;
 const EDGE_PATH_SPREAD_BUCKETS = 5;
 const EDGE_LABEL_ZOOM = 0.78;
@@ -1100,7 +1098,6 @@ function ResourceEdge({
   const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
   const laneOffset = getEdgeLaneOffset(id);
   const edgeSpreadKey = `${id}|${data?.sourceHandleId ?? sourceHandleId ?? ""}|${data?.targetHandleId ?? targetHandleId ?? ""}|${data?.resource?.kind ?? ""}:${data?.resource?.id ?? ""}`;
-  const arrowOffset = getEdgeArrowOffset(edgeSpreadKey);
   const pathSpreadOffset = getEdgePathSpreadOffset(edgeSpreadKey);
   const rawRoutedEdge =
     data?.bundle?.role === "primary"
@@ -1218,7 +1215,6 @@ function ResourceEdge({
             fallbackTargetX: visualTarget.x,
             fallbackTargetY: visualTarget.y,
             fallbackTargetPosition: visualTarget.side,
-            arrowOffset,
           })}
           stroke="#252525"
           strokeWidth={isHighlighted ? 4 : 3.2}
@@ -1239,7 +1235,6 @@ function ResourceEdge({
             fallbackTargetX: visualTarget.x,
             fallbackTargetY: visualTarget.y,
             fallbackTargetPosition: visualTarget.side,
-            arrowOffset,
           })}
           stroke={edgeColor}
           strokeWidth={isHighlighted ? 2.2 : 1.8}
@@ -1869,10 +1864,6 @@ function isHorizontalSide(side: string) {
 
 function getEdgeLaneOffset(edgeId: string) {
   return getEdgeHash(edgeId, EDGE_LANE_BUCKETS) * EDGE_LANE_SPACING;
-}
-
-function getEdgeArrowOffset(edgeKey: string) {
-  return getEdgeHash(edgeKey, EDGE_ARROW_BUCKETS) * EDGE_ARROW_SPACING;
 }
 
 function getEdgePathSpreadOffset(edgeKey: string) {
@@ -2831,13 +2822,11 @@ function getArrowHeadPointsForRoute({
   fallbackTargetX,
   fallbackTargetY,
   fallbackTargetPosition,
-  arrowOffset,
 }: {
   points: Array<{ x: number; y: number }>;
   fallbackTargetX: number;
   fallbackTargetY: number;
   fallbackTargetPosition: unknown;
-  arrowOffset: number;
 }) {
   const routeTarget = points[points.length - 1];
   const routePrevious = points[points.length - 2];
@@ -2848,13 +2837,6 @@ function getArrowHeadPointsForRoute({
   const distanceX = routeTarget.x - routePrevious.x;
   const distanceY = routeTarget.y - routePrevious.y;
   const isVertical = Math.abs(distanceY) > Math.abs(distanceX);
-  const length = Math.hypot(distanceX, distanceY);
-  const retreatX = length > 0 ? (distanceX / length) * arrowOffset : 0;
-  const retreatY = length > 0 ? (distanceY / length) * arrowOffset : 0;
-  const target = {
-    x: routeTarget.x - retreatX,
-    y: routeTarget.y - retreatY,
-  };
   const targetPosition = isVertical
     ? distanceY >= 0
       ? Position.Top
@@ -2863,7 +2845,7 @@ function getArrowHeadPointsForRoute({
       ? Position.Left
       : Position.Right;
 
-  return getArrowHeadPoints(target.x, target.y, targetPosition);
+  return getArrowHeadPoints(routeTarget.x, routeTarget.y, targetPosition);
 }
 
 function isCompatibleResourceConnection(connection: Connection | Edge): boolean {

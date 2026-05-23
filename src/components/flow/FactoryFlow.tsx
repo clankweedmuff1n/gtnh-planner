@@ -2493,7 +2493,7 @@ function getRecipeSlotEdgeSideTowardPoint({
     return logicalSide;
   }
 
-  return distanceY >= 0 ? Position.Bottom : Position.Top;
+  return Position.Top;
 }
 
 function getMeasuredSlotEndpoint({

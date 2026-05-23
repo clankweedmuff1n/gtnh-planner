@@ -108,13 +108,20 @@ export async function getDatasetCatalog(versionId: string) {
     gtnhVersion: catalog.version.gtnhVersion,
     sourceInfo: catalog.version.sourceInfo,
     resources: [],
-    resourceIndex: [],
+    resourceIndex: getMachineConfigResources(catalog),
     recipes: [],
     recipeCount: catalog.recipeCount,
     oreDictionary: {},
     recipeMaps: catalog.recipeMaps,
     generatedAt: catalog.version.publishedAt,
   };
+}
+
+function getMachineConfigResources(catalog: LoadedRecipeIndex): DatasetResourceIndexEntry[] {
+  return catalog.resourceIndex.filter(
+    (resource) =>
+      resource.kind === "item" && /^gregtech:gt\.blockcasings5(?:@\d+)?$/.test(resource.id),
+  );
 }
 
 export async function getDatasetRecipeIds(versionId: string): Promise<string[]> {

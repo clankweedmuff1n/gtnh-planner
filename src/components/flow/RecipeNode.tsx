@@ -74,6 +74,18 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
     ? resolveDatasetCoilResource(heatingCoilTierResource(coilControl.current), dataset)
     : undefined;
   const overclockedRecipe = { ...recipe, ...getOverclockedRecipeStats(recipe, projectNode) };
+  const previewRecipe = coilResource
+    ? {
+        ...overclockedRecipe,
+        inputs: [
+          ...overclockedRecipe.inputs,
+          {
+            ...coilResource,
+            consumed: false,
+          },
+        ],
+      }
+    : overclockedRecipe;
   const tierColor = GT_TIER_COLORS[tierControl.current];
   const exceedsMaxTier =
     maxTierFilter !== "all" && isVoltageTierAbove(recipePowerTier, maxTierFilter);
@@ -216,7 +228,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           }
         >
           <NeiRecipeWindow
-            recipe={overclockedRecipe}
+            recipe={previewRecipe}
             scale={2}
             compact
             className={nodeColor ? "recipe-node-nei-tint" : undefined}

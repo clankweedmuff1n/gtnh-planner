@@ -1,7 +1,10 @@
 import { getRecipePowerTier, getVoltageTierIndex, GT_VOLTAGE_TIERS } from "@/lib/model/tiers";
+import { getRecipeCoilTierControl, getRecipeSpecialValue } from "@/lib/model/recipe-rules";
 import type { FactoryNode, MachineTier, Recipe } from "@/lib/model/types";
 
 type VoltageTier = Exclude<MachineTier, "DEMO">;
+type OverclockRecipeInput = Pick<Recipe, "durationTicks" | "eut" | "minimumTier"> &
+  Partial<Pick<Recipe, "machineType" | "source" | "nei">>;
 
 export interface OverclockedRecipeStats {
   tier: VoltageTier;
@@ -12,8 +15,8 @@ export interface OverclockedRecipeStats {
 }
 
 export function getOverclockedRecipeStats(
-  recipe: Pick<Recipe, "durationTicks" | "eut" | "minimumTier">,
-  node: Pick<FactoryNode, "overclockTier">,
+  recipe: OverclockRecipeInput,
+  node: Pick<FactoryNode, "overclockTier" | "coilTier">,
 ): OverclockedRecipeStats {
   const minimumTier = getRecipeMinimumVoltageTier(recipe);
   const requestedTier = resolveVoltageTier(node.overclockTier, minimumTier);
@@ -22,13 +25,51 @@ export function getOverclockedRecipeStats(
       ? minimumTier
       : requestedTier;
   const overclockSteps = Math.max(0, getVoltageTierIndex(tier) - getVoltageTierIndex(minimumTier));
+  const heatOverclock = getHeatOverclockStats(recipe, node, tier, overclockSteps);
 
   return {
     tier,
     minimumTier,
     overclockSteps,
-    durationTicks: Math.max(1, recipe.durationTicks / 2 ** overclockSteps),
-    eut: recipe.eut * 4 ** overclockSteps,
+    durationTicks: Math.max(
+      1,
+      recipe.durationTicks /
+        4 ** heatOverclock.heatOverclockSteps /
+        2 ** heatOverclock.regularOverclockSteps,
+    ),
+    eut: recipe.eut * heatOverclock.heatDiscountMultiplier * 4 ** overclockSteps,
+  };
+}
+
+function getHeatOverclockStats(
+  recipe: OverclockRecipeInput,
+  node: Pick<FactoryNode, "coilTier">,
+  tier: VoltageTier,
+  overclockSteps: number,
+) {
+  const specialValue = getRecipeSpecialValue(recipe);
+  const coilControl = recipe.machineType
+    ? getRecipeCoilTierControl(
+        { machineType: recipe.machineType, source: recipe.source, nei: recipe.nei },
+        node,
+      )
+    : undefined;
+  if (specialValue === undefined || !coilControl) {
+    return {
+      heatOverclockSteps: 0,
+      regularOverclockSteps: overclockSteps,
+      heatDiscountMultiplier: 1,
+    };
+  }
+
+  const machineHeat = coilControl.current.heat + 100 * (getVoltageTierIndex(tier) - 2);
+  const heatExcess = Math.max(0, machineHeat - specialValue);
+  const heatOverclockSteps = Math.min(overclockSteps, Math.floor(heatExcess / 1800));
+
+  return {
+    heatOverclockSteps,
+    regularOverclockSteps: overclockSteps - heatOverclockSteps,
+    heatDiscountMultiplier: 0.95 ** Math.floor(heatExcess / 900),
   };
 }
 

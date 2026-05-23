@@ -1,5 +1,6 @@
 import type { DatasetResource, DatasetResourceIndexEntry, RecipeDataset } from "./types";
 import type { Recipe, ResourceAmount } from "../model/types";
+import { expandMachineRecipeVariants } from "../model/recipe-rules";
 import {
   knownRecipeMapSlotCapacity,
   mergeRecipeMapSlotCapacity,
@@ -12,8 +13,10 @@ export function enrichDatasetRecipes(dataset: RecipeDataset): RecipeDataset {
   );
   const slotCapacitiesByRecipeMap = buildRecipeMapSlotCapacities(dataset.recipes);
 
-  const recipes = dataset.recipes.map((recipe) =>
-    enrichRecipe(recipe, resourcesByKey, slotCapacitiesByRecipeMap),
+  const recipes = expandMachineRecipeVariants(
+    dataset.recipes.map((recipe) =>
+      enrichRecipe(recipe, resourcesByKey, slotCapacitiesByRecipeMap),
+    ),
   );
 
   return {

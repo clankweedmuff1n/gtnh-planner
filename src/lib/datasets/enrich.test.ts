@@ -130,6 +130,51 @@ describe("enrichDatasetRecipes", () => {
       maxFluidOutputs: 3,
     });
   });
+
+  it("adds missing multiblock variants for shared single-block recipe maps", () => {
+    const dataset = baseDataset([
+      {
+        id: "single-mixer",
+        name: "Mixer: Product",
+        machineType: "Mixer",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 8,
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [{ kind: "item", id: "product", amount: 1 }],
+        source: { recipeMap: "Mixer" },
+      },
+    ]);
+
+    const enriched = enrichDatasetRecipes(dataset);
+
+    expect(enriched.recipes).toHaveLength(2);
+    expect(enriched.recipes[1]).toMatchObject({
+      machineType: "Multiblock Mixer",
+      source: { recipeMap: "Multiblock Mixer" },
+    });
+  });
+
+  it("does not add heating coils as fake NEI inputs", () => {
+    const dataset = baseDataset([
+      {
+        id: "ebf",
+        name: "Blast Furnace: Hot Ingot",
+        machineType: "Blast Furnace",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 120,
+        inputs: [{ kind: "item", id: "dust", amount: 1 }],
+        outputs: [{ kind: "item", id: "hot_ingot", amount: 1 }],
+        source: { recipeMap: "Blast Furnace" },
+        nei: { additionalInfo: ["Special value: 2700"] },
+      },
+    ]);
+
+    const enriched = enrichDatasetRecipes(dataset);
+
+    expect(enriched.recipes[0]?.inputs).toHaveLength(1);
+  });
 });
 
 function baseDataset(recipes: RecipeDataset["recipes"]): RecipeDataset {

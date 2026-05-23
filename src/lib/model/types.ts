@@ -145,6 +145,7 @@ export interface FactoryNode {
   machineCount: number;
   parallel: number;
   overclockTier: MachineTier | string;
+  coilTier?: string;
   targetOutput?: TargetRate;
   enabled: boolean;
   position: {

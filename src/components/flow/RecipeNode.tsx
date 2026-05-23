@@ -7,9 +7,12 @@ import type { FactoryNode, MachineTier, NodeThroughputResult, Recipe } from "@/l
 import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
 import {
   formatRate,
+  getAdjacentCoilTier,
   GT_VOLTAGE_TIERS,
+  getRecipeCoilTierControl,
   getRecipePowerTier,
   getVoltageTierIndex,
+  heatingCoilTierResource,
   isRecipeInputConsumed,
   isVoltageTierAbove,
   makeResourceKey,
@@ -18,6 +21,7 @@ import {
 } from "@/lib/model";
 import { NeiRecipeWindow } from "@/components/nei/NeiRecipeWindow";
 import { MinecraftTooltip } from "@/components/nei/MinecraftTooltip";
+import { ResourceIcon } from "@/components/nei/ResourceIcon";
 import { makeResourceHandleId } from "./resource-handles";
 import { useFactoryStore } from "@/store/factory-store";
 import { GT_NODE_COLORS } from "./node-colors";
@@ -58,6 +62,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const nodeColor = projectNode.colorTag ? GT_NODE_COLORS[projectNode.colorTag] : undefined;
   const recipePowerTier = getRecipePowerTier(recipe);
   const tierControl = getNodeTierControl(recipe, projectNode);
+  const coilControl = getRecipeCoilTierControl(recipe, projectNode);
   const overclockedRecipe = { ...recipe, ...getOverclockedRecipeStats(recipe, projectNode) };
   const tierColor = GT_TIER_COLORS[tierControl.current];
   const exceedsMaxTier =
@@ -66,6 +71,20 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
     const nextTier = getAdjacentTier(tierControl.current, tierControl.minimum, direction);
     if (nextTier !== tierControl.current) {
       updateNode(projectNode.id, { overclockTier: nextTier });
+    }
+  };
+  const updateCoilTier = (direction: -1 | 1) => {
+    if (!coilControl) {
+      return;
+    }
+
+    const nextTier = getAdjacentCoilTier(
+      coilControl.current.key,
+      coilControl.minimum.key,
+      direction,
+    );
+    if (nextTier !== coilControl.current.key) {
+      updateNode(projectNode.id, { coilTier: nextTier });
     }
   };
 
@@ -98,7 +117,14 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         </div>
       ) : null}
       <div className="px-2 pb-2 pt-1">
-        <div className="mb-1 grid min-w-0 grid-cols-[24px_minmax(0,1fr)_50px] items-center">
+        <div
+          className={[
+            "mb-1 grid min-w-0 items-center",
+            coilControl
+              ? "grid-cols-[24px_minmax(0,1fr)_28px_50px]"
+              : "grid-cols-[24px_minmax(0,1fr)_50px]",
+          ].join(" ")}
+        >
           <button
             type="button"
             onClick={(event) => {
@@ -117,6 +143,32 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           >
             {recipe.source?.recipeMap ?? recipe.machineType}
           </div>
+          {coilControl ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                updateCoilTier(1);
+              }}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                updateCoilTier(-1);
+              }}
+              className="nodrag flex h-6 w-7 items-center justify-center border-2 border-[#252525] bg-[#8d8d8d] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:brightness-110"
+              title={`Coil ${coilControl.current.label}. Left click up, right click down.`}
+              aria-label={`Coil ${coilControl.current.label}`}
+            >
+              <ResourceIcon
+                resource={heatingCoilTierResource(coilControl.current)}
+                bare
+                tooltip={false}
+                showAmount={false}
+                iconPixelSize={22}
+                className="h-5 w-5"
+              />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={(event) => {

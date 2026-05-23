@@ -74,18 +74,6 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
     ? resolveDatasetCoilResource(heatingCoilTierResource(coilControl.current), dataset)
     : undefined;
   const overclockedRecipe = { ...recipe, ...getOverclockedRecipeStats(recipe, projectNode) };
-  const previewRecipe = coilResource
-    ? {
-        ...overclockedRecipe,
-        inputs: [
-          ...overclockedRecipe.inputs,
-          {
-            ...coilResource,
-            consumed: false,
-          },
-        ],
-      }
-    : overclockedRecipe;
   const tierColor = GT_TIER_COLORS[tierControl.current];
   const exceedsMaxTier =
     maxTierFilter !== "all" && isVoltageTierAbove(recipePowerTier, maxTierFilter);
@@ -142,9 +130,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         <div
           className={[
             "mb-1 grid min-w-0 items-center",
-            coilControl
-              ? "grid-cols-[24px_minmax(0,1fr)_28px_50px]"
-              : "grid-cols-[24px_minmax(0,1fr)_50px]",
+            "grid-cols-[24px_minmax(0,1fr)_50px]",
           ].join(" ")}
         >
           <button
@@ -165,32 +151,6 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           >
             {recipe.source?.recipeMap ?? recipe.machineType}
           </div>
-          {coilControl ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                updateCoilTier(1);
-              }}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                updateCoilTier(-1);
-              }}
-              className="nodrag flex h-6 w-7 items-center justify-center border-2 border-[#252525] bg-[#8d8d8d] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:brightness-110"
-              title={`Coil ${coilControl.current.label}. Left click up, right click down.`}
-              aria-label={`Coil ${coilControl.current.label}`}
-            >
-              <ResourceIcon
-                resource={coilResource}
-                bare
-                tooltip={false}
-                showAmount={false}
-                iconPixelSize={22}
-                className="h-5 w-5"
-              />
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={(event) => {
@@ -228,11 +188,39 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           }
         >
           <NeiRecipeWindow
-            recipe={previewRecipe}
+            recipe={overclockedRecipe}
             scale={2}
             compact
             className={nodeColor ? "recipe-node-nei-tint" : undefined}
             canvasClassName={nodeColor ? "recipe-node-canvas-tint" : undefined}
+            statsAction={
+              coilControl && coilResource ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    updateCoilTier(1);
+                  }}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    updateCoilTier(-1);
+                  }}
+                  className="nodrag flex h-10 w-10 items-center justify-center border-2 border-[#252525] bg-[#8d8d8d] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:brightness-110"
+                  title={`${coilResource.displayName ?? coilControl.current.label}. Left click up, right click down.`}
+                  aria-label={`Coil ${coilResource.displayName ?? coilControl.current.label}`}
+                >
+                  <ResourceIcon
+                    resource={coilResource}
+                    bare
+                    tooltip={false}
+                    showAmount={false}
+                    iconPixelSize={36}
+                    className="h-9 w-9"
+                  />
+                </button>
+              ) : undefined
+            }
             getSlotConnectionAttributes={(slot) => {
               if (slot.side === "input" && !isRecipeInputConsumed(slot.resource)) {
                 return undefined;

@@ -19,6 +19,7 @@ interface NeiRecipeWindowProps {
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
   slotTooltip?: boolean;
+  statsAction?: ReactNode;
 }
 
 export const NeiRecipeWindow = memo(function NeiRecipeWindow({
@@ -31,6 +32,7 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
   getSlotConnectionAttributes,
   onSlotClick,
   slotTooltip = true,
+  statsAction,
 }: NeiRecipeWindowProps) {
   const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
   const totalEu = recipe.eut * recipe.durationTicks;
@@ -67,16 +69,19 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
         </div>
       </div>
 
-      <div
-        className={["mt-1 leading-tight text-black", compact ? "text-[10px]" : "text-[16px]"].join(
-          " ",
-        )}
-      >
-        <div>Total: {formatRate(totalEu, 0)} EU</div>
-        <div>
-          Usage: {formatRate(recipe.eut, 0)} EU/t ({powerTier})
+      <div className="mt-1 flex items-start justify-between gap-2 text-black">
+        <div
+          className={["min-w-0 leading-tight", compact ? "text-[10px]" : "text-[16px]"].join(
+            " ",
+          )}
+        >
+          <div>Total: {formatRate(totalEu, 0)} EU</div>
+          <div>
+            Usage: {formatRate(recipe.eut, 0)} EU/t ({powerTier})
+          </div>
+          <div>Time: {formatRate(seconds, seconds >= 10 ? 0 : 1)} seconds</div>
         </div>
-        <div>Time: {formatRate(seconds, seconds >= 10 ? 0 : 1)} seconds</div>
+        {statsAction ? <div className="shrink-0 self-center">{statsAction}</div> : null}
       </div>
     </div>
   );

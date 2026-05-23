@@ -21,8 +21,16 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/umami",
+        destination: "http://127.0.0.1:8582/umami",
+      },
+      {
+        source: "/umami/:path*",
+        destination: "http://127.0.0.1:8582/umami/:path*",
+      },
+      {
         source: "/_umami/:path*",
-        destination: "http://127.0.0.1:8582/:path*",
+        destination: "http://127.0.0.1:8582/umami/:path*",
       },
     ];
   },

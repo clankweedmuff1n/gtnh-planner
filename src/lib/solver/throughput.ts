@@ -41,7 +41,6 @@ export function calculateThroughput(
   const recipesById = new Map(project.recipes.map((recipe) => [recipe.id, recipe]));
   const nodes: Record<string, NodeThroughputResult> = {};
   const storages: Record<string, StorageThroughputResult> = {};
-  const balances = new Map<ResourceKey, ResourceBalance>();
   const bottlenecks: BottleneckReport[] = [];
   let totalEuT = 0;
   const projectStorages = project.storages ?? [];
@@ -110,13 +109,11 @@ export function calculateThroughput(
 
       const amountPerSecond = input.amount * operationRatePerSecond;
       addFlow(inputs, input, amountPerSecond);
-      addBalanceConsumption(balances, input, amountPerSecond);
     }
 
     for (const output of recipe.outputs) {
       const amountPerSecond = output.amount * getChanceMultiplier(output) * operationRatePerSecond;
       addFlow(outputs, output, amountPerSecond);
-      addBalanceProduction(balances, output, amountPerSecond);
     }
 
     const euT = overclockedRecipe.eut * node.machineCount * node.parallel;
@@ -264,32 +261,65 @@ export function calculateThroughput(
     nodeResult.theoreticalMachinesRequired = utilizationReport.theoreticalMachinesRequired;
     nodeResult.limitingResource = utilizationReport.limitingResource;
     nodeResult.status = getNodeStatus(nodeResult.utilization);
-
-    if (nodeResult.status === "bottleneck") {
-      bottlenecks.push({
-        id: `node-capacity:${node.id}`,
-        kind: "node-capacity",
-        severity: "critical",
-        message: `${recipe.name} needs ${utilizationReport.requiredRatePerSecond.toFixed(
-          2,
-        )}/s but can produce ${utilizationReport.maxRatePerSecond.toFixed(2)}/s.`,
-        nodeId: node.id,
-        resource: utilizationReport.limitingResource,
-        requiredPerSecond: utilizationReport.requiredRatePerSecond,
-        capacityPerSecond: utilizationReport.maxRatePerSecond,
-      });
-    }
   }
 
+  const maxUtilizationPasses = Math.max(1, project.nodes.length + 1);
+  for (let pass = 0; pass < maxUtilizationPasses; pass += 1) {
+    refreshEdgeResultsFromNodeUtilization(
+      project,
+      projectStorages,
+      nodes,
+      edgeResults,
+      incomingEdgeCounts,
+      storagesById,
+    );
+    if (
+      !refreshNodeUtilizationFromEdgeResults(
+        project,
+        recipesById,
+        nodes,
+        edgeResults,
+        storagesById,
+      )
+    ) {
+      break;
+    }
+  }
   refreshEdgeResultsFromNodeUtilization(
     project,
+    projectStorages,
     nodes,
     edgeResults,
     incomingEdgeCounts,
     storagesById,
   );
+  refreshStorageResultsFromEdges(projectStorages, storages, project.edges, edgeResults);
 
-  const resourceResults = Object.fromEntries(balances) as Record<ResourceKey, ResourceBalance>;
+  for (const node of project.nodes) {
+    const nodeResult = nodes[node.id];
+    const recipe = recipesById.get(node.recipeId);
+    if (!nodeResult || !recipe || nodeResult.status !== "bottleneck") {
+      continue;
+    }
+
+    bottlenecks.push({
+      id: `node-capacity:${node.id}`,
+      kind: "node-capacity",
+      severity: "critical",
+      message: `${recipe.name} needs ${nodeResult.requiredRatePerSecond.toFixed(
+        2,
+      )}/s but can produce ${nodeResult.maxRatePerSecond.toFixed(2)}/s.`,
+      nodeId: node.id,
+      resource: nodeResult.limitingResource,
+      requiredPerSecond: nodeResult.requiredRatePerSecond,
+      capacityPerSecond: nodeResult.maxRatePerSecond,
+    });
+  }
+
+  const resourceResults = Object.fromEntries(calculateEffectiveBalances(nodes)) as Record<
+    ResourceKey,
+    ResourceBalance
+  >;
   const externalInputs = Object.values(resourceResults)
     .filter((balance) => balance.deficitPerSecond > EPSILON)
     .sort((a, b) => b.deficitPerSecond - a.deficitPerSecond);
@@ -416,6 +446,47 @@ function updateBalanceNet(balance: ResourceBalance): void {
   balance.deficitPerSecond = Math.max(0, -balance.netPerSecond);
 }
 
+function calculateEffectiveBalances(
+  nodes: Record<string, NodeThroughputResult>,
+): Map<ResourceKey, ResourceBalance> {
+  const balances = new Map<ResourceKey, ResourceBalance>();
+
+  for (const node of Object.values(nodes)) {
+    if (!node.enabled || node.status === "missing-recipe") {
+      continue;
+    }
+
+    const utilization = clampUtilization(node.utilization);
+    for (const input of Object.values(node.inputs)) {
+      addBalanceConsumption(
+        balances,
+        {
+          kind: input.kind,
+          id: input.resourceId,
+          displayName: input.displayName,
+          amount: 0,
+        },
+        input.amountPerSecond * utilization,
+      );
+    }
+
+    for (const output of Object.values(node.outputs)) {
+      addBalanceProduction(
+        balances,
+        {
+          kind: output.kind,
+          id: output.resourceId,
+          displayName: output.displayName,
+          amount: 0,
+        },
+        output.amountPerSecond * utilization,
+      );
+    }
+  }
+
+  return balances;
+}
+
 function countIncomingEdgesByTargetResource(project: FactoryProject): Map<string, number> {
   const counts = new Map<string, number>();
 
@@ -462,11 +533,19 @@ function countIncomingEdgesToStorageResource(
 
 function refreshEdgeResultsFromNodeUtilization(
   project: FactoryProject,
+  projectStorages: FactoryStorage[],
   nodes: Record<string, NodeThroughputResult>,
   edgeResults: Record<string, EdgeThroughput>,
   incomingEdgeCounts: Map<string, number>,
   storagesById: Map<string, FactoryStorage>,
 ): void {
+  const storageOutgoingDemand = calculateEffectiveStorageOutgoingDemand(
+    project,
+    nodes,
+    projectStorages,
+  );
+  const storageIncomingCounts = countIncomingEdgesToStorageResource(project, projectStorages);
+
   for (const edge of project.edges) {
     const key = makeResourceKey(edge.resourceKind, edge.resourceId);
     const targetDemandKey = getEdgeTargetDemandKey(project, edge) ?? key;
@@ -483,9 +562,16 @@ function refreshEdgeResultsFromNodeUtilization(
       sourceStorage || !sourceResult
         ? Number.POSITIVE_INFINITY
         : getEffectiveFlowRate(sourceResult.outputs[key], sourceResult.utilization);
-    const targetCount = incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
+    const targetCount = targetStorage
+      ? (storageIncomingCounts.get(key) ?? 1)
+      : (incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1);
+    const effectiveStorageDemand = targetStorage ? (storageOutgoingDemand.get(key) ?? 0) : 0;
     const targetDemand =
-      targetStorage || !targetResult
+      targetStorage
+        ? effectiveStorageDemand > EPSILON
+          ? effectiveStorageDemand / targetCount
+          : sourceCapacity
+        : !targetResult
         ? sourceCapacity
         : getEffectiveFlowRate(targetResult.inputs[targetDemandKey], targetResult.utilization) /
           targetCount;
@@ -499,6 +585,132 @@ function refreshEdgeResultsFromNodeUtilization(
       Number.isFinite(transferredPerSecond) ? transferredPerSecond : demandPerSecond,
     );
   }
+}
+
+function refreshStorageResultsFromEdges(
+  projectStorages: FactoryStorage[],
+  storages: Record<string, StorageThroughputResult>,
+  edges: FactoryProject["edges"],
+  edgeResults: Record<string, EdgeThroughput>,
+): void {
+  const storageIds = new Set(projectStorages.map((storage) => storage.id));
+
+  for (const storage of projectStorages) {
+    const result = storages[storage.id];
+    if (!result) {
+      continue;
+    }
+
+    result.producedPerSecond = 0;
+    result.consumedPerSecond = 0;
+    result.netPerSecond = 0;
+    result.storedAmount = 0;
+    result.status = "empty";
+  }
+
+  for (const edge of edges) {
+    const edgeResult = edgeResults[edge.id];
+    if (!edgeResult) {
+      continue;
+    }
+
+    if (storageIds.has(edge.target) && !storageIds.has(edge.source)) {
+      updateStorageFlow(storages[edge.target], edgeResult.transferredPerSecond, 0);
+    } else if (storageIds.has(edge.source) && !storageIds.has(edge.target)) {
+      updateStorageFlow(storages[edge.source], 0, edgeResult.transferredPerSecond);
+    }
+  }
+
+  aggregateStorageFlowsByResource(projectStorages, storages);
+
+  for (const storageResult of Object.values(storages)) {
+    finalizeStorageFlow(storageResult);
+  }
+}
+
+function refreshNodeUtilizationFromEdgeResults(
+  project: FactoryProject,
+  recipesById: Map<string, Recipe>,
+  nodes: Record<string, NodeThroughputResult>,
+  edgeResults: Record<string, EdgeThroughput>,
+  storagesById: Map<string, FactoryStorage>,
+): boolean {
+  const requiredByNodeAndResource = new Map<string, Map<ResourceKey, number>>();
+  let changed = false;
+
+  for (const edge of project.edges) {
+    if (storagesById.has(edge.source)) {
+      continue;
+    }
+
+    const edgeResult = edgeResults[edge.id];
+    if (!edgeResult) {
+      continue;
+    }
+
+    addRequiredRate(
+      requiredByNodeAndResource,
+      edge.source,
+      makeResourceKey(edge.resourceKind, edge.resourceId),
+      edgeResult.demandPerSecond,
+    );
+  }
+  applyProjectTarget(project, nodes, requiredByNodeAndResource);
+
+  for (const node of project.nodes) {
+    const nodeResult = nodes[node.id];
+    const recipe = recipesById.get(node.recipeId);
+    if (!node.enabled || !nodeResult || !recipe || nodeResult.status === "missing-recipe") {
+      continue;
+    }
+
+    const requiredByResource = new Map(requiredByNodeAndResource.get(node.id));
+    if (node.targetOutput) {
+      const targetKey = makeResourceKey(node.targetOutput.kind, node.targetOutput.resourceId);
+      requiredByResource.set(
+        targetKey,
+        Math.max(requiredByResource.get(targetKey) ?? 0, node.targetOutput.amountPerSecond),
+      );
+    }
+
+    const outputFlows = Object.values(nodeResult.outputs);
+    if (requiredByResource.size === 0 && outputFlows.length > 0) {
+      const output = primaryOutput(recipe);
+      if (output) {
+        const key = makeResourceKey(output.kind, output.id);
+        requiredByResource.set(key, nodeResult.outputs[key]?.amountPerSecond ?? 0);
+      }
+    }
+
+    const overclockedRecipe = {
+      ...recipe,
+      ...getOverclockedRecipeStats(recipe, node),
+    };
+    const utilizationReport = selectLimitingOutput(
+      overclockedRecipe,
+      node,
+      nodeResult,
+      requiredByResource,
+    );
+
+    if (
+      Math.abs(nodeResult.utilization - utilizationReport.utilization) > EPSILON ||
+      Math.abs(
+        nodeResult.theoreticalMachinesRequired - utilizationReport.theoreticalMachinesRequired,
+      ) > EPSILON
+    ) {
+      changed = true;
+    }
+
+    nodeResult.requiredRatePerSecond = utilizationReport.requiredRatePerSecond;
+    nodeResult.maxRatePerSecond = utilizationReport.maxRatePerSecond;
+    nodeResult.utilization = utilizationReport.utilization;
+    nodeResult.theoreticalMachinesRequired = utilizationReport.theoreticalMachinesRequired;
+    nodeResult.limitingResource = utilizationReport.limitingResource;
+    nodeResult.status = getNodeStatus(nodeResult.utilization);
+  }
+
+  return changed;
 }
 
 function getEffectiveFlowRate(flow: ResourceFlow | undefined, utilization: number): number {
@@ -541,6 +753,33 @@ function calculateStorageOutgoingDemand(
     const targetCount = incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
     const targetDemand = targetResult?.inputs[targetDemandKey]?.amountPerSecond ?? 0;
     const demandPerSecond = targetDemand / targetCount;
+    demand.set(key, (demand.get(key) ?? 0) + demandPerSecond);
+  }
+
+  return demand;
+}
+
+function calculateEffectiveStorageOutgoingDemand(
+  project: FactoryProject,
+  nodes: Record<string, NodeThroughputResult>,
+  storages: FactoryStorage[],
+): Map<string, number> {
+  const storageIds = new Set(storages.map((storage) => storage.id));
+  const demand = new Map<string, number>();
+  const incomingEdgeCounts = countIncomingEdgesByTargetResource(project);
+
+  for (const edge of project.edges) {
+    if (!storageIds.has(edge.source)) {
+      continue;
+    }
+
+    const key = makeResourceKey(edge.resourceKind, edge.resourceId);
+    const targetDemandKey = getEdgeTargetDemandKey(project, edge) ?? key;
+    const targetResult = nodes[edge.target];
+    const targetCount = incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
+    const demandPerSecond =
+      getEffectiveFlowRate(targetResult?.inputs[targetDemandKey], targetResult?.utilization ?? 0) /
+      targetCount;
     demand.set(key, (demand.get(key) ?? 0) + demandPerSecond);
   }
 

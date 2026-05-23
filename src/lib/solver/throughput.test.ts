@@ -195,6 +195,9 @@ describe("calculateThroughput", () => {
     expect(result.nodes.consumer.utilization).toBeCloseTo(0.25);
     expect(result.edges["powder-edge"].demandPerSecond).toBeCloseTo(2.5);
     expect(result.edges["powder-edge"].transferredPerSecond).toBeCloseTo(2.5);
+    expect(result.resources["item:powder"].producedPerSecond).toBeCloseTo(2.5);
+    expect(result.resources["item:powder"].consumedPerSecond).toBeCloseTo(2.5);
+    expect(result.resources["item:powder"].netPerSecond).toBeCloseTo(0);
   });
 
   it("uses concrete item edges to satisfy ore dictionary input demand", () => {
@@ -388,6 +391,103 @@ describe("calculateThroughput", () => {
     expect(result.edges["drawer-edge"].demandPerSecond).toBeCloseTo(6);
     expect(result.edges["drawer-edge"].transferredPerSecond).toBeCloseTo(6);
     expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(6);
+  });
+
+  it("scales storage labels and surplus from final producer utilization", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "storage-effective-rate-project",
+      name: "Storage effective rate test",
+      targetRate: {
+        kind: "item",
+        resourceId: "plate",
+        amountPerSecond: 1,
+      },
+      recipes: [
+        {
+          id: "source-recipe",
+          name: "Dust source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "item", id: "dust", amount: 10 }],
+        },
+        {
+          id: "consumer-recipe",
+          name: "Plate target",
+          machineType: "Assembler",
+          minimumTier: "LV",
+          durationTicks: 20,
+          eut: 30,
+          inputs: [{ kind: "item", id: "dust", amount: 10 }],
+          outputs: [{ kind: "item", id: "plate", amount: 10 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "source",
+          recipeId: "source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "consumer",
+          recipeId: "consumer-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 300, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "dust-drawer-out",
+          kind: "item",
+          resourceId: "dust",
+          position: { x: 120, y: 0 },
+        },
+        {
+          id: "dust-drawer-in",
+          kind: "item",
+          resourceId: "dust",
+          position: { x: 180, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "source-to-drawer",
+          source: "source",
+          target: "dust-drawer-out",
+          resourceKind: "item",
+          resourceId: "dust",
+        },
+        {
+          id: "drawer-to-consumer",
+          source: "dust-drawer-in",
+          target: "consumer",
+          resourceKind: "item",
+          resourceId: "dust",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.nodes.consumer.utilization).toBeCloseTo(0.1);
+    expect(result.nodes.source.utilization).toBeCloseTo(0.1);
+    expect(result.edges["source-to-drawer"].demandPerSecond).toBeCloseTo(1);
+    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(1);
+    expect(result.storages["dust-drawer-out"].producedPerSecond).toBeCloseTo(1);
+    expect(result.storages["dust-drawer-out"].consumedPerSecond).toBeCloseTo(1);
+    expect(result.storages["dust-drawer-out"].netPerSecond).toBeCloseTo(0);
+    expect(result.resources["item:dust"].netPerSecond).toBeCloseTo(0);
   });
 
   it("does not add global target demand on top of output fully routed to storage", () => {
@@ -600,10 +700,10 @@ describe("calculateThroughput", () => {
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
     for (const storageId of ["dust-drawer-a", "dust-drawer-b"]) {
-      expect(result.storages[storageId].producedPerSecond).toBeCloseTo(5);
+      expect(result.storages[storageId].producedPerSecond).toBeCloseTo(2);
       expect(result.storages[storageId].consumedPerSecond).toBeCloseTo(2);
-      expect(result.storages[storageId].netPerSecond).toBeCloseTo(3);
-      expect(result.storages[storageId].status).toBe("filling");
+      expect(result.storages[storageId].netPerSecond).toBeCloseTo(0);
+      expect(result.storages[storageId].status).toBe("balanced");
     }
   });
 

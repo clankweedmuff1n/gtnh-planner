@@ -1210,6 +1210,7 @@ function ResourceEdge({
             fallbackTargetX: visualTarget.x,
             fallbackTargetY: visualTarget.y,
             fallbackTargetPosition: visualTarget.side,
+            arrowOffset: getEdgeArrowOffset(id),
           })}
           fill={edgeColor}
           stroke="#252525"
@@ -1836,12 +1837,20 @@ function isHorizontalSide(side: string) {
 }
 
 function getEdgeLaneOffset(edgeId: string) {
+  return getEdgeHash(edgeId) * EDGE_LANE_SPACING;
+}
+
+function getEdgeArrowOffset(edgeId: string) {
+  return (getEdgeHash(edgeId) - (EDGE_LANE_BUCKETS - 1) / 2) * 3;
+}
+
+function getEdgeHash(edgeId: string) {
   let hash = 0;
   for (let index = 0; index < edgeId.length; index += 1) {
     hash = (hash * 31 + edgeId.charCodeAt(index)) | 0;
   }
 
-  return Math.abs(hash % EDGE_LANE_BUCKETS) * EDGE_LANE_SPACING;
+  return Math.abs(hash % EDGE_LANE_BUCKETS);
 }
 
 function boundsOverlapVertically(
@@ -2751,28 +2760,33 @@ function getArrowHeadPointsForRoute({
   fallbackTargetX,
   fallbackTargetY,
   fallbackTargetPosition,
+  arrowOffset,
 }: {
   points: Array<{ x: number; y: number }>;
   fallbackTargetX: number;
   fallbackTargetY: number;
   fallbackTargetPosition: unknown;
+  arrowOffset: number;
 }) {
-  const target = points[points.length - 1];
-  const previous = points[points.length - 2];
-  if (!target || !previous) {
+  const routeTarget = points[points.length - 1];
+  const routePrevious = points[points.length - 2];
+  if (!routeTarget || !routePrevious) {
     return getArrowHeadPoints(fallbackTargetX, fallbackTargetY, fallbackTargetPosition);
   }
 
-  const distanceX = target.x - previous.x;
-  const distanceY = target.y - previous.y;
-  const targetPosition =
-    Math.abs(distanceY) > Math.abs(distanceX)
-      ? distanceY >= 0
-        ? Position.Bottom
-        : Position.Top
-      : distanceX >= 0
-        ? Position.Right
-        : Position.Left;
+  const distanceX = routeTarget.x - routePrevious.x;
+  const distanceY = routeTarget.y - routePrevious.y;
+  const isVertical = Math.abs(distanceY) > Math.abs(distanceX);
+  const target = isVertical
+    ? { x: routeTarget.x + arrowOffset, y: routeTarget.y }
+    : { x: routeTarget.x, y: routeTarget.y + arrowOffset };
+  const targetPosition = isVertical
+    ? distanceY >= 0
+      ? Position.Top
+      : Position.Bottom
+    : distanceX >= 0
+      ? Position.Left
+      : Position.Right;
 
   return getArrowHeadPoints(target.x, target.y, targetPosition);
 }

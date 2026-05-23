@@ -1551,9 +1551,15 @@ function getUntargetedCyclicMachineCounts(
       continue;
     }
 
-    const theoreticalMachinesRequired = result.nodes[node.id]?.theoreticalMachinesRequired ?? 0;
+    const nodeResult = result.nodes[node.id];
+    const theoreticalMachinesRequired = nodeResult?.theoreticalMachinesRequired ?? 0;
     const machineCount = getOptimizedMachineCount(theoreticalMachinesRequired, node.machineCount);
-    if (node.machineCount <= 1 || machineCount < node.machineCount) {
+    if (
+      node.machineCount <= 1 ||
+      machineCount < node.machineCount ||
+      (nodeResult?.status === "bottleneck" &&
+        hasDemandOutsideCyclicFeedback(project, node, cyclicNodeIds))
+    ) {
       machineCounts.set(node.id, machineCount);
     } else {
       machineCounts.set(node.id, Math.max(1, Math.round(node.machineCount)));
@@ -1561,6 +1567,47 @@ function getUntargetedCyclicMachineCounts(
   }
 
   return machineCounts;
+}
+
+function hasDemandOutsideCyclicFeedback(
+  project: FactoryProject,
+  node: FactoryNode,
+  cyclicNodeIds: Set<string>,
+): boolean {
+  const storageIds = new Set((project.storages ?? []).map((storage) => storage.id));
+  const storagesByResource = new Map<string, FactoryStorage[]>();
+  for (const storage of project.storages ?? []) {
+    const key = `${storage.kind}:${storage.resourceId}`;
+    storagesByResource.set(key, [...(storagesByResource.get(key) ?? []), storage]);
+  }
+
+  for (const edge of project.edges) {
+    if (edge.source !== node.id) {
+      continue;
+    }
+
+    if (!storageIds.has(edge.target)) {
+      if (!cyclicNodeIds.has(edge.target)) {
+        return true;
+      }
+      continue;
+    }
+
+    const key = `${edge.resourceKind}:${edge.resourceId}`;
+    for (const storage of storagesByResource.get(key) ?? []) {
+      for (const storageEdge of project.edges) {
+        if (storageEdge.source !== storage.id || storageIds.has(storageEdge.target)) {
+          continue;
+        }
+
+        if (!cyclicNodeIds.has(storageEdge.target)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 function getCyclicOptimizedMachineCount(

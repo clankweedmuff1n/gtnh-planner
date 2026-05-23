@@ -483,6 +483,20 @@ describe("factory machine count optimization", () => {
     ).toEqual(baselineCounts);
   });
 
+  it("does not count pure storage sinks as extra ratio demand", () => {
+    useFactoryStore.getState().setProject(createRecipeChainWithStorageSinkProject());
+
+    useFactoryStore.getState().optimizeMachineCounts();
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "sink-source", machineCount: 10 }),
+        expect.objectContaining({ id: "sink-target", machineCount: 10 }),
+      ]),
+    );
+  });
+
   it("keeps single-node optimization idempotent across repeated clicks", () => {
     useFactoryStore.getState().setProject(createStorageBusCycleProject());
 
@@ -908,6 +922,45 @@ function createAcyclicStorageBusProject(): FactoryProject {
         target: "bus-target",
         sourceHandle: makeResourceHandleId("output", { kind: "item", id: "dust" }),
         targetHandle: makeResourceHandleId("input", { kind: "item", id: "dust" }, 0),
+        resourceKind: "item",
+        resourceId: "dust",
+      },
+    ],
+  };
+}
+
+function createRecipeChainWithStorageSinkProject(): FactoryProject {
+  return {
+    ...createRatioOptimizationProject(),
+    id: "recipe-chain-with-storage-sink",
+    nodes: [
+      makeNode("sink-source", "dust-source-recipe", 0),
+      {
+        ...makeNode("sink-target", "plate-target-recipe", 240),
+        targetOutput: {
+          kind: "item",
+          resourceId: "plate",
+          amountPerSecond: 10,
+        },
+      },
+    ],
+    storages: [{ id: "dust-sink", kind: "item", resourceId: "dust", position: { x: 120, y: 120 } }],
+    edges: [
+      {
+        id: "sink-target-edge",
+        source: "sink-source",
+        target: "sink-target",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "dust" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "dust" }, 0),
+        resourceKind: "item",
+        resourceId: "dust",
+      },
+      {
+        id: "sink-storage-edge",
+        source: "sink-source",
+        target: "dust-sink",
+        sourceHandle: makeResourceHandleId("output", { kind: "item", id: "dust" }, 0),
+        targetHandle: makeResourceHandleId("input", { kind: "item", id: "dust" }),
         resourceKind: "item",
         resourceId: "dust",
       },

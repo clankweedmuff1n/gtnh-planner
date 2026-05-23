@@ -636,10 +636,24 @@ function refreshNodeUtilizationFromEdgeResults(
   storagesById: Map<string, FactoryStorage>,
 ): boolean {
   const requiredByNodeAndResource = new Map<string, Map<ResourceKey, number>>();
+  const storageOutgoingDemand = calculateEffectiveStorageOutgoingDemand(
+    project,
+    nodes,
+    [...storagesById.values()],
+  );
   let changed = false;
 
   for (const edge of project.edges) {
     if (storagesById.has(edge.source)) {
+      continue;
+    }
+
+    const targetStorage = storagesById.get(edge.target);
+    if (
+      targetStorage &&
+      (storageOutgoingDemand.get(makeResourceKey(targetStorage.kind, targetStorage.resourceId)) ??
+        0) <= EPSILON
+    ) {
       continue;
     }
 

@@ -2261,8 +2261,10 @@ function getSlotEdgeEndpoint({
   }
 
   const edgeSide =
-    isStorageSlotEndpoint && counterpartX !== undefined && counterpartY !== undefined
-      ? getStorageEdgeSideTowardPoint({
+    (isRecipeSlotEndpoint || isStorageSlotEndpoint) &&
+    counterpartX !== undefined &&
+    counterpartY !== undefined
+      ? getSlotEdgeSideTowardPoint({
           nodeId,
           handleId,
           fallbackX,
@@ -2270,6 +2272,7 @@ function getSlotEdgeEndpoint({
           counterpartX,
           counterpartY,
           fallbackSide: positionToEdgeSide(position),
+          preferHorizontal: isRecipeSlotEndpoint,
         })
       : positionToEdgeSide(position);
 
@@ -2321,7 +2324,7 @@ function positionToEdgeSide(position: unknown): Position {
   }
 }
 
-function getStorageEdgeSideTowardPoint({
+function getSlotEdgeSideTowardPoint({
   nodeId,
   handleId,
   fallbackX,
@@ -2329,6 +2332,7 @@ function getStorageEdgeSideTowardPoint({
   counterpartX,
   counterpartY,
   fallbackSide,
+  preferHorizontal,
 }: {
   nodeId: string;
   handleId?: string | null;
@@ -2337,10 +2341,15 @@ function getStorageEdgeSideTowardPoint({
   counterpartX: number;
   counterpartY: number;
   fallbackSide: Position;
+  preferHorizontal?: boolean;
 }) {
   const center = getMeasuredSlotCenter({ nodeId, handleId }) ?? { x: fallbackX, y: fallbackY };
   const distanceX = counterpartX - center.x;
   const distanceY = counterpartY - center.y;
+
+  if (preferHorizontal && Math.abs(distanceX) > 1) {
+    return distanceX >= 0 ? Position.Right : Position.Left;
+  }
 
   if (Math.abs(distanceY) > Math.abs(distanceX) * 1.15) {
     return distanceY >= 0 ? Position.Bottom : Position.Top;

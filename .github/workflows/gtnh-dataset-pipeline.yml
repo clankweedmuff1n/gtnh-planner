@@ -133,6 +133,7 @@ jobs:
             -e GTNH_RENDER_STACK_ICONS \
             -e GTNH_ATLAS_ICON_SIZE \
             -e GTNH_ATLAS_MAX_SIZE \
+            -e NODE_OPTIONS=--max-old-space-size=8192 \
             -e GTNH_ICON_CACHE_DIR=/icon-cache \
             -e GTNH_EXPORT_DISABLE_CLIENT_UI_MODS \
             -e GTNH_DATASETS_ROOT=/datasets \

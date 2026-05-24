@@ -709,6 +709,7 @@ function toRecipeSummary(
     durationTicks: recipe.durationTicks,
     eut: recipe.eut,
     programmedCircuit: recipe.programmedCircuit,
+    machineHandlers: recipe.machineHandlers,
     inputs: recipe.inputs.map((resource) => hydrateResource(resource, resourcesByKey)),
     outputs: recipe.outputs.map((resource) => hydrateResource(resource, resourcesByKey)),
     source: recipe.source?.recipeMap ? { recipeMap: recipe.source.recipeMap } : undefined,

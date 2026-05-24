@@ -82,6 +82,7 @@ export interface RecipeSummary {
   durationTicks: number;
   eut: number;
   programmedCircuit?: string;
+  machineHandlers?: Recipe["machineHandlers"];
   inputs: RecipeInput[];
   outputs: RecipeOutput[];
   source?: Recipe["source"];

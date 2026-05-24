@@ -131,7 +131,7 @@ describe("enrichDatasetRecipes", () => {
     });
   });
 
-  it("adds missing multiblock variants for shared single-block recipe maps", () => {
+  it("keeps shared single-block recipe maps grouped for machine handler selection", () => {
     const dataset = baseDataset([
       {
         id: "single-mixer",
@@ -148,10 +148,10 @@ describe("enrichDatasetRecipes", () => {
 
     const enriched = enrichDatasetRecipes(dataset);
 
-    expect(enriched.recipes).toHaveLength(2);
-    expect(enriched.recipes[1]).toMatchObject({
-      machineType: "Multiblock Mixer",
-      source: { recipeMap: "Multiblock Mixer" },
+    expect(enriched.recipes).toHaveLength(1);
+    expect(enriched.recipes[0]).toMatchObject({
+      machineType: "Mixer",
+      source: { recipeMap: "Mixer" },
     });
   });
 

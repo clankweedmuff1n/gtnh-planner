@@ -88,6 +88,12 @@ export const machineProfileSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const machineHandlerSchema = machineProfileSchema.extend({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  kind: z.enum(["single", "multiblock", "crafting", "automation"]).optional(),
+});
+
 export const recipeSchema = z.object({
   id: z.string().min(1, "Recipe id is required"),
   name: z.string().min(1, "Recipe name is required"),
@@ -100,6 +106,7 @@ export const recipeSchema = z.object({
   programmedCircuit: z.string().optional(),
   notes: z.string().optional(),
   machineProfile: machineProfileSchema.optional(),
+  machineHandlers: z.array(machineHandlerSchema).optional(),
   isDemo: z.boolean().optional(),
   source: z
     .object({
@@ -145,6 +152,7 @@ export const factoryNodeSchema = z.object({
   machineCount: z.number().min(0),
   parallel: z.number().positive(),
   overclockTier: z.string().min(1),
+  machineHandlerId: z.string().min(1).optional(),
   coilTier: z.string().min(1).optional(),
   targetOutput: targetRateSchema.optional(),
   enabled: z.boolean(),

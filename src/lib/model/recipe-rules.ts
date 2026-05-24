@@ -1,41 +1,144 @@
-import type { Recipe, RecipeInput, ResourceAmount } from "./types";
+import type { FactoryNode, MachineHandler, Recipe, RecipeInput } from "./types";
 
-const SHARED_MULTIBLOCK_RECIPE_MAPS = [
+const SHARED_MACHINE_HANDLERS = [
   {
-    single: "centrifuge",
-    multiblock: "multiblock centrifuge",
-    machineType: "Multiblock Centrifuge",
+    recipeMap: "centrifuge",
+    handlers: [
+      {
+        id: "multiblock-centrifuge",
+        label: "Multiblock Centrifuge",
+        machineType: "Multiblock Centrifuge",
+        kind: "multiblock",
+      },
+    ],
   },
   {
-    single: "electrolyzer",
-    multiblock: "multiblock electrolyzer",
-    machineType: "Multiblock Electrolyzer",
+    recipeMap: "electrolyzer",
+    handlers: [
+      {
+        id: "multiblock-electrolyzer",
+        label: "Multiblock Electrolyzer",
+        machineType: "Multiblock Electrolyzer",
+        kind: "multiblock",
+      },
+    ],
   },
   {
-    single: "mixer",
-    multiblock: "multiblock mixer",
-    machineType: "Multiblock Mixer",
+    recipeMap: "mixer",
+    handlers: [
+      {
+        id: "multiblock-mixer",
+        label: "Multiblock Mixer",
+        machineType: "Multiblock Mixer",
+        kind: "multiblock",
+      },
+    ],
   },
   {
-    single: "dehydrator",
-    multiblock: "multiblock dehydrator",
-    machineType: "Multiblock Dehydrator",
+    recipeMap: "dehydrator",
+    handlers: [
+      {
+        id: "multiblock-dehydrator",
+        label: "Multiblock Dehydrator",
+        machineType: "Multiblock Dehydrator",
+        kind: "multiblock",
+      },
+    ],
+  },
+  {
+    recipeMap: "fluid extractor",
+    handlers: [
+      {
+        id: "multiblock-fluid-extractor",
+        label: "Multiblock Fluid Extractor",
+        machineType: "Multiblock Fluid Extractor",
+        kind: "multiblock",
+      },
+    ],
+  },
+  {
+    recipeMap: "shaped crafting",
+    handlers: [
+      {
+        id: "crafting-table",
+        label: "Crafting Table",
+        machineType: "Shaped Crafting",
+        minimumTier: "NONE",
+        kind: "crafting",
+      },
+      {
+        id: "autoworkbench",
+        label: "Autoworkbench",
+        machineType: "Autoworkbench",
+        minimumTier: "LV",
+        kind: "automation",
+      },
+    ],
+  },
+  {
+    recipeMap: "shapeless crafting",
+    handlers: [
+      {
+        id: "crafting-table",
+        label: "Crafting Table",
+        machineType: "Shapeless Crafting",
+        minimumTier: "NONE",
+        kind: "crafting",
+      },
+      {
+        id: "autoworkbench",
+        label: "Autoworkbench",
+        machineType: "Autoworkbench",
+        minimumTier: "LV",
+        kind: "automation",
+      },
+    ],
   },
 ] as const;
 
 const EBF_COIL_REQUIREMENTS = [
-  { heat: 1801, key: "cupronickel", label: "Cupronickel", blockMeta: 0, colors: ["#b87953", "#e0b084"] },
+  {
+    heat: 1801,
+    key: "cupronickel",
+    label: "Cupronickel",
+    blockMeta: 0,
+    colors: ["#b87953", "#e0b084"],
+  },
   { heat: 2701, key: "kanthal", label: "Kanthal", blockMeta: 1, colors: ["#b77b37", "#f3c362"] },
   { heat: 3601, key: "nichrome", label: "Nichrome", blockMeta: 2, colors: ["#b9b9c4", "#f0d6d6"] },
   { heat: 4501, key: "tpv", label: "TPV-Alloy", blockMeta: 3, colors: ["#4e687b", "#9dc5de"] },
   { heat: 5401, key: "hss_g", label: "HSS-G", blockMeta: 4, colors: ["#5d7881", "#b8e3eb"] },
   { heat: 6301, key: "hss_s", label: "HSS-S", blockMeta: 9, colors: ["#8a6f9d", "#dcc3f5"] },
   { heat: 7201, key: "naquadah", label: "Naquadah", blockMeta: 5, colors: ["#2d5d43", "#69c48d"] },
-  { heat: 8101, key: "naquadah_alloy", label: "Naquadah Alloy", blockMeta: 6, colors: ["#355956", "#7dd7c5"] },
+  {
+    heat: 8101,
+    key: "naquadah_alloy",
+    label: "Naquadah Alloy",
+    blockMeta: 6,
+    colors: ["#355956", "#7dd7c5"],
+  },
   { heat: 9001, key: "trinium", label: "Trinium", blockMeta: 10, colors: ["#6c5f72", "#cdb9d6"] },
-  { heat: 9901, key: "electrum_flux", label: "Electrum Flux", blockMeta: 7, colors: ["#966a1d", "#ffe36b"] },
-  { heat: 10801, key: "awakened_draconium", label: "Awakened Draconium", blockMeta: 8, colors: ["#b85a23", "#ff9a3d"] },
-  { heat: 11701, key: "infinity", label: "Infinity", blockMeta: 11, colors: ["#5f5f72", "#ffffff"] },
+  {
+    heat: 9901,
+    key: "electrum_flux",
+    label: "Electrum Flux",
+    blockMeta: 7,
+    colors: ["#966a1d", "#ffe36b"],
+  },
+  {
+    heat: 10801,
+    key: "awakened_draconium",
+    label: "Awakened Draconium",
+    blockMeta: 8,
+    colors: ["#b85a23", "#ff9a3d"],
+  },
+  {
+    heat: 11701,
+    key: "infinity",
+    label: "Infinity",
+    blockMeta: 11,
+    colors: ["#5f5f72", "#ffffff"],
+  },
   { heat: 12601, key: "hypogen", label: "Hypogen", blockMeta: 12, colors: ["#43315c", "#d278ff"] },
   { heat: 13501, key: "eternal", label: "Eternal", blockMeta: 13, colors: ["#222222", "#f6f3ff"] },
 ] as const;
@@ -43,49 +146,74 @@ const EBF_COIL_REQUIREMENTS = [
 export type HeatingCoilTier = (typeof EBF_COIL_REQUIREMENTS)[number]["key"];
 
 export function expandMachineRecipeVariants(recipes: Recipe[]): Recipe[] {
-  return addSharedMultiblockRecipeVariants(recipes);
+  return recipes;
 }
 
-function addSharedMultiblockRecipeVariants(recipes: Recipe[]): Recipe[] {
-  const recipesBySignature = new Set(
-    recipes.map((recipe) => `${normalizeRecipeMapName(recipeMapName(recipe))}:${recipeBodySignature(recipe)}`),
+export function getRecipeMachineHandlers(
+  recipe: Pick<Recipe, "machineType" | "minimumTier" | "source" | "machineHandlers">,
+): MachineHandler[] {
+  const baseHandler: MachineHandler = {
+    id: slug(recipe.machineType),
+    label: recipe.machineType,
+    machineType: recipe.machineType,
+    minimumTier: recipe.minimumTier,
+    kind: "single",
+  };
+  const normalizedMap = normalizeRecipeMapName(recipeMapName(recipe));
+  const ruleHandlers =
+    SHARED_MACHINE_HANDLERS.find((entry) => normalizedMap === entry.recipeMap)?.handlers ?? [];
+  const handlers = [
+    ...(recipe.machineHandlers ?? []),
+    baseHandler,
+    ...ruleHandlers.map((handler) => ({
+      minimumTier: recipe.minimumTier,
+      ...handler,
+    })),
+  ];
+
+  return [...new Map(handlers.map((handler) => [handler.id, handler])).values()];
+}
+
+export function getSelectedMachineHandler(
+  recipe: Pick<Recipe, "machineType" | "minimumTier" | "source" | "machineHandlers">,
+  node: Pick<FactoryNode, "machineHandlerId">,
+): MachineHandler {
+  const handlers = getRecipeMachineHandlers(recipe);
+  return handlers.find((handler) => handler.id === node.machineHandlerId) ?? handlers[0];
+}
+
+export function getAdjacentMachineHandler(
+  recipe: Pick<Recipe, "machineType" | "minimumTier" | "source" | "machineHandlers">,
+  currentId: string | undefined,
+  direction: -1 | 1,
+): MachineHandler {
+  const handlers = getRecipeMachineHandlers(recipe);
+  const currentIndex = Math.max(
+    0,
+    handlers.findIndex((handler) => handler.id === currentId),
   );
-  const expanded = [...recipes];
+  const nextIndex = (currentIndex + direction + handlers.length) % handlers.length;
+  return handlers[nextIndex] ?? handlers[0];
+}
 
-  for (const recipe of recipes) {
-    const mapRule = SHARED_MULTIBLOCK_RECIPE_MAPS.find(
-      (entry) => normalizeRecipeMapName(recipeMapName(recipe)) === entry.single,
-    );
-    if (!mapRule) {
-      continue;
-    }
-
-    const signature = `${mapRule.multiblock}:${recipeBodySignature(recipe)}`;
-    if (recipesBySignature.has(signature)) {
-      continue;
-    }
-
-    recipesBySignature.add(signature);
-    expanded.push({
-      ...recipe,
-      id: `${recipe.id}:multiblock-${slug(mapRule.multiblock)}`,
-      name: recipe.name.replace(recipe.machineType, mapRule.machineType),
-      machineType: mapRule.machineType,
-      notes: appendNote(
-        recipe.notes,
-        "Generated multiblock variant for a recipe map shared with single-block machines.",
-      ),
-      source: {
-        ...recipe.source,
-        recipeMap: mapRule.machineType,
-        rawRecipeId: recipe.source?.rawRecipeId
-          ? `${recipe.source.rawRecipeId}:multiblock-${slug(mapRule.multiblock)}`
-          : undefined,
-      },
-    });
-  }
-
-  return expanded;
+export function applyMachineHandlerToRecipe(
+  recipe: Recipe,
+  node: Pick<FactoryNode, "machineHandlerId">,
+): Recipe {
+  const handler = getSelectedMachineHandler(recipe, node);
+  return {
+    ...recipe,
+    machineType: handler.machineType,
+    minimumTier: handler.minimumTier,
+    machineProfile: {
+      ...recipe.machineProfile,
+      machineType: handler.machineType,
+      minimumTier: handler.minimumTier,
+      maxParallel: handler.maxParallel ?? recipe.machineProfile?.maxParallel,
+      eutLimit: handler.eutLimit ?? recipe.machineProfile?.eutLimit,
+      notes: handler.notes ?? recipe.machineProfile?.notes,
+    },
+  };
 }
 
 export function isRecipeTierAdjustable(
@@ -101,7 +229,11 @@ export function getRecipeCoilTierControl(
   node: { coilTier?: string },
 ) {
   const specialValue = getRecipeSpecialValue(recipe);
-  if (specialValue === undefined || specialValue <= 0 || !isBlastFurnaceRecipeMap(recipeMapName(recipe))) {
+  if (
+    specialValue === undefined ||
+    specialValue <= 0 ||
+    !isBlastFurnaceRecipeMap(recipeMapName(recipe))
+  ) {
     return undefined;
   }
 
@@ -165,19 +297,7 @@ export function getRecipeSpecialValue(recipe: Pick<Recipe, "nei">): number | und
   return undefined;
 }
 
-function recipeBodySignature(recipe: Recipe): string {
-  return JSON.stringify({
-    durationTicks: recipe.durationTicks,
-    eut: recipe.eut,
-    programmedCircuit: recipe.programmedCircuit,
-    inputs: recipe.inputs.map(resourceSignature).sort(),
-    outputs: recipe.outputs.map(resourceSignature).sort(),
-  });
-}
-
-function makeCoilRequirementInput(
-  coil: (typeof EBF_COIL_REQUIREMENTS)[number],
-): RecipeInput {
+function makeCoilRequirementInput(coil: (typeof EBF_COIL_REQUIREMENTS)[number]): RecipeInput {
   return {
     kind: "item",
     id:
@@ -202,16 +322,6 @@ function getCoilIndexForHeat(heat: number): number {
   return EBF_COIL_REQUIREMENTS.length - 1;
 }
 
-function resourceSignature(resource: ResourceAmount): string {
-  return JSON.stringify({
-    kind: resource.kind,
-    id: resource.id,
-    amount: resource.amount,
-    consumed: "consumed" in resource ? resource.consumed : undefined,
-    chance: "chance" in resource ? resource.chance : undefined,
-  });
-}
-
 function isBlastFurnaceRecipeMap(recipeMap: string): boolean {
   const normalized = normalizeRecipeMapName(recipeMap);
   return normalized === "blast furnace" || normalized === "electric blast furnace";
@@ -219,10 +329,6 @@ function isBlastFurnaceRecipeMap(recipeMap: string): boolean {
 
 function recipeMapName(recipe: Pick<Recipe, "machineType" | "source">): string {
   return recipe.source?.recipeMap ?? recipe.machineType;
-}
-
-function appendNote(notes: string | undefined, note: string): string {
-  return notes ? `${notes} ${note}` : note;
 }
 
 function slug(value: string): string {

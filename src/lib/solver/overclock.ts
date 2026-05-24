@@ -1,10 +1,14 @@
 import { getRecipePowerTier, getVoltageTierIndex, GT_VOLTAGE_TIERS } from "@/lib/model/tiers";
-import { getRecipeCoilTierControl, getRecipeSpecialValue } from "@/lib/model/recipe-rules";
+import {
+  applyMachineHandlerToRecipe,
+  getRecipeCoilTierControl,
+  getRecipeSpecialValue,
+} from "@/lib/model/recipe-rules";
 import type { FactoryNode, MachineTier, Recipe } from "@/lib/model/types";
 
 type VoltageTier = Exclude<MachineTier, "DEMO">;
 type OverclockRecipeInput = Pick<Recipe, "durationTicks" | "eut" | "minimumTier"> &
-  Partial<Pick<Recipe, "machineType" | "source" | "nei">>;
+  Partial<Pick<Recipe, "machineType" | "source" | "nei" | "machineHandlers" | "machineProfile">>;
 
 export interface OverclockedRecipeStats {
   tier: VoltageTier;
@@ -16,16 +20,19 @@ export interface OverclockedRecipeStats {
 
 export function getOverclockedRecipeStats(
   recipe: OverclockRecipeInput,
-  node: Pick<FactoryNode, "overclockTier" | "coilTier">,
+  node: Pick<FactoryNode, "overclockTier" | "coilTier" | "machineHandlerId">,
 ): OverclockedRecipeStats {
-  const minimumTier = getRecipeMinimumVoltageTier(recipe);
+  const effectiveRecipe = recipe.machineType
+    ? applyMachineHandlerToRecipe(recipe as Recipe, node)
+    : recipe;
+  const minimumTier = getRecipeMinimumVoltageTier(effectiveRecipe);
   const requestedTier = resolveVoltageTier(node.overclockTier, minimumTier);
   const tier =
     getVoltageTierIndex(requestedTier) < getVoltageTierIndex(minimumTier)
       ? minimumTier
       : requestedTier;
   const overclockSteps = Math.max(0, getVoltageTierIndex(tier) - getVoltageTierIndex(minimumTier));
-  const heatOverclock = getHeatOverclockStats(recipe, node, tier, overclockSteps);
+  const heatOverclock = getHeatOverclockStats(effectiveRecipe, node, tier, overclockSteps);
 
   return {
     tier,
@@ -33,11 +40,11 @@ export function getOverclockedRecipeStats(
     overclockSteps,
     durationTicks: Math.max(
       1,
-      recipe.durationTicks /
+      effectiveRecipe.durationTicks /
         4 ** heatOverclock.heatOverclockSteps /
         2 ** heatOverclock.regularOverclockSteps,
     ),
-    eut: recipe.eut * heatOverclock.heatDiscountMultiplier * 4 ** overclockSteps,
+    eut: effectiveRecipe.eut * heatOverclock.heatDiscountMultiplier * 4 ** overclockSteps,
   };
 }
 

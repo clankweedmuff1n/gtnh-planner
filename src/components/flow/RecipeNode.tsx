@@ -2,7 +2,7 @@
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useState, type CSSProperties } from "react";
-import { AlertTriangle, WandSparkles } from "lucide-react";
+import { AlertTriangle, ChevronDown, WandSparkles } from "lucide-react";
 import type {
   FactoryNode,
   MachineTier,
@@ -13,10 +13,13 @@ import type {
 import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
 import {
   formatRate,
+  applyMachineHandlerToRecipe,
   getAdjacentCoilTier,
   GT_VOLTAGE_TIERS,
+  getRecipeMachineHandlers,
   getRecipeCoilTierControl,
   getRecipePowerTier,
+  getSelectedMachineHandler,
   getVoltageTierIndex,
   heatingCoilTierResource,
   isRecipeInputConsumed,
@@ -43,6 +46,7 @@ export type RecipeFlowNode = Node<RecipeNodeData, "recipeNode">;
 
 export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const { projectNode, recipe, result } = data;
+  const [isMachineMenuOpen, setIsMachineMenuOpen] = useState(false);
   const browseResource = useFactoryStore((state) => state.browseResource);
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
   const hoveredFlowResourceKey = useFactoryStore((state) => state.hoveredFlowResourceKey);
@@ -67,13 +71,19 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
     (hoveredNodeBottlenecks || selectedNodeBottlenecks) && result?.status === "bottleneck";
   const isInspectorHighlighted = isFlowResourceHighlighted || isNodeBottleneckHighlighted;
   const nodeColor = projectNode.colorTag ? GT_NODE_COLORS[projectNode.colorTag] : undefined;
-  const recipePowerTier = getRecipePowerTier(recipe);
-  const tierControl = getNodeTierControl(recipe, projectNode);
-  const coilControl = getRecipeCoilTierControl(recipe, projectNode);
+  const machineHandlers = getRecipeMachineHandlers(recipe);
+  const selectedMachineHandler = getSelectedMachineHandler(recipe, projectNode);
+  const effectiveRecipe = applyMachineHandlerToRecipe(recipe, projectNode);
+  const recipePowerTier = getRecipePowerTier(effectiveRecipe);
+  const tierControl = getNodeTierControl(effectiveRecipe, projectNode);
+  const coilControl = getRecipeCoilTierControl(effectiveRecipe, projectNode);
   const coilResource = coilControl
     ? resolveDatasetCoilResource(heatingCoilTierResource(coilControl.current), dataset)
     : undefined;
-  const overclockedRecipe = { ...recipe, ...getOverclockedRecipeStats(recipe, projectNode) };
+  const overclockedRecipe = {
+    ...effectiveRecipe,
+    ...getOverclockedRecipeStats(recipe, projectNode),
+  };
   const tierColor = GT_TIER_COLORS[tierControl.current];
   const exceedsMaxTier =
     maxTierFilter !== "all" && isVoltageTierAbove(recipePowerTier, maxTierFilter);
@@ -96,6 +106,19 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
     if (nextTier !== coilControl.current.key) {
       updateNode(projectNode.id, { coilTier: nextTier });
     }
+  };
+  const updateMachineHandler = (machineHandlerId: string) => {
+    if (machineHandlers.length <= 1) {
+      return;
+    }
+
+    const nextHandler =
+      machineHandlers.find((handler) => handler.id === machineHandlerId) ?? selectedMachineHandler;
+    updateNode(projectNode.id, {
+      machineHandlerId: nextHandler.id,
+      overclockTier: nextHandler.minimumTier,
+    });
+    setIsMachineMenuOpen(false);
   };
 
   return (
@@ -130,7 +153,9 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
         <div
           className={[
             "mb-1 grid min-w-0 items-center",
-            "grid-cols-[24px_minmax(0,1fr)_50px]",
+            machineHandlers.length > 1
+              ? "grid-cols-[24px_minmax(0,1fr)_50px_24px]"
+              : "grid-cols-[24px_minmax(0,1fr)_50px]",
           ].join(" ")}
         >
           <button
@@ -149,7 +174,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
             className="minecraft-title h-6 truncate border-2 border-[#555] bg-[#9b9b9b] px-2 text-center text-[17px] leading-[20px] shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a]"
             style={nodeColor ? { backgroundColor: nodeColor.header } : undefined}
           >
-            {recipe.source?.recipeMap ?? recipe.machineType}
+            {selectedMachineHandler.label}
           </div>
           <button
             type="button"
@@ -174,6 +199,45 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           >
             {tierControl.current}
           </button>
+          {machineHandlers.length > 1 ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsMachineMenuOpen((current) => !current);
+                }}
+                className="nodrag flex h-6 w-6 items-center justify-center border-2 border-[#252525] bg-[#8d8d8d] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#404040] hover:brightness-110"
+                title={`Machine: ${selectedMachineHandler.label}`}
+                aria-label={`Select machine handler. Current: ${selectedMachineHandler.label}`}
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              {isMachineMenuOpen ? (
+                <div
+                  className="nodrag absolute right-0 top-7 z-50 min-w-[180px] border-2 border-[#252525] bg-[#c6c6c6] p-1 text-[11px] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555,4px_4px_0_rgba(0,0,0,0.35)]"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {machineHandlers.map((handler) => (
+                    <button
+                      key={handler.id}
+                      type="button"
+                      onClick={() => updateMachineHandler(handler.id)}
+                      className={[
+                        "block w-full truncate border-2 px-2 py-1 text-left font-bold",
+                        handler.id === selectedMachineHandler.id
+                          ? "border-[#6b4fd1] bg-[#8b70dd] text-white"
+                          : "border-[#777] bg-[#d8d8d8] text-black hover:bg-white",
+                      ].join(" ")}
+                      title={handler.label}
+                    >
+                      {handler.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div
           className={nodeColor ? "recipe-node-tinted-area" : undefined}
@@ -433,11 +497,7 @@ function getConnectionSlotState(
     return "selected";
   }
 
-  if (
-    pending.nodeId !== nodeId &&
-    pending.side !== side &&
-    pending.kind === kind
-  ) {
+  if (pending.nodeId !== nodeId && pending.side !== side && pending.kind === kind) {
     const pendingResource = {
       kind: pending.kind,
       id: pending.resourceId,

@@ -44,7 +44,6 @@ normalizeCraftingSource(findSource("shapedOreDict"), {
   sourceType: "shapedOreDict",
 });
 normalizeSmeltingSource(findSource("smelting"));
-expandSharedMultiblockRecipeVariants();
 applyOreDictionaryMemberships();
 
 const dataset = {
@@ -231,70 +230,6 @@ function addRecipe(recipe) {
     addResource(resource);
   }
   recipes.push(recipe);
-}
-
-function expandSharedMultiblockRecipeVariants() {
-  const mapRules = [
-    ["centrifuge", "Multiblock Centrifuge"],
-    ["electrolyzer", "Multiblock Electrolyzer"],
-    ["mixer", "Multiblock Mixer"],
-    ["dehydrator", "Multiblock Dehydrator"],
-  ];
-  const signatures = new Set(
-    recipes.map(
-      (recipe) =>
-        `${normalizeRecipeMap(recipe.source?.recipeMap ?? recipe.machineType)}:${recipeBodySignature(recipe)}`,
-    ),
-  );
-  const variants = [];
-
-  for (const recipe of recipes) {
-    const recipeMap = normalizeRecipeMap(recipe.source?.recipeMap ?? recipe.machineType);
-    const rule = mapRules.find(([single]) => recipeMap === single);
-    if (!rule) {
-      continue;
-    }
-
-    const [, multiblockMap] = rule;
-    const signature = `${normalizeRecipeMap(multiblockMap)}:${recipeBodySignature(recipe)}`;
-    if (signatures.has(signature)) {
-      continue;
-    }
-
-    signatures.add(signature);
-    variants.push({
-      ...recipe,
-      id: `${recipe.id}:multiblock-${slug(multiblockMap)}`,
-      name: recipe.name.replace(recipe.machineType, multiblockMap),
-      machineType: multiblockMap,
-      notes: appendNote(
-        recipe.notes,
-        "Generated multiblock variant for a recipe map shared with single-block machines.",
-      ),
-      source: {
-        ...recipe.source,
-        recipeMap: multiblockMap,
-        rawRecipeId: recipe.source?.rawRecipeId
-          ? `${recipe.source.rawRecipeId}:multiblock-${slug(multiblockMap)}`
-          : undefined,
-      },
-    });
-  }
-
-  for (const variant of variants) {
-    addRecipe(variant);
-    recipeMaps.push(variant.source.recipeMap);
-  }
-}
-
-function recipeBodySignature(recipe) {
-  return JSON.stringify({
-    durationTicks: recipe.durationTicks,
-    eut: recipe.eut,
-    programmedCircuit: recipe.programmedCircuit,
-    inputs: recipe.inputs?.map(resourceSignature).sort() ?? [],
-    outputs: recipe.outputs?.map(resourceSignature).sort() ?? [],
-  });
 }
 
 function recipeSignature(recipe) {
@@ -578,17 +513,6 @@ function slug(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-}
-
-function normalizeRecipeMap(value) {
-  return slug(value)
-    .replace(/-recipes?$/g, "")
-    .replace(/-recipe-map$/g, "")
-    .replace(/-/g, " ");
-}
-
-function appendNote(notes, note) {
-  return notes ? `${notes} ${note}` : note;
 }
 
 function text(value, fallback) {

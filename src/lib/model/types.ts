@@ -94,6 +94,12 @@ export interface MachineProfile {
   notes?: string;
 }
 
+export interface MachineHandler extends MachineProfile {
+  id: string;
+  label: string;
+  kind?: "single" | "multiblock" | "crafting" | "automation";
+}
+
 export interface Recipe {
   id: string;
   name: string;
@@ -106,6 +112,7 @@ export interface Recipe {
   programmedCircuit?: string;
   notes?: string;
   machineProfile?: MachineProfile;
+  machineHandlers?: MachineHandler[];
   isDemo?: boolean;
   source?: {
     datasetVersionId?: string;
@@ -145,6 +152,7 @@ export interface FactoryNode {
   machineCount: number;
   parallel: number;
   overclockTier: MachineTier | string;
+  machineHandlerId?: string;
   coilTier?: string;
   targetOutput?: TargetRate;
   enabled: boolean;

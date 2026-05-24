@@ -743,6 +743,11 @@ function getRecipeResourceScope(
     return { resource, resources };
   }
 
+  const wildcardResource = getWildcardResource(resource);
+  if (wildcardResource) {
+    resources.push(wildcardResource);
+  }
+
   const indexed = getCatalogResourcesByKey(catalog).get(`${resource.kind}:${resource.id}`);
   const oreDictionaryNames = new Set(indexed?.oreDictionary ?? []);
   for (const candidate of getCatalogResourcesByKey(catalog).values()) {
@@ -827,7 +832,7 @@ function applyUsesResourceContext<T extends RecipeSummary>(
 
   let changed = false;
   const inputs = recipe.inputs.map((input) => {
-    if (!isContextCompatibleOreDictionaryInput(input, selected)) {
+    if (!isContextCompatibleItemInput(input, selected)) {
       return input;
     }
 
@@ -845,12 +850,16 @@ function applyUsesResourceContext<T extends RecipeSummary>(
   return changed ? { ...recipe, inputs } : recipe;
 }
 
-function isContextCompatibleOreDictionaryInput(
+function isContextCompatibleItemInput(
   input: ResourceAmount,
   selected: DatasetResource | DatasetResourceIndexEntry,
 ): boolean {
-  if (input.kind !== selected.kind || input.kind !== "item" || !isOreDictionaryResource(input)) {
+  if (input.kind !== selected.kind || input.kind !== "item") {
     return false;
+  }
+
+  if (!isOreDictionaryResource(input)) {
+    return resourceIdsAreCompatible(input.id, selected.id);
   }
 
   const oreDictionaryName = input.id.slice("oredict:".length);
@@ -859,6 +868,21 @@ function isContextCompatibleOreDictionaryInput(
       resourceIdsAreCompatible(alternative.id, selected.id),
     ) || selected.oreDictionary?.includes(oreDictionaryName),
   );
+}
+
+function getWildcardResource(
+  resource: Pick<ResourceAmount, "kind" | "id">,
+): Pick<ResourceAmount, "kind" | "id"> | undefined {
+  if (resource.kind !== "item" || resource.id.endsWith("@32767")) {
+    return undefined;
+  }
+
+  const separatorIndex = resource.id.lastIndexOf("@");
+  if (separatorIndex === -1) {
+    return undefined;
+  }
+
+  return { kind: "item", id: `${resource.id.slice(0, separatorIndex)}@32767` };
 }
 
 function resourceIdsAreCompatible(candidateId: string, selectedId: string): boolean {

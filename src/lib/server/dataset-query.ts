@@ -839,11 +839,12 @@ function applyUsesResourceContext<T extends RecipeSummary>(
     changed = true;
     return {
       ...input,
+      id: selected.id,
       displayName: selected.displayName ?? input.displayName,
       iconPath: selected.iconPath ?? input.iconPath,
       iconAtlas: selected.iconAtlas ?? input.iconAtlas,
       dominantColor: selected.dominantColor ?? input.dominantColor,
-      tooltip: mergeContextTooltip(input, selected),
+      tooltip: "tooltip" in selected ? (selected.tooltip ?? input.tooltip) : input.tooltip,
     };
   });
 
@@ -896,18 +897,6 @@ function resourceIdsAreCompatible(candidateId: string, selectedId: string): bool
 
   const wildcardBaseId = candidateId.slice(0, -"@32767".length);
   return selectedId === wildcardBaseId || selectedId.startsWith(`${wildcardBaseId}@`);
-}
-
-function mergeContextTooltip(
-  input: ResourceAmount,
-  selected: DatasetResource | DatasetResourceIndexEntry,
-): string[] | undefined {
-  const tooltip = [...(input.tooltip ?? [])];
-  const selectedLabel = selected.displayName ?? selected.id;
-  if (!tooltip.some((line) => line === `Selected: ${selectedLabel}`)) {
-    tooltip.unshift(`Selected: ${selectedLabel}`);
-  }
-  return tooltip.length > 0 ? tooltip : undefined;
 }
 
 function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {

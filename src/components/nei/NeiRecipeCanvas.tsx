@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import type { Recipe } from "@/lib/model/types";
+import type { Recipe, ResourceAmount } from "@/lib/model/types";
 import {
   getNeiRecipeLayout,
   type NeiOverflowGroup,
@@ -20,6 +20,7 @@ interface NeiRecipeCanvasProps {
   iconPixelSize?: number;
   className?: string;
   hideCollapseControls?: boolean;
+  contextResource?: Pick<ResourceAmount, "kind" | "id">;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
@@ -33,6 +34,7 @@ export function NeiRecipeCanvas({
   iconPixelSize,
   className = "",
   hideCollapseControls = false,
+  contextResource,
   renderHandle,
   getSlotConnectionAttributes,
   onSlotClick,
@@ -48,8 +50,16 @@ export function NeiRecipeCanvas({
         layout.overflowGroups,
         expandedGroups,
         hideCollapseControls,
+        contextResource,
       ),
-    [expandedGroups, hideCollapseControls, layout.frames, layout.logo.y, layout.overflowGroups],
+    [
+      contextResource,
+      expandedGroups,
+      hideCollapseControls,
+      layout.frames,
+      layout.logo.y,
+      layout.overflowGroups,
+    ],
   );
   const renderScale = slotPixelSize ? slotPixelSize / layout.slotSize : scale;
   const width = layout.canvas.width * renderScale;
@@ -133,6 +143,7 @@ function getRenderLayout(
   overflowGroups: NeiOverflowGroup[],
   expandedGroups: Set<string>,
   hideCollapseControls: boolean,
+  contextResource: Pick<ResourceAmount, "kind" | "id"> | undefined,
 ): { frames: RenderFrame[]; logoY: number } {
   if (overflowGroups.length === 0) {
     return { frames, logoY };
@@ -185,7 +196,7 @@ function getRenderLayout(
     }
 
     if (frame.slotIndex === group.capacity - 1) {
-      const contextFrame = findContextFrame(frames, group);
+      const contextFrame = findContextFrame(frames, group, contextResource);
       return [
         contextFrame
           ? { ...contextFrame, x: frame.x, y: frame.y, slotIndex: frame.slotIndex }
@@ -211,16 +222,35 @@ function getRenderLayout(
 function findContextFrame(
   frames: NeiSlotFrame[],
   group: NeiOverflowGroup,
+  contextResource: Pick<ResourceAmount, "kind" | "id"> | undefined,
 ): NeiPositionedSlot | undefined {
+  if (!contextResource) {
+    return undefined;
+  }
+
   return frames
     .filter((frame): frame is NeiPositionedSlot =>
       Boolean(
         frame.resource &&
         getGroupKey(frame) === getGroupKey(group) &&
-        frame.resource.tooltip?.some((line) => line.startsWith("Selected: ")),
+        frame.resource.kind === contextResource.kind &&
+        resourceIdsAreCompatible(frame.resource.id, contextResource.id),
       ),
     )
     .sort((left, right) => left.slotIndex - right.slotIndex)[0];
+}
+
+function resourceIdsAreCompatible(candidateId: string, selectedId: string): boolean {
+  if (candidateId === selectedId) {
+    return true;
+  }
+
+  if (!candidateId.endsWith("@32767")) {
+    return false;
+  }
+
+  const wildcardBaseId = candidateId.slice(0, -"@32767".length);
+  return selectedId === wildcardBaseId || selectedId.startsWith(`${wildcardBaseId}@`);
 }
 
 function getOverflowGroupInfo(frames: NeiSlotFrame[], group: NeiOverflowGroup) {

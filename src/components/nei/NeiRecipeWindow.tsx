@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, type ReactNode } from "react";
-import type { Recipe } from "@/lib/model/types";
+import type { Recipe, ResourceAmount } from "@/lib/model/types";
 import { formatRate, getRecipePowerTier } from "@/lib/model";
 import type { NeiPositionedSlot } from "@/lib/nei/layout";
 import { NeiRecipeCanvas } from "./NeiRecipeCanvas";
@@ -20,6 +20,7 @@ interface NeiRecipeWindowProps {
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
   slotTooltip?: boolean;
   hideCollapseControls?: boolean;
+  contextResource?: Pick<ResourceAmount, "kind" | "id">;
   statsAction?: ReactNode;
 }
 
@@ -34,6 +35,7 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
   onSlotClick,
   slotTooltip = true,
   hideCollapseControls = false,
+  contextResource,
   statsAction,
 }: NeiRecipeWindowProps) {
   const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
@@ -68,6 +70,7 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
             onSlotClick={onSlotClick}
             slotTooltip={slotTooltip}
             hideCollapseControls={hideCollapseControls}
+            contextResource={contextResource}
           />
         </div>
       </div>

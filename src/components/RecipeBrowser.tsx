@@ -1068,6 +1068,7 @@ function RecipeBookOverlay({
                 onAdd={onAdd}
                 onAddConnected={onAddConnected}
                 onSlotBrowse={onBrowseResource}
+                contextResource={activeResource}
               />
             )}
           </div>
@@ -1087,6 +1088,7 @@ function VirtualRecipeResultList({
   onAdd,
   onAddConnected,
   onSlotBrowse,
+  contextResource,
 }: {
   recipes: RecipeSummary[];
   queryTotal: number;
@@ -1097,6 +1099,7 @@ function VirtualRecipeResultList({
   onAdd: (recipeId: string) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
   onSlotBrowse: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
+  contextResource?: Pick<ResourceAmount, "kind" | "id">;
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ scrollTop: 0, height: 360 });
@@ -1164,6 +1167,7 @@ function VirtualRecipeResultList({
             onAdd={onAdd}
             onAddConnected={onAddConnected}
             onSlotBrowse={onSlotBrowse}
+            contextResource={contextResource}
           />
         ))}
       </div>
@@ -1179,6 +1183,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
   onAdd,
   onAddConnected,
   onSlotBrowse,
+  contextResource,
 }: {
   recipe: RecipeSummary;
   selected: boolean;
@@ -1186,6 +1191,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
   onAdd: (recipeId: string) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
   onSlotBrowse?: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
+  contextResource?: Pick<ResourceAmount, "kind" | "id">;
 }) {
   const previewRecipe = useMemo(() => summaryToPreviewRecipe(recipe), [recipe]);
   return (
@@ -1221,6 +1227,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
           scale={2}
           compact
           hideCollapseControls
+          contextResource={contextResource}
           className="mx-auto"
           onSlotClick={onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined}
         />

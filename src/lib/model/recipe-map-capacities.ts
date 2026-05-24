@@ -23,7 +23,7 @@ const GT_RECIPE_MAP_SLOT_CAPACITIES: Array<{
   { patterns: ["chemicalplant", "chemical plant"], capacity: maxIO(4, 6, 4, 3) },
   { patterns: ["chemicalreactor", "chemical reactor"], capacity: maxIO(2, 2, 1, 1) },
   { patterns: ["circuitassembler", "circuit assembler"], capacity: maxIO(6, 1, 1, 0) },
-  { patterns: ["cokeoven", "coke oven"], capacity: maxIO(1, 1, 0, 1) },
+  { patterns: ["cokeoven", "coke oven"], capacity: maxIO(1, 1, 1, 1) },
   { patterns: ["compressor"], capacity: maxIO(1, 1, 1, 0) },
   { patterns: ["cuttingsaw", "cutting machine", "cutter"], capacity: maxIO(2, 4, 1, 0) },
   { patterns: ["distillery"], capacity: maxIO(1, 1, 1, 1) },

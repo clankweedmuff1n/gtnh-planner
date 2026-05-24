@@ -19,6 +19,7 @@ interface NeiRecipeCanvasProps {
   slotPixelSize?: number;
   iconPixelSize?: number;
   className?: string;
+  collapseOverflow?: boolean;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
@@ -31,6 +32,7 @@ export function NeiRecipeCanvas({
   slotPixelSize,
   iconPixelSize,
   className = "",
+  collapseOverflow = false,
   renderHandle,
   getSlotConnectionAttributes,
   onSlotClick,
@@ -39,8 +41,15 @@ export function NeiRecipeCanvas({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const layout = useMemo(() => getNeiRecipeLayout(recipe), [recipe]);
   const renderLayout = useMemo(
-    () => getRenderLayout(layout.frames, layout.logo.y, layout.overflowGroups, expandedGroups),
-    [expandedGroups, layout.frames, layout.logo.y, layout.overflowGroups],
+    () =>
+      getRenderLayout(
+        layout.frames,
+        layout.logo.y,
+        layout.overflowGroups,
+        expandedGroups,
+        collapseOverflow,
+      ),
+    [collapseOverflow, expandedGroups, layout.frames, layout.logo.y, layout.overflowGroups],
   );
   const renderScale = slotPixelSize ? slotPixelSize / layout.slotSize : scale;
   const width = layout.canvas.width * renderScale;
@@ -123,8 +132,9 @@ function getRenderLayout(
   logoY: number,
   overflowGroups: NeiOverflowGroup[],
   expandedGroups: Set<string>,
+  collapseOverflow: boolean,
 ): { frames: RenderFrame[]; logoY: number } {
-  if (overflowGroups.length === 0) {
+  if (overflowGroups.length === 0 || collapseOverflow) {
     return { frames, logoY };
   }
 
@@ -173,14 +183,17 @@ function getRenderLayout(
     }
 
     if (frame.slotIndex === group.capacity - 1) {
+      const contextFrame = findContextFrame(frames, group);
       return [
-        {
-          ...frame,
-          resource: undefined,
-          resourceIndex: undefined,
-          action: "overflow",
-          overflowCount: group.resourceCount - group.capacity + 1,
-        },
+        contextFrame
+          ? { ...contextFrame, x: frame.x, y: frame.y, slotIndex: frame.slotIndex }
+          : {
+              ...frame,
+              resource: undefined,
+              resourceIndex: undefined,
+              action: "overflow",
+              overflowCount: group.resourceCount - group.capacity + 1,
+            },
       ];
     }
 
@@ -191,6 +204,21 @@ function getRenderLayout(
     frames: renderFrames,
     logoY: applyVerticalShifts(logoY, shifts),
   };
+}
+
+function findContextFrame(
+  frames: NeiSlotFrame[],
+  group: NeiOverflowGroup,
+): NeiPositionedSlot | undefined {
+  return frames
+    .filter((frame): frame is NeiPositionedSlot =>
+      Boolean(
+        frame.resource &&
+        getGroupKey(frame) === getGroupKey(group) &&
+        frame.resource.tooltip?.some((line) => line.startsWith("Selected: ")),
+      ),
+    )
+    .sort((left, right) => left.slotIndex - right.slotIndex)[0];
 }
 
 function getOverflowGroupInfo(frames: NeiSlotFrame[], group: NeiOverflowGroup) {

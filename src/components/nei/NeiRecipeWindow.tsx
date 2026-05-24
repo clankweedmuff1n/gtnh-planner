@@ -19,6 +19,7 @@ interface NeiRecipeWindowProps {
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
   slotTooltip?: boolean;
+  collapseOverflow?: boolean;
   statsAction?: ReactNode;
 }
 
@@ -32,6 +33,7 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
   getSlotConnectionAttributes,
   onSlotClick,
   slotTooltip = true,
+  collapseOverflow = false,
   statsAction,
 }: NeiRecipeWindowProps) {
   const recipeMap = recipe.source?.recipeMap ?? recipe.machineType;
@@ -65,6 +67,7 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
             getSlotConnectionAttributes={getSlotConnectionAttributes}
             onSlotClick={onSlotClick}
             slotTooltip={slotTooltip}
+            collapseOverflow={collapseOverflow}
           />
         </div>
       </div>

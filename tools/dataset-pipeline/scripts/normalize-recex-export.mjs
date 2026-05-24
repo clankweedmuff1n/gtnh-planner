@@ -174,7 +174,12 @@ function normalizeCraftingSource(source, { machineType, sourceType }) {
   const machineHandlers = machineHandlersFromCatalysts(source.catalysts, {
     baseMachineType: machineType,
     fallbackMinimumTier: "NONE",
-  });
+  }).concat(
+    machineHandlersFromNames(source.handlers, {
+      baseMachineType: machineType,
+      fallbackMinimumTier: "NONE",
+    }),
+  );
   recipeMaps.push(machineType);
 
   for (const [index, rawRecipe] of source.recipes.entries()) {
@@ -292,6 +297,34 @@ function machineHandlersFromCatalysts(catalysts, { baseMachineType, fallbackMini
   }
 
   return handlers;
+}
+
+function machineHandlersFromNames(names, { baseMachineType, fallbackMinimumTier }) {
+  const handlers = [];
+  const seen = new Set([slug(baseMachineType)]);
+
+  for (const name of names ?? []) {
+    const label = text(name, "").trim();
+    const id = slug(label);
+    if (!label || seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+
+    handlers.push({
+      id,
+      label,
+      machineType: inferHandlerMachineType(label, baseMachineType),
+      minimumTier: inferCatalystMinimumTier(label, fallbackMinimumTier),
+      kind: inferCatalystKind(label, fallbackMinimumTier),
+    });
+  }
+
+  return handlers;
+}
+
+function inferHandlerMachineType(label, baseMachineType) {
+  return normalizeLabel(label) === normalizeLabel("Crafting Table") ? baseMachineType : label;
 }
 
 function inferCatalystMinimumTier(label, fallback) {

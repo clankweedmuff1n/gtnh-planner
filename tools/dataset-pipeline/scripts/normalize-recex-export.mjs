@@ -288,7 +288,9 @@ function applyOreDictionaryMemberships() {
   const namesByItemId = new Map();
   for (const [name, itemIds] of Object.entries(oreDictionary)) {
     for (const itemId of itemIds ?? []) {
-      namesByItemId.set(itemId, [...(namesByItemId.get(itemId) ?? []), name]);
+      for (const concreteItemId of expandOreDictionaryItemId(itemId)) {
+        namesByItemId.set(concreteItemId, [...(namesByItemId.get(concreteItemId) ?? []), name]);
+      }
     }
   }
 
@@ -299,6 +301,22 @@ function applyOreDictionaryMemberships() {
     }
     resource.oreDictionary = [...new Set([...(resource.oreDictionary ?? []), ...names])].sort();
   }
+}
+
+function expandOreDictionaryItemId(itemId) {
+  if (!itemId.endsWith("@32767")) {
+    return [itemId];
+  }
+
+  const baseId = itemId.slice(0, -"@32767".length);
+  const matches = [...resources.values()]
+    .filter(
+      (resource) =>
+        resource.kind === "item" &&
+        (resource.id === baseId || resource.id.startsWith(`${baseId}@`)),
+    )
+    .map((resource) => resource.id);
+  return matches.length > 0 ? matches : [itemId];
 }
 
 function findSource(type) {

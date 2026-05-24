@@ -744,7 +744,18 @@ function getRecipeResourceScope(
   }
 
   const indexed = getCatalogResourcesByKey(catalog).get(`${resource.kind}:${resource.id}`);
-  const oreDictionaryNames = indexed?.oreDictionary;
+  const oreDictionaryNames = new Set(indexed?.oreDictionary ?? []);
+  for (const candidate of getCatalogResourcesByKey(catalog).values()) {
+    if (
+      candidate.kind === "item" &&
+      isOreDictionaryResource(candidate) &&
+      candidate.alternatives?.some((alternative) =>
+        resourceIdsAreCompatible(alternative.id, resource.id),
+      )
+    ) {
+      oreDictionaryNames.add(candidate.id.slice("oredict:".length));
+    }
+  }
   for (const name of oreDictionaryNames ?? []) {
     resources.push({ kind: "item", id: `oredict:${name}` });
   }
@@ -844,9 +855,23 @@ function isContextCompatibleOreDictionaryInput(
 
   const oreDictionaryName = input.id.slice("oredict:".length);
   return Boolean(
-    input.alternatives?.some((alternative) => alternative.id === selected.id) ||
-    selected.oreDictionary?.includes(oreDictionaryName),
+    input.alternatives?.some((alternative) =>
+      resourceIdsAreCompatible(alternative.id, selected.id),
+    ) || selected.oreDictionary?.includes(oreDictionaryName),
   );
+}
+
+function resourceIdsAreCompatible(candidateId: string, selectedId: string): boolean {
+  if (candidateId === selectedId) {
+    return true;
+  }
+
+  if (!candidateId.endsWith("@32767")) {
+    return false;
+  }
+
+  const wildcardBaseId = candidateId.slice(0, -"@32767".length);
+  return selectedId === wildcardBaseId || selectedId.startsWith(`${wildcardBaseId}@`);
 }
 
 function mergeContextTooltip(

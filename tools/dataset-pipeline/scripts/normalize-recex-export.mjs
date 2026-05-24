@@ -79,12 +79,7 @@ function normalizeGregtechRecipes(source) {
     const machineHandlers = machineHandlersFromCatalysts(machine.cat, {
       baseMachineType: machineType,
       fallbackMinimumTier: "UNKNOWN",
-    }).concat(
-      machineHandlersFromNames(machine.handlers, {
-        baseMachineType: machineType,
-        fallbackMinimumTier: "UNKNOWN",
-      }),
-    );
+    });
     recipeMaps.push(machineType);
 
     for (const [index, rawRecipe] of (machine.recs ?? []).entries()) {
@@ -179,12 +174,7 @@ function normalizeCraftingSource(source, { machineType, sourceType }) {
   const machineHandlers = machineHandlersFromCatalysts(source.catalysts, {
     baseMachineType: machineType,
     fallbackMinimumTier: "NONE",
-  }).concat(
-    machineHandlersFromNames(source.handlers, {
-      baseMachineType: machineType,
-      fallbackMinimumTier: "NONE",
-    }),
-  );
+  });
   recipeMaps.push(machineType);
 
   for (const [index, rawRecipe] of source.recipes.entries()) {

@@ -1220,7 +1220,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
           recipe={previewRecipe}
           scale={2}
           compact
-          collapseOverflow
+          hideCollapseControls
           className="mx-auto"
           onSlotClick={onSlotBrowse ? (slot, mode) => onSlotBrowse(slot.resource, mode) : undefined}
         />

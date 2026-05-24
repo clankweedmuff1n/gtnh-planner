@@ -19,7 +19,7 @@ interface NeiRecipeCanvasProps {
   slotPixelSize?: number;
   iconPixelSize?: number;
   className?: string;
-  collapseOverflow?: boolean;
+  hideCollapseControls?: boolean;
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
@@ -32,7 +32,7 @@ export function NeiRecipeCanvas({
   slotPixelSize,
   iconPixelSize,
   className = "",
-  collapseOverflow = false,
+  hideCollapseControls = false,
   renderHandle,
   getSlotConnectionAttributes,
   onSlotClick,
@@ -47,9 +47,9 @@ export function NeiRecipeCanvas({
         layout.logo.y,
         layout.overflowGroups,
         expandedGroups,
-        collapseOverflow,
+        hideCollapseControls,
       ),
-    [collapseOverflow, expandedGroups, layout.frames, layout.logo.y, layout.overflowGroups],
+    [expandedGroups, hideCollapseControls, layout.frames, layout.logo.y, layout.overflowGroups],
   );
   const renderScale = slotPixelSize ? slotPixelSize / layout.slotSize : scale;
   const width = layout.canvas.width * renderScale;
@@ -132,9 +132,9 @@ function getRenderLayout(
   logoY: number,
   overflowGroups: NeiOverflowGroup[],
   expandedGroups: Set<string>,
-  collapseOverflow: boolean,
+  hideCollapseControls: boolean,
 ): { frames: RenderFrame[]; logoY: number } {
-  if (overflowGroups.length === 0 || collapseOverflow) {
+  if (overflowGroups.length === 0) {
     return { frames, logoY };
   }
 
@@ -167,12 +167,14 @@ function getRenderLayout(
 
     if (expandedGroups.has(groupKey)) {
       if (frame.slotIndex === group.resourceCount - 1) {
-        return [
-          frame,
-          {
-            ...getCollapseFrame(frame, info.collapsePosition),
-          },
-        ];
+        return hideCollapseControls
+          ? [frame]
+          : [
+              frame,
+              {
+                ...getCollapseFrame(frame, info.collapsePosition),
+              },
+            ];
       }
 
       return [frame];

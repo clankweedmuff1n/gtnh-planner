@@ -18,10 +18,25 @@ const monocraft = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://gtnh.samiracle.fr"),
   applicationName: "GTNH Planner",
   title: "GTNH Planner | GregTech New Horizons Factory Calculator",
   description:
     "Plan and optimize GregTech: New Horizons factories with a GTNH recipe flowchart, throughput calculator, machine ratios, and dataset-backed production chains.",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   keywords: [
     "GTNH Planner",
     "GregTech New Horizons planner",

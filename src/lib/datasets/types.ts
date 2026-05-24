@@ -35,6 +35,8 @@ export interface DatasetResourceIndexEntry {
   iconAtlas?: ResourceIconAtlasRef;
   dominantColor?: string;
   recipeCount: number;
+  oreDictionary?: string[];
+  alternatives?: ResourceAmount["alternatives"];
 }
 
 export interface DatasetVersion {

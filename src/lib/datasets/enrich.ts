@@ -47,6 +47,9 @@ export function buildDatasetResourceIndex(recipes: Recipe[]): DatasetResourceInd
         if (!existing.displayName && resource.displayName) {
           existing.displayName = resource.displayName;
         }
+        if (!existing.alternatives && resource.alternatives) {
+          existing.alternatives = resource.alternatives;
+        }
       } else {
         index.set(key, {
           kind: resource.kind,
@@ -56,6 +59,7 @@ export function buildDatasetResourceIndex(recipes: Recipe[]): DatasetResourceInd
           iconAtlas: resource.iconAtlas,
           dominantColor: resource.dominantColor ?? resource.iconAtlas?.dominantColor,
           recipeCount: 1,
+          alternatives: resource.alternatives,
         });
       }
     }

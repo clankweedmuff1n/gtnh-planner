@@ -9,7 +9,12 @@ import type {
   RecipeSummary,
 } from "@/lib/datasets/types";
 import type { MachineTier, Recipe, RecipeOutput, ResourceAmount } from "@/lib/model/types";
-import { getRecipePowerTier, GT_VOLTAGE_TIERS, isVirtualChoiceResource } from "@/lib/model";
+import {
+  getRecipePowerTier,
+  GT_VOLTAGE_TIERS,
+  isOreDictionaryResource,
+  isVirtualChoiceResource,
+} from "@/lib/model";
 
 type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
 
@@ -66,6 +71,11 @@ interface LoadedRecipeLookupIndex {
   recipeIndexesById?: Map<string, number>;
   tierIndexes: number[];
   entries: Map<string, Map<number, number[]>>;
+}
+
+interface RecipeResourceScope {
+  resource: Pick<ResourceAmount, "kind" | "id">;
+  resources: Array<Pick<ResourceAmount, "kind" | "id">>;
 }
 
 interface QueryIndexes {
@@ -227,17 +237,19 @@ export async function queryDatasetRecipes(
   const recipeCatalog = await loadRecipeIndex(versionId);
   const indexes = ensureIndexes(recipeCatalog);
   const query = normalizeText(request.query);
+  const resourceScope = request.resource
+    ? getRecipeResourceScope(recipeCatalog, request.resource, request.mode)
+    : undefined;
   const candidates = request.resource
-    ? (indexes.recipeIndexesByResource.get(getResourceModeKey(request.resource, request.mode)) ??
-      [])
+    ? getResourceIndexes(indexes.recipeIndexesByResource, resourceScope!, request.mode)
     : indexes.allRecipeIndexes;
   const eligibleRecipeMaps = request.resource
-    ? (indexes.recipeMapsByResource.get(getResourceModeKey(request.resource, request.mode)) ?? [])
+    ? getResourceRecipeMaps(indexes.recipeMapsByResource, resourceScope!, request.mode)
     : [...new Set(indexes.recipeMaps.filter(Boolean))];
   const sortedRecipeMaps = eligibleRecipeMaps
     .filter((recipeMap) =>
       recipeMapHasMatchingIndexedRecipe(indexes, candidates, recipeMap, request.maxTier, query, {
-        resource: request.resource,
+        scope: resourceScope,
         mode: request.mode,
       }),
     )
@@ -250,9 +262,12 @@ export async function queryDatasetRecipes(
         : undefined;
   const scopedCandidates =
     request.resource && effectiveMap
-      ? (indexes.recipeIndexesByResourceAndMap.get(
-          getResourceModeMapKey(request.resource, request.mode, effectiveMap),
-        ) ?? [])
+      ? getResourceIndexes(
+          indexes.recipeIndexesByResourceAndMap,
+          resourceScope!,
+          request.mode,
+          effectiveMap,
+        )
       : candidates;
   const withIcons: Array<{ recipeIndex: number; iconScore: number }> = [];
   const withoutIcons: number[] = [];
@@ -283,7 +298,10 @@ export async function queryDatasetRecipes(
   ].slice(request.offset, request.offset + request.limit);
 
   return {
-    recipes: recipeIndexes.map((index) => recipeCatalog.recipes?.[index]).filter(Boolean),
+    recipes: recipeIndexes
+      .map((index) => recipeCatalog.recipes?.[index])
+      .filter((recipe): recipe is RecipeSummary => Boolean(recipe))
+      .map((recipe) => applyUsesResourceContext(recipe, recipeCatalog, request.resource)),
     total,
     recipeMaps: sortedRecipeMaps,
     recipeMapIcons: Object.fromEntries(
@@ -312,26 +330,27 @@ async function queryDatasetRecipesFromLookup(
   },
 ) {
   const lookup = await loadRecipeLookupIndex(catalog.version);
-  const resourceKey = getResourceModeKey(request.resource, request.mode);
-  const recipesByMap = lookup.entries.get(resourceKey);
-  const sortedRecipeMaps = recipesByMap
-    ? [...recipesByMap.keys()]
-        .filter((recipeMapId) =>
-          (recipesByMap.get(recipeMapId) ?? []).some((recipeIndex) =>
-            recipeMatchesLookupTier(lookup, recipeIndex, request.maxTier),
-          ),
-        )
-        .map((recipeMapId) => lookup.recipeMaps[recipeMapId])
-        .filter((recipeMap): recipeMap is string => Boolean(recipeMap))
-        .sort((a, b) => a.localeCompare(b))
-    : [];
+  const resourceScope = getRecipeResourceScope(catalog, request.resource, request.mode);
+  const recipesByMap = getLookupRecipesByMap(lookup, resourceScope, request.mode);
+  const sortedRecipeMaps =
+    recipesByMap.size > 0
+      ? [...recipesByMap.keys()]
+          .filter((recipeMapId) =>
+            (recipesByMap.get(recipeMapId) ?? []).some((recipeIndex) =>
+              recipeMatchesLookupTier(lookup, recipeIndex, request.maxTier),
+            ),
+          )
+          .map((recipeMapId) => lookup.recipeMaps[recipeMapId])
+          .filter((recipeMap): recipeMap is string => Boolean(recipeMap))
+          .sort((a, b) => a.localeCompare(b))
+      : [];
   const effectiveMap =
     request.recipeMap && sortedRecipeMaps.includes(request.recipeMap)
       ? request.recipeMap
       : sortedRecipeMaps[0];
   const effectiveMapId = effectiveMap ? lookup.recipeMapIds.get(effectiveMap) : undefined;
   const scopedCandidates =
-    recipesByMap && effectiveMapId !== undefined ? (recipesByMap.get(effectiveMapId) ?? []) : [];
+    effectiveMapId !== undefined ? (recipesByMap.get(effectiveMapId) ?? []) : [];
   const matchingRecipeIndexes: number[] = [];
 
   for (const recipeIndex of scopedCandidates) {
@@ -344,7 +363,9 @@ async function queryDatasetRecipesFromLookup(
     request.offset,
     request.offset + request.limit,
   );
-  const recipes = await getRecipeSummariesByIndex(catalog, pageRecipeIndexes);
+  const recipes = (await getRecipeSummariesByIndex(catalog, pageRecipeIndexes)).map((recipe) =>
+    applyUsesResourceContext(recipe, catalog, request.resource),
+  );
 
   return {
     recipes,
@@ -712,6 +733,134 @@ function getCatalogResourcesByKey(
   return catalog.resourcesByKey;
 }
 
+function getRecipeResourceScope(
+  catalog: LoadedRecipeIndex,
+  resource: Pick<ResourceAmount, "kind" | "id">,
+  mode: "recipes" | "uses",
+): RecipeResourceScope {
+  const resources = [resource];
+  if (mode !== "uses" || resource.kind !== "item" || isOreDictionaryResource(resource)) {
+    return { resource, resources };
+  }
+
+  const indexed = getCatalogResourcesByKey(catalog).get(`${resource.kind}:${resource.id}`);
+  const oreDictionaryNames = indexed?.oreDictionary;
+  for (const name of oreDictionaryNames ?? []) {
+    resources.push({ kind: "item", id: `oredict:${name}` });
+  }
+
+  return { resource, resources };
+}
+
+function getResourceIndexes(
+  index: Map<string, number[]>,
+  scope: RecipeResourceScope,
+  mode: "recipes" | "uses",
+  recipeMap?: string,
+): number[] {
+  const indexes = scope.resources.flatMap(
+    (resource) =>
+      index.get(
+        recipeMap
+          ? getResourceModeMapKey(resource, mode, recipeMap)
+          : getResourceModeKey(resource, mode),
+      ) ?? [],
+  );
+  return [...new Set(indexes)];
+}
+
+function getResourceRecipeMaps(
+  index: Map<string, string[]>,
+  scope: RecipeResourceScope,
+  mode: "recipes" | "uses",
+): string[] {
+  return [
+    ...new Set(
+      scope.resources.flatMap((resource) => index.get(getResourceModeKey(resource, mode)) ?? []),
+    ),
+  ];
+}
+
+function getLookupRecipesByMap(
+  lookup: LoadedRecipeLookupIndex,
+  scope: RecipeResourceScope,
+  mode: "recipes" | "uses",
+): Map<number, number[]> {
+  const recipesByMap = new Map<number, number[]>();
+  for (const resource of scope.resources) {
+    const resourceRecipesByMap = lookup.entries.get(getResourceModeKey(resource, mode));
+    if (!resourceRecipesByMap) {
+      continue;
+    }
+    for (const [recipeMapId, recipeIndexes] of resourceRecipesByMap.entries()) {
+      const existing = recipesByMap.get(recipeMapId) ?? [];
+      recipesByMap.set(recipeMapId, [...new Set([...existing, ...recipeIndexes])]);
+    }
+  }
+  return recipesByMap;
+}
+
+function applyUsesResourceContext<T extends RecipeSummary>(
+  recipe: T,
+  catalog: LoadedRecipeIndex,
+  resource: Pick<ResourceAmount, "kind" | "id"> | undefined,
+): T {
+  if (!resource || resource.kind !== "item" || isOreDictionaryResource(resource)) {
+    return recipe;
+  }
+
+  const selected = getCatalogResourcesByKey(catalog).get(`${resource.kind}:${resource.id}`);
+  if (!selected) {
+    return recipe;
+  }
+
+  let changed = false;
+  const inputs = recipe.inputs.map((input) => {
+    if (!isContextCompatibleOreDictionaryInput(input, selected)) {
+      return input;
+    }
+
+    changed = true;
+    return {
+      ...input,
+      displayName: selected.displayName ?? input.displayName,
+      iconPath: selected.iconPath ?? input.iconPath,
+      iconAtlas: selected.iconAtlas ?? input.iconAtlas,
+      dominantColor: selected.dominantColor ?? input.dominantColor,
+      tooltip: mergeContextTooltip(input, selected),
+    };
+  });
+
+  return changed ? { ...recipe, inputs } : recipe;
+}
+
+function isContextCompatibleOreDictionaryInput(
+  input: ResourceAmount,
+  selected: DatasetResource | DatasetResourceIndexEntry,
+): boolean {
+  if (input.kind !== selected.kind || input.kind !== "item" || !isOreDictionaryResource(input)) {
+    return false;
+  }
+
+  const oreDictionaryName = input.id.slice("oredict:".length);
+  return Boolean(
+    input.alternatives?.some((alternative) => alternative.id === selected.id) ||
+    selected.oreDictionary?.includes(oreDictionaryName),
+  );
+}
+
+function mergeContextTooltip(
+  input: ResourceAmount,
+  selected: DatasetResource | DatasetResourceIndexEntry,
+): string[] | undefined {
+  const tooltip = [...(input.tooltip ?? [])];
+  const selectedLabel = selected.displayName ?? selected.id;
+  if (!tooltip.some((line) => line === `Selected: ${selectedLabel}`)) {
+    tooltip.unshift(`Selected: ${selectedLabel}`);
+  }
+  return tooltip.length > 0 ? tooltip : undefined;
+}
+
 function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
   if (catalog.indexes) {
     return catalog.indexes;
@@ -754,6 +903,23 @@ function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
         recipeIndex,
       );
       addRecipeMap(recipeMapSetsByResource, getResourceModeKey(input, "uses"), recipe.recipeMap);
+      for (const alternative of input.alternatives ?? []) {
+        addRecipeIndex(
+          recipeIndexesByResource,
+          getResourceModeKey(alternative, "uses"),
+          recipeIndex,
+        );
+        addRecipeIndex(
+          recipeIndexesByResourceAndMap,
+          getResourceModeMapKey(alternative, "uses", recipe.recipeMap),
+          recipeIndex,
+        );
+        addRecipeMap(
+          recipeMapSetsByResource,
+          getResourceModeKey(alternative, "uses"),
+          recipe.recipeMap,
+        );
+      }
     }
   });
 
@@ -830,12 +996,10 @@ function recipeMapHasMatchingIndexedRecipe(
   recipeMap: string,
   maxTier: TierFilter,
   query: string,
-  scope: { resource?: Pick<ResourceAmount, "kind" | "id">; mode: "recipes" | "uses" },
+  scope: { scope?: RecipeResourceScope; mode: "recipes" | "uses" },
 ) {
-  const scopedCandidates = scope.resource
-    ? (indexes.recipeIndexesByResourceAndMap.get(
-        getResourceModeMapKey(scope.resource, scope.mode, recipeMap),
-      ) ?? [])
+  const scopedCandidates = scope.scope
+    ? getResourceIndexes(indexes.recipeIndexesByResourceAndMap, scope.scope, scope.mode, recipeMap)
     : candidates;
 
   return scopedCandidates.some((recipeIndex) => {
@@ -847,7 +1011,7 @@ function recipeMapHasMatchingIndexedRecipe(
       return false;
     }
 
-    return Boolean(scope.resource || !query || indexes.searchText[recipeIndex]?.includes(query));
+    return Boolean(scope.scope || !query || indexes.searchText[recipeIndex]?.includes(query));
   });
 }
 

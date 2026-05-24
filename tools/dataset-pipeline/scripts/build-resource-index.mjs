@@ -135,6 +135,8 @@ function buildResourceIndex(dataset) {
           indexed?.iconAtlas?.dominantColor ??
           resource.iconAtlas?.dominantColor,
         recipeCount: 1,
+        oreDictionary: resource.oreDictionary ?? indexed?.oreDictionary,
+        alternatives: resource.alternatives ?? indexed?.alternatives,
       });
     }
   }
@@ -158,6 +160,12 @@ function mergeResourceIcon(target, resource, indexed) {
       resource.dominantColor ??
       indexed?.iconAtlas?.dominantColor ??
       resource.iconAtlas?.dominantColor;
+  }
+  if (!target.oreDictionary) {
+    target.oreDictionary = resource.oreDictionary ?? indexed?.oreDictionary;
+  }
+  if (!target.alternatives) {
+    target.alternatives = resource.alternatives ?? indexed?.alternatives;
   }
 }
 

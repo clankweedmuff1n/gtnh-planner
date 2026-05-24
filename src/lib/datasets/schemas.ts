@@ -43,6 +43,8 @@ export const datasetResourceIndexEntrySchema = z.object({
   iconAtlas: resourceIconAtlasRefSchema.optional(),
   dominantColor: dominantColorSchema,
   recipeCount: z.number().int().min(0),
+  oreDictionary: z.array(z.string()).optional(),
+  alternatives: datasetResourceSchema.shape.alternatives,
 });
 
 export const recipeDatasetSchema = z.object({

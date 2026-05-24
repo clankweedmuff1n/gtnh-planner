@@ -45,6 +45,7 @@ normalizeCraftingSource(findSource("shapedOreDict"), {
 });
 normalizeSmeltingSource(findSource("smelting"));
 expandSharedMultiblockRecipeVariants();
+applyOreDictionaryMemberships();
 
 const dataset = {
   schemaVersion: 1,
@@ -240,7 +241,10 @@ function expandSharedMultiblockRecipeVariants() {
     ["dehydrator", "Multiblock Dehydrator"],
   ];
   const signatures = new Set(
-    recipes.map((recipe) => `${normalizeRecipeMap(recipe.source?.recipeMap ?? recipe.machineType)}:${recipeBodySignature(recipe)}`),
+    recipes.map(
+      (recipe) =>
+        `${normalizeRecipeMap(recipe.source?.recipeMap ?? recipe.machineType)}:${recipeBodySignature(recipe)}`,
+    ),
   );
   const variants = [];
 
@@ -343,6 +347,23 @@ function addResource(resource) {
     oreDictionary: resource.oreDictionary,
     alternatives: resource.alternatives,
   });
+}
+
+function applyOreDictionaryMemberships() {
+  const namesByItemId = new Map();
+  for (const [name, itemIds] of Object.entries(oreDictionary)) {
+    for (const itemId of itemIds ?? []) {
+      namesByItemId.set(itemId, [...(namesByItemId.get(itemId) ?? []), name]);
+    }
+  }
+
+  for (const [itemId, names] of namesByItemId.entries()) {
+    const resource = resources.get(`item:${itemId}`);
+    if (!resource) {
+      continue;
+    }
+    resource.oreDictionary = [...new Set([...(resource.oreDictionary ?? []), ...names])].sort();
+  }
 }
 
 function findSource(type) {
@@ -560,7 +581,10 @@ function slug(value) {
 }
 
 function normalizeRecipeMap(value) {
-  return slug(value).replace(/-recipes?$/g, "").replace(/-recipe-map$/g, "").replace(/-/g, " ");
+  return slug(value)
+    .replace(/-recipes?$/g, "")
+    .replace(/-recipe-map$/g, "")
+    .replace(/-/g, " ");
 }
 
 function appendNote(notes, note) {

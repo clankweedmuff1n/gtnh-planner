@@ -111,6 +111,9 @@ function buildRecipeLookupIndex(recipeIndex) {
     }
     for (const input of recipe.inputs ?? []) {
       addLookupRecipe(entries, input, "uses", recipeMapId, recipeIndex);
+      for (const alternative of input.alternatives ?? []) {
+        addLookupRecipe(entries, alternative, "uses", recipeMapId, recipeIndex);
+      }
     }
   });
 
@@ -331,6 +334,19 @@ function toCompactResource(resource) {
     chance: resource.chance,
     byproduct: resource.byproduct,
     neiSlot: resource.neiSlot,
+    alternatives: resource.alternatives?.map(toCompactResourceAlternative),
+  });
+}
+
+function toCompactResourceAlternative(resource) {
+  return removeUndefined({
+    kind: resource.kind,
+    id: resource.id,
+    displayName: resource.displayName,
+    iconPath: resource.iconPath,
+    iconAtlas: resource.iconAtlas,
+    dominantColor: resource.dominantColor,
+    tooltip: resource.tooltip,
   });
 }
 

@@ -24,11 +24,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.entity.RenderItem;
 import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.client.ForgeHooksClient;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -44,6 +46,7 @@ public final class ClientItemStackIconRenderer {
     private static final Map<String, String> ICONS_BY_STACK_KEY = new LinkedHashMap<String, String>();
     private static final Map<String, ItemStack> PENDING_STACKS_BY_KEY = new LinkedHashMap<String, ItemStack>();
     private static final RenderItem RENDER_ITEM = new RenderItem();
+    private static final RenderBlocks RENDER_BLOCKS = new RenderBlocks();
     private static int renderWarnings;
 
     private ClientItemStackIconRenderer() {}
@@ -139,13 +142,20 @@ public final class ClientItemStackIconRenderer {
             if (fontRenderer == null) {
                 fontRenderer = minecraft.fontRenderer;
             }
-            RENDER_ITEM.renderItemIntoGUI(
-                fontRenderer,
-                minecraft.getTextureManager(),
-                stack,
-                (GUI_ICON_CANVAS_SIZE - GUI_ITEM_SIZE) / 2,
-                (GUI_ICON_CANVAS_SIZE - GUI_ITEM_SIZE) / 2
-            );
+            int itemX = (GUI_ICON_CANVAS_SIZE - GUI_ITEM_SIZE) / 2;
+            int itemY = (GUI_ICON_CANVAS_SIZE - GUI_ITEM_SIZE) / 2;
+            if (
+                !ForgeHooksClient
+                    .renderInventoryItem(RENDER_BLOCKS, minecraft.getTextureManager(), stack, true, 0.0F, itemX, itemY)
+            ) {
+                RENDER_ITEM.renderItemIntoGUI(
+                    fontRenderer,
+                    minecraft.getTextureManager(),
+                    stack,
+                    itemX,
+                    itemY
+                );
+            }
             RenderHelper.disableStandardItemLighting();
             GL11.glDisable(GL12.GL_RESCALE_NORMAL);
             resetTessellator();
@@ -380,20 +390,26 @@ public final class ClientItemStackIconRenderer {
 
         File cachedFile = cacheFileForKey(key, filename);
         if (cachedFile.isFile()) {
-            Files.copy(cachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            return MaterializedIconResult.CACHE_HIT;
+            if (isUsableCachedIcon(cachedFile)) {
+                Files.copy(cachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                return MaterializedIconResult.CACHE_HIT;
+            }
+            cachedFile.delete();
         }
         File legacyCachedFile = cacheFile(filename);
         if (legacyCachedFile.isFile()) {
-            Files.copy(legacyCachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(legacyCachedFile.toPath(), cachedFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            return MaterializedIconResult.CACHE_HIT;
+            if (isUsableCachedIcon(legacyCachedFile)) {
+                Files.copy(legacyCachedFile.toPath(), outFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(legacyCachedFile.toPath(), cachedFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                return MaterializedIconResult.CACHE_HIT;
+            }
+            legacyCachedFile.delete();
         }
 
         BufferedImage image = renderStackToImage(stack);
         applyMissingItemTint(stack, image);
         image = renderWithContainerBaseIfNeeded(stack, image);
-        if (!imageHasVisiblePixels(image) || missingTextureRatio(image) > 0.5D) {
+        if (!imageHasVisiblePixels(image) || missingTextureRatio(image) >= 0.5D) {
             ICONS_BY_STACK_KEY.put(key, "");
             return MaterializedIconResult.SKIPPED;
         }
@@ -404,6 +420,15 @@ public final class ClientItemStackIconRenderer {
         }
         ImageIO.write(image, "png", cachedFile);
         return MaterializedIconResult.RENDERED;
+    }
+
+    private static boolean isUsableCachedIcon(File file) {
+        try {
+            BufferedImage image = ImageIO.read(file);
+            return image != null && imageHasVisiblePixels(image) && missingTextureRatio(image) < 0.5D;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     static BufferedImage imageFromRgbaBuffer(ByteBuffer buffer) {

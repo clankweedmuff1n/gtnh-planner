@@ -272,6 +272,7 @@ exporterSource = exporterSource.replace(
   [
     "            mach.nei = map.getFrontend().getUIProperties().neiTransferRectId;",
     "            mach.cat = getNeiCatalysts(mach.nei);",
+    "            mach.handlers = getNeiRecipeHandlers(mach.nei);",
     "",
     '            RecipeExporterMod.log.info("Processing recipe map " + mach.n);',
   ].join("\n") + "\n",
@@ -996,13 +997,26 @@ if (!gregtechMachineSource.includes("public List<Item> cat;")) {
       "    public String nei;",
       "    /** NEI catalysts */",
       "    public List<Item> cat;",
+      "    /** NEI recipe handler labels */",
+      "    public List<String> handlers;",
       "    /** recipes */",
       "    public List<GregtechRecipe> recs;",
     ].join("\n") + "\n",
   );
   gregtechMachineSource = gregtechMachineSource.replace(
     "        recs = new ArrayList<GregtechRecipe>();\n",
-    "        cat = new ArrayList<Item>();\n        recs = new ArrayList<GregtechRecipe>();\n",
+    "        cat = new ArrayList<Item>();\n        handlers = new ArrayList<String>();\n        recs = new ArrayList<GregtechRecipe>();\n",
+  );
+  await fs.writeFile(gregtechMachinePath, gregtechMachineSource);
+}
+if (!gregtechMachineSource.includes("public List<String> handlers;")) {
+  gregtechMachineSource = gregtechMachineSource.replace(
+    "    /** recipes */\n    public List<GregtechRecipe> recs;\n",
+    "    /** NEI recipe handler labels */\n    public List<String> handlers;\n    /** recipes */\n    public List<GregtechRecipe> recs;\n",
+  );
+  gregtechMachineSource = gregtechMachineSource.replace(
+    "        recs = new ArrayList<GregtechRecipe>();\n",
+    "        handlers = new ArrayList<String>();\n        recs = new ArrayList<GregtechRecipe>();\n",
   );
   await fs.writeFile(gregtechMachinePath, gregtechMachineSource);
 }

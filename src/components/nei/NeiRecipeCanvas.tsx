@@ -145,7 +145,7 @@ function getRenderLayout(
   hideCollapseControls: boolean,
   contextResource: Pick<ResourceAmount, "kind" | "id"> | undefined,
 ): { frames: RenderFrame[]; logoY: number } {
-  if (overflowGroups.length === 0) {
+  if (overflowGroups.length === 0 || hideCollapseControls) {
     return { frames, logoY };
   }
 

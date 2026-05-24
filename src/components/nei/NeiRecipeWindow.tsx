@@ -42,6 +42,7 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
   const totalEu = recipe.eut * recipe.durationTicks;
   const seconds = recipe.durationTicks / 20;
   const powerTier = useMemo(() => getRecipePowerTier(recipe), [recipe]);
+  const preserveNativeSlots = compact || hideCollapseControls;
 
   return (
     <div
@@ -69,7 +70,7 @@ export const NeiRecipeWindow = memo(function NeiRecipeWindow({
             getSlotConnectionAttributes={getSlotConnectionAttributes}
             onSlotClick={onSlotClick}
             slotTooltip={slotTooltip}
-            hideCollapseControls={hideCollapseControls}
+            hideCollapseControls={preserveNativeSlots}
             contextResource={contextResource}
           />
         </div>

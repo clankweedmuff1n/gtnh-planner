@@ -31,10 +31,13 @@ import { TICKS_PER_SECOND } from "@/lib/model/types";
 export const LOCAL_STORAGE_KEY = "gtnh-factory-flow.project.v2";
 export const RESOURCE_HISTORY_STORAGE_KEY = "gtnh-factory-flow.resource-history.v1";
 const RESOURCE_HISTORY_LIMIT = 8;
+const PROJECT_HISTORY_LIMIT = 100;
 const CYCLIC_SMALL_BOTTLENECK_UTILIZATION = 1.2;
 
 interface FactoryStore {
   project: FactoryProject;
+  undoHistory: FactoryProject[];
+  redoHistory: FactoryProject[];
   datasetManifest?: DatasetManifest;
   dataset?: RecipeDataset;
   datasetManifestUrl?: string;
@@ -60,6 +63,8 @@ interface FactoryStore {
   lastResult: ThroughputResult;
   setProject: (project: FactoryProject) => void;
   markHydratedProject: (project: FactoryProject) => void;
+  undo: () => void;
+  redo: () => void;
   setDatasetManifest: (manifest: DatasetManifest, manifestUrl: string) => void;
   setDataset: (dataset: RecipeDataset) => void;
   clearDataset: () => void;
@@ -179,6 +184,8 @@ export interface PendingResourceConnection {
 
 export const useFactoryStore = create<FactoryStore>((set, get) => ({
   project: initialProject,
+  undoHistory: [],
+  redoHistory: [],
   datasetManifest: undefined,
   dataset: undefined,
   datasetManifestUrl: undefined,
@@ -208,6 +215,8 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       selectedNodeId: nextProject.nodes[0]?.id,
       selectedRecipeId: nextProject.nodes[0]?.recipeId ?? nextProject.recipes[0]?.id,
       lastResult: calculateThroughput(nextProject),
+      undoHistory: [],
+      redoHistory: [],
     });
   },
   markHydratedProject: (project) => {
@@ -217,6 +226,36 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       selectedNodeId: nextProject.nodes[0]?.id,
       selectedRecipeId: nextProject.nodes[0]?.recipeId ?? nextProject.recipes[0]?.id,
       lastResult: calculateThroughput(nextProject),
+      undoHistory: [],
+      redoHistory: [],
+    });
+  },
+  undo: () => {
+    set((state) => {
+      const previousProject = state.undoHistory.at(-1);
+      if (!previousProject) {
+        return state;
+      }
+
+      return {
+        ...restoreProjectState(state, previousProject),
+        undoHistory: state.undoHistory.slice(0, -1),
+        redoHistory: pushProjectHistory(state.redoHistory, state.project),
+      };
+    });
+  },
+  redo: () => {
+    set((state) => {
+      const nextProject = state.redoHistory.at(-1);
+      if (!nextProject) {
+        return state;
+      }
+
+      return {
+        ...restoreProjectState(state, nextProject),
+        undoHistory: pushProjectHistory(state.undoHistory, state.project),
+        redoHistory: state.redoHistory.slice(0, -1),
+      };
     });
   },
   setDatasetManifest: (manifest, manifestUrl) => {
@@ -310,14 +349,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         targetRate: undefined,
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         recipeBrowserResource: undefined,
         pendingResourceConnection: undefined,
         selectedNodeId: undefined,
         selectedRecipeId: state.dataset?.recipes[0]?.id,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   selectResourceConnectionSlot: (slot) => {
@@ -368,12 +407,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
           ...state.project,
           edges: state.project.edges.filter((entry) => entry.id !== duplicateEdge.id),
         });
-        return {
+        return withProjectHistory(state, {
           project,
           pendingResourceConnection: undefined,
           selectedNodeId: slot.nodeId,
           lastResult: calculateThroughput(project),
-        };
+        });
       }
 
       if (hasStorageEndpointConflict(state.project, edge)) {
@@ -388,12 +427,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         edges: [...state.project.edges, edge],
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         pendingResourceConnection: undefined,
         selectedNodeId: slot.nodeId,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   cancelResourceConnection: () => {
@@ -472,10 +511,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
           ),
         }),
       );
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   deleteNode: (nodeId) => {
@@ -489,7 +528,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
           ),
         }),
       );
-      return {
+      return withProjectHistory(state, {
         project,
         pendingResourceConnection:
           state.pendingResourceConnection?.nodeId === nodeId
@@ -498,7 +537,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         selectedNodeId: project.nodes[0]?.id,
         selectedRecipeId: project.nodes[0]?.recipeId ?? state.selectedRecipeId,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   addResourceStorage: (resource) => {
@@ -521,11 +560,11 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         storages: [...(state.project.storages ?? []), storage],
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         selectedNodeId: undefined,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   addStorageForConnection: (resource, nodeId, side, position, handleId) => {
@@ -564,23 +603,23 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
 
       if (!edge) {
         const project = touchProject(projectWithStorage);
-        return {
+        return withProjectHistory(state, {
           project,
           selectedNodeId: undefined,
           hoveredStorageResourceKey: getResourceKey(resource),
           lastResult: calculateThroughput(project),
-        };
+        });
       }
 
       const duplicateEdge = findDuplicateEdge(projectWithStorage.edges, edge);
       if (!duplicateEdge && hasStorageEndpointConflict(projectWithStorage, edge)) {
         const project = touchProject(pruneOrphanStorages(projectWithStorage));
-        return {
+        return withProjectHistory(state, {
           project,
           selectedNodeId: undefined,
           hoveredStorageResourceKey: getResourceKey(resource),
           lastResult: calculateThroughput(project),
-        };
+        });
       }
 
       const project = touchProject(
@@ -592,12 +631,12 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         }),
       );
 
-      return {
+      return withProjectHistory(state, {
         project,
         selectedNodeId: undefined,
         hoveredStorageResourceKey: getResourceKey(resource),
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   deleteStorage: (storageId) => {
@@ -610,14 +649,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ),
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         pendingResourceConnection:
           state.pendingResourceConnection?.nodeId === storageId
             ? undefined
             : state.pendingResourceConnection,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   autoRouteStorage: (storageId) => {
@@ -650,10 +689,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         edges: [...state.project.edges, ...missingEdges],
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   updateStorage: (storageId, patch) => {
@@ -665,10 +704,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ),
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   setStoragePosition: (storageId, position) => {
@@ -680,9 +719,9 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ),
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
-      };
+      });
     });
   },
   setNodePosition: (nodeId, position) => {
@@ -694,7 +733,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ),
       });
 
-      return { project };
+      return withProjectHistory(state, { project });
     });
   },
   connectNodes: (sourceNodeId, targetNodeId, resource) => {
@@ -712,10 +751,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
             edges: state.project.edges.filter((entry) => entry.id !== duplicateEdge.id),
           }),
         );
-        return {
+        return withProjectHistory(state, {
           project,
           lastResult: calculateThroughput(project),
-        };
+        });
       }
 
       if (hasStorageEndpointConflict(state.project, edge)) {
@@ -726,10 +765,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ...state.project,
         edges: [...state.project.edges, edge],
       });
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   reconnectEdge: (edgeId, connection) => {
@@ -777,10 +816,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       const edge = buildEdgeBetweenNodes(projectWithoutOld, sourceNodeId, targetNodeId, resource);
       if (!edge) {
         const project = touchProject(pruneOrphanStorages(projectWithoutOld));
-        return {
+        return withProjectHistory(state, {
           project,
           lastResult: calculateThroughput(project),
-        };
+        });
       }
 
       const duplicateEdge = findDuplicateEdge(projectWithoutOld.edges, edge);
@@ -797,10 +836,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         }),
       );
 
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   updateEdge: (edgeId, patch) => {
@@ -812,10 +851,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ),
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   autoConnectNode: (nodeId) => {
@@ -853,10 +892,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         edges: [...state.project.edges, ...edges],
       });
 
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   optimizeMachineCount: (nodeId) => {
@@ -911,10 +950,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       }
 
       const touchedProject = touchProject(project);
-      return {
+      return withProjectHistory(state, {
         project: touchedProject,
         lastResult: calculateThroughput(touchedProject),
-      };
+      });
     });
   },
   optimizeMachineCounts: () => {
@@ -973,10 +1012,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       }
 
       const touchedProject = touchProject(project);
-      return {
+      return withProjectHistory(state, {
         project: touchedProject,
         lastResult: calculateThroughput(touchedProject),
-      };
+      });
     });
   },
   deleteEdge: (edgeId) => {
@@ -987,10 +1026,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
           edges: state.project.edges.filter((edge) => edge.id !== edgeId),
         }),
       );
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   setTargetRate: (targetRate) => {
@@ -999,10 +1038,10 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ...state.project,
         targetRate,
       });
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
   selectFuelProfile: (fuelProfileId) => {
@@ -1011,13 +1050,55 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         ...state.project,
         selectedFuelProfileId: fuelProfileId,
       });
-      return {
+      return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
-      };
+      });
     });
   },
 }));
+
+function withProjectHistory(
+  state: FactoryStore,
+  updates: Partial<FactoryStore> & { project?: FactoryProject },
+): Partial<FactoryStore> {
+  if (!updates.project || updates.project === state.project) {
+    return updates;
+  }
+
+  return {
+    ...updates,
+    undoHistory: pushProjectHistory(state.undoHistory, state.project),
+    redoHistory: [],
+  };
+}
+
+function pushProjectHistory(history: FactoryProject[], project: FactoryProject): FactoryProject[] {
+  return [...history, project].slice(-PROJECT_HISTORY_LIMIT);
+}
+
+function restoreProjectState(
+  state: FactoryStore,
+  project: FactoryProject,
+): Pick<FactoryStore, "project" | "selectedNodeId" | "selectedRecipeId" | "lastResult"> {
+  const selectedNode = state.selectedNodeId
+    ? project.nodes.find((node) => node.id === state.selectedNodeId)
+    : undefined;
+  const selectedRecipe = state.selectedRecipeId
+    ? project.recipes.find((recipe) => recipe.id === state.selectedRecipeId)
+    : undefined;
+
+  return {
+    project,
+    selectedNodeId: selectedNode?.id ?? project.nodes[0]?.id,
+    selectedRecipeId:
+      selectedNode?.recipeId ??
+      selectedRecipe?.id ??
+      project.nodes[0]?.recipeId ??
+      project.recipes[0]?.id,
+    lastResult: calculateThroughput(project),
+  };
+}
 
 function canConnectPendingSlots(
   first: PendingResourceConnection,
@@ -1078,12 +1159,12 @@ function addRecipeNodeToState(state: FactoryStore, recipe: Recipe): Partial<Fact
     nodes: [...state.project.nodes, node],
   });
 
-  return {
+  return withProjectHistory(state, {
     project,
     selectedNodeId: node.id,
     selectedRecipeId: recipe.id,
     lastResult: calculateThroughput(project),
-  };
+  });
 }
 
 function addConnectedRecipeNodeToState(
@@ -1123,12 +1204,12 @@ function addConnectedRecipeNodeToState(
 
   const project = touchProject(projectWithNode);
 
-  return {
+  return withProjectHistory(state, {
     project,
     selectedNodeId: nextNode.id,
     selectedRecipeId: recipe.id,
     lastResult: calculateThroughput(project),
-  };
+  });
 }
 
 function pruneOrphanStorages(project: FactoryProject): FactoryProject {

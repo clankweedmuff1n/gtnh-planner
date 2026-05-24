@@ -6,7 +6,9 @@ import {
   FileImage,
   ImageDown,
   LoaderCircle,
+  Redo2,
   Trash2,
+  Undo2,
   Upload,
   WandSparkles,
 } from "lucide-react";
@@ -55,10 +57,14 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   const selectedDatasetVersionId = useFactoryStore((state) => state.selectedDatasetVersionId);
   const isDatasetLoading = useFactoryStore((state) => state.isDatasetLoading);
   const isProjectImporting = useFactoryStore((state) => state.isProjectImporting);
+  const canUndo = useFactoryStore((state) => state.undoHistory.length > 0);
+  const canRedo = useFactoryStore((state) => state.redoHistory.length > 0);
   const setProject = useFactoryStore((state) => state.setProject);
   const setProjectImporting = useFactoryStore((state) => state.setProjectImporting);
   const cleanBoard = useFactoryStore((state) => state.cleanBoard);
   const optimizeMachineCounts = useFactoryStore((state) => state.optimizeMachineCounts);
+  const undo = useFactoryStore((state) => state.undo);
+  const redo = useFactoryStore((state) => state.redo);
 
   const exportJson = async () => {
     const requestId = crypto.randomUUID();
@@ -168,6 +174,29 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
       window.removeEventListener(FLOW_IMAGE_EXPORT_COMPLETE_EVENT, handleImageExportComplete);
   }, []);
 
+  useEffect(() => {
+    const handleProjectHistoryShortcut = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === "z") {
+        event.preventDefault();
+        undo();
+        return;
+      }
+
+      if (key === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleProjectHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleProjectHistoryShortcut);
+  }, [redo, undo]);
+
   return (
     <header className="flex min-h-16 flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-3">
       <div className="flex min-w-[260px] flex-1 items-start gap-2">
@@ -196,6 +225,8 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <ToolbarButton icon={Undo2} label="Undo" disabled={!canUndo} onClick={undo} />
+        <ToolbarButton icon={Redo2} label="Redo" disabled={!canRedo} onClick={redo} />
         <button
           type="button"
           onClick={optimizeMachineCounts}

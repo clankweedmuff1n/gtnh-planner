@@ -305,6 +305,36 @@ describe("factory resource links", () => {
     );
   });
 
+  it("undoes and redoes structural project edits", () => {
+    useFactoryStore.getState().connectNodes("item-source", "item-target", {
+      kind: "item",
+      id: "dust",
+      sourceHandle: makeResourceHandleId("output", { kind: "item", id: "dust" }, 0),
+      targetHandle: makeResourceHandleId("input", { kind: "item", id: "dust" }, 0),
+    });
+    expect(useFactoryStore.getState().project.edges).toHaveLength(1);
+
+    useFactoryStore.getState().undo();
+    expect(useFactoryStore.getState().project.edges).toHaveLength(0);
+
+    useFactoryStore.getState().redo();
+    expect(useFactoryStore.getState().project.edges).toHaveLength(1);
+  });
+
+  it("clears redo history after a new edit", () => {
+    useFactoryStore.getState().updateNode("item-source", { machineCount: 4 });
+    useFactoryStore.getState().undo();
+    expect(useFactoryStore.getState().redoHistory).toHaveLength(1);
+
+    useFactoryStore.getState().updateNode("item-source", { overclockTier: "HV" });
+
+    expect(useFactoryStore.getState().redoHistory).toHaveLength(0);
+    expect(
+      useFactoryStore.getState().project.nodes.find((node) => node.id === "item-source")
+        ?.overclockTier,
+    ).toBe("HV");
+  });
+
   it("removes storage links when a node is changed to a recipe that no longer references it", () => {
     useFactoryStore.getState().connectNodes("fluid-source", "water-tank", {
       kind: "fluid",

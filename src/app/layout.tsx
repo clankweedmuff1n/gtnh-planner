@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Analytics } from "./Analytics";
+import { AnalyticsHeartbeat } from "./AnalyticsHeartbeat";
 import "./globals.css";
 
 const monocraft = localFont({
@@ -59,6 +60,7 @@ export default function RootLayout({
       <body className="min-h-full">
         {children}
         <Analytics />
+        <AnalyticsHeartbeat />
       </body>
     </html>
   );

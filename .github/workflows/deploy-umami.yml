@@ -74,6 +74,24 @@ jobs:
           cp public/site-icon.png "$umami_source/public/favicon-16x16.png"
           cp public/site-icon.png "$umami_source/public/favicon-32x32.png"
           cp public/site-icon.png "$umami_source/public/apple-touch-icon.png"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          stats_file = Path(os.environ["HOME"]) / "apps/gtnh-factory-flow-umami/source/src/queries/sql/getWebsiteStats.ts"
+          source = stats_file.read_text()
+          source, count_patch = source.replace(
+              'count(*) as "c",\n        min(website_event.created_at) as "min_time",',
+              'sum(case when website_event.event_type = 1 then 1 else 0 end) as "c",\n        min(website_event.created_at) as "min_time",',
+          ), source.count('count(*) as "c",\n        min(website_event.created_at) as "min_time",')
+          source, duration_patch = source.replace(
+              'and website_event.event_type NOT IN (2, 5)\n        ${filterQuery}',
+              "and (website_event.event_type NOT IN (2, 5) or website_event.event_name = 'heartbeat')\n        ${filterQuery}",
+          ), source.count('and website_event.event_type NOT IN (2, 5)\n        ${filterQuery}')
+          if count_patch != 1 or duration_patch < 1:
+              raise RuntimeError("Could not patch Umami visit duration query")
+          stats_file.write_text(source)
+          PY
 
           cp tools/umami/docker-compose.yml "$compose_file"
 

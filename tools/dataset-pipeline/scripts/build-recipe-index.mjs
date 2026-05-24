@@ -240,6 +240,7 @@ function compactNei(nei) {
     fluidOutputGrid: nei.fluidOutputGrid,
     slotCapacity: nei.slotCapacity,
     slots: nei.slots,
+    progressBars: nei.progressBars,
     requiresCleanroom: nei.requiresCleanroom,
     requiresLowGravity: nei.requiresLowGravity,
   });

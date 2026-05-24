@@ -197,6 +197,10 @@ export function getNeiRecipeLayout(recipe: Recipe): NeiRecipeLayout {
     itemOutputs,
     fluidOutputs,
   });
+  const explicitProgressBars = recipe.nei?.progressBars?.map((bar) => ({
+    ...bar,
+    texture: bar.texture ?? "arrow",
+  }));
   const frames: NeiSlotFrame[] = explicitFrames ?? [
     ...positionFrames(
       itemInputs,
@@ -253,7 +257,10 @@ export function getNeiRecipeLayout(recipe: Recipe): NeiRecipeLayout {
           fluidInputs: fluidInputs.length,
           fluidOutputs: fluidOutputs.length,
         }),
-    progressBars: getProgressBarsForRecipeMap(recipeMap, definition.progressBars),
+    progressBars: getProgressBarsForRecipeMap(
+      recipeMap,
+      explicitProgressBars ?? definition.progressBars,
+    ),
     logo: definition.logo ?? { x: 152, y: 63 },
   };
 }
@@ -307,7 +314,7 @@ function getProgressBarsForRecipeMap(
   const texture = getProgressTextureForRecipeMap(recipeMap);
   return progressBars.map((bar) => ({
     ...bar,
-    texture: bar.texture === "arrow" ? texture : bar.texture,
+    texture: !bar.texture || bar.texture === "arrow" ? texture : bar.texture,
   }));
 }
 

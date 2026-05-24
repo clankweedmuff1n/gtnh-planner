@@ -139,6 +139,14 @@ export interface Recipe {
       x: number;
       y: number;
     }>;
+    progressBars?: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      direction: "right" | "up" | "circular";
+      texture?: string;
+    }>;
     additionalInfo?: string[];
     requiresCleanroom?: boolean;
     requiresLowGravity?: boolean;

@@ -84,6 +84,7 @@ function normalizeGregtechRecipes(source) {
       }
 
       const slotFrames = normalizeNeiSlotFrames(rawRecipe.sl);
+      const progressBars = normalizeNeiProgressBars(rawRecipe.pb);
       const inputs = [
         ...(rawRecipe.iI ?? []).map((item, itemIndex) => {
           const nonConsumedInput =
@@ -95,7 +96,11 @@ function normalizeGregtechRecipes(source) {
           });
         }),
         ...(rawRecipe.iNC ?? []).map((item) =>
-          itemAmount(item, { consumed: false, defaultAmount: 1 }),
+          itemAmount(item, {
+            consumed: false,
+            defaultAmount: 1,
+            neiSlot: findNeiSlot(slotFrames, "input", "item", item.sl),
+          }),
         ),
         ...(rawRecipe.nCI ?? []).map((item) =>
           itemAmount(item, { consumed: false, defaultAmount: 1 }),
@@ -147,6 +152,7 @@ function normalizeGregtechRecipes(source) {
         },
         nei: {
           slots: slotFrames.length > 0 ? slotFrames : undefined,
+          progressBars: progressBars.length > 0 ? progressBars : undefined,
           slotCapacity: slotCapacityFromFrames(slotFrames),
           additionalInfo: [`Special value: ${rawRecipe.sp ?? 0}`],
         },
@@ -489,7 +495,6 @@ function itemTooltip(item, id, options) {
     displayName: text(item.lN, id),
   });
   const tooltip = [
-    item.nbt ? `NBT: ${item.nbt}` : undefined,
     configuration ? `Configuration: ${configuration}` : undefined,
     options.consumed === false ? "Does not get consumed in the process" : undefined,
   ].filter(Boolean);
@@ -559,6 +564,39 @@ function normalizeNeiSlotFrames(slots) {
       };
     })
     .filter(Boolean);
+}
+
+function normalizeNeiProgressBars(progressBars) {
+  return (progressBars ?? [])
+    .map((bar) => {
+      if (
+        !Number.isInteger(bar?.x) ||
+        !Number.isInteger(bar?.y) ||
+        !Number.isInteger(bar?.w) ||
+        !Number.isInteger(bar?.h)
+      ) {
+        return undefined;
+      }
+      return {
+        x: bar.x,
+        y: bar.y,
+        width: bar.w,
+        height: bar.h,
+        direction: normalizeProgressDirection(bar.d),
+      };
+    })
+    .filter(Boolean);
+}
+
+function normalizeProgressDirection(direction) {
+  const normalized = text(direction, "").toLowerCase();
+  if (normalized.includes("up")) {
+    return "up";
+  }
+  if (normalized.includes("circular")) {
+    return "circular";
+  }
+  return "right";
 }
 
 function findNeiSlot(slots, side, kind, slotIndex) {

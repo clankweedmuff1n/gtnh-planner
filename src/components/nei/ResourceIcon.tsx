@@ -98,7 +98,10 @@ function buildTooltipLabel(resource: ResourceIconProps["resource"]) {
   }
 
   const baseLines = resource.tooltip?.length
-    ? [resourceLabel(resource), ...resource.tooltip.filter((line) => stripOreDictionaryPrefix(line))]
+    ? [
+        resourceLabel(resource),
+        ...resource.tooltip.filter((line) => stripOreDictionaryPrefix(line) && !isNbtTooltipLine(line)),
+      ]
     : [resourceLabel(resource)].filter(Boolean);
   const chanceLine =
     resource.chance !== undefined && Number.isFinite(resource.chance) && resource.chance < 1
@@ -121,6 +124,10 @@ function buildTooltipLabel(resource: ResourceIconProps["resource"]) {
 function isNotConsumedTooltipLine(line: string) {
   const normalized = line.toLowerCase();
   return normalized.includes("not consumed") || normalized.includes("does not get consumed");
+}
+
+function isNbtTooltipLine(line: string) {
+  return line.trim().toLowerCase().startsWith("nbt:");
 }
 
 function ChanceLabel({ chance }: { chance: number }) {

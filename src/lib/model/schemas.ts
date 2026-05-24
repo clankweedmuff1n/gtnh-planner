@@ -142,6 +142,18 @@ export const recipeSchema = z.object({
           }),
         )
         .optional(),
+      progressBars: z
+        .array(
+          z.object({
+            x: z.number().int().min(0),
+            y: z.number().int().min(0),
+            width: z.number().int().positive(),
+            height: z.number().int().positive(),
+            direction: z.enum(["right", "up", "circular"]),
+            texture: z.string().optional(),
+          }),
+        )
+        .optional(),
       additionalInfo: z.array(z.string()).optional(),
       requiresCleanroom: z.boolean().optional(),
       requiresLowGravity: z.boolean().optional(),

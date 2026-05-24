@@ -33,6 +33,7 @@ describe("NEI layout", () => {
       recipe({
         machineType: "Coke Oven",
         inputs: [
+          { kind: "item", id: "sapling", amount: 1, consumed: false, neiSlot: { x: 88, y: 8 } },
           { kind: "item", id: "spruce_log", amount: 15, neiSlot: { x: 48, y: 24 } },
           { kind: "fluid", id: "water", amount: 1000, neiSlot: { x: 52, y: 62 } },
         ],
@@ -42,12 +43,14 @@ describe("NEI layout", () => {
         ],
         nei: {
           slots: [
+            { side: "input", kind: "item", slotIndex: 100000, x: 88, y: 8 },
             { side: "input", kind: "item", slotIndex: 0, x: 48, y: 24 },
             { side: "input", kind: "item", slotIndex: 1, x: 66, y: 24 },
             { side: "output", kind: "item", slotIndex: 0, x: 106, y: 24 },
             { side: "input", kind: "fluid", slotIndex: 0, x: 52, y: 62 },
             { side: "output", kind: "fluid", slotIndex: 0, x: 124, y: 62 },
           ],
+          progressBars: [{ x: 84, y: 44, width: 20, height: 18, direction: "right" }],
         },
       }),
     );
@@ -55,15 +58,19 @@ describe("NEI layout", () => {
     const itemInputFrames = layout.frames.filter(
       (frame) => frame.side === "input" && frame.kind === "item",
     );
-    expect(itemInputFrames).toHaveLength(2);
-    expect(itemInputFrames[1]?.resource).toBeUndefined();
+    expect(itemInputFrames).toHaveLength(3);
+    expect(itemInputFrames[2]?.resource).toBeUndefined();
     expect(
       layout.slots.map((slot) => [slot.kind, slot.side, slot.resource.id, slot.x, slot.y]),
     ).toEqual([
+      ["item", "input", "sapling", 88, 8],
       ["item", "input", "spruce_log", 48, 24],
       ["item", "output", "charcoal", 106, 24],
       ["fluid", "input", "water", 52, 62],
       ["fluid", "output", "creosote", 124, 62],
+    ]);
+    expect(layout.progressBars).toEqual([
+      { x: 84, y: 44, width: 20, height: 18, direction: "right", texture: "sift" },
     ]);
     expect(layout.overflowGroups).toEqual([]);
   });

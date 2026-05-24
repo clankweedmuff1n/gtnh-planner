@@ -108,6 +108,7 @@ const loadedRecipeLookupIndexes = new Map<string, LoadedRecipeLookupIndex>();
 const pendingRecipeLookupLoads = new Map<string, Promise<LoadedRecipeLookupIndex>>();
 const loadedShards = new Map<string, Recipe[]>();
 const pendingShardLoads = new Map<string, Promise<Recipe[]>>();
+const pendingPrewarmLoads = new Map<string, Promise<void>>();
 let manifestCache: DatasetManifest | undefined;
 
 export async function getDatasetCatalog(versionId: string) {
@@ -385,12 +386,24 @@ async function queryDatasetRecipesFromLookup(
 }
 
 export async function prewarmDatasetVersion(versionId: string): Promise<void> {
+  const pending = pendingPrewarmLoads.get(versionId);
+  if (pending) {
+    return pending;
+  }
+
+  const promise = prewarmDatasetVersionOnce(versionId).finally(() => {
+    pendingPrewarmLoads.delete(versionId);
+  });
+  pendingPrewarmLoads.set(versionId, promise);
+  return promise;
+}
+
+async function prewarmDatasetVersionOnce(versionId: string): Promise<void> {
   const catalog = await loadCatalog(versionId);
   ensureResourceIndexes(catalog);
 
   if (catalog.version.recipeLookupIndexPath) {
     await loadRecipeLookupIndex(catalog.version);
-    return;
   }
 
   const recipeCatalog = await loadRecipeIndex(versionId);

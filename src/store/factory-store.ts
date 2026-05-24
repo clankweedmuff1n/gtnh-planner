@@ -2014,9 +2014,7 @@ function refreshPendingResourceConnectionIcon(
 ): PendingResourceConnection {
   const indexed = getDatasetIconLookup(dataset).get(`${resource.kind}:${resource.resourceId}`);
   if (!indexed) {
-    return isLegacyRenderedIconPath(resource.iconPath)
-      ? { ...resource, iconPath: undefined }
-      : resource;
+    return resource;
   }
 
   return {
@@ -2035,9 +2033,7 @@ function refreshStorageIcon(
 ): FactoryStorage {
   const indexed = iconsByResource.get(`${storage.kind}:${storage.resourceId}`);
   if (!indexed) {
-    return isLegacyRenderedIconPath(storage.iconPath)
-      ? { ...storage, iconPath: undefined }
-      : storage;
+    return storage;
   }
 
   return {
@@ -2056,9 +2052,7 @@ function refreshResourceIcon<T extends IconResource>(
 ): T {
   const indexed = iconsByResource.get(getResourceKey(resource));
   if (!indexed) {
-    return isLegacyRenderedIconPath(resource.iconPath)
-      ? { ...resource, iconPath: undefined }
-      : resource;
+    return resource;
   }
 
   return {
@@ -2090,10 +2084,6 @@ function getDatasetIconLookup(dataset: RecipeDataset): Map<string, IconResource>
   }
 
   return iconsByResource;
-}
-
-function isLegacyRenderedIconPath(iconPath: string | undefined): boolean {
-  return typeof iconPath === "string" && iconPath.includes("/textures/rendered/");
 }
 
 function createId(prefix: string): string {

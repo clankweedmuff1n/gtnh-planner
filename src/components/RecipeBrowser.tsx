@@ -48,7 +48,7 @@ export function RecipeBrowser() {
   const clearResourceBrowser = useFactoryStore((state) => state.clearResourceBrowser);
   const selectRecipe = useFactoryStore((state) => state.selectRecipe);
   const addNodeForRecipe = useFactoryStore((state) => state.addNodeForRecipeObject);
-  const [selectedRecipeMap, setSelectedRecipeMap] = useState("all");
+  const [selectedRecipeMap, setSelectedRecipeMap] = useState("");
   const [recipePage, setRecipePage] = useState(0);
   const [filteredRecipes, setFilteredRecipes] = useState<RecipeSummary[]>([]);
   const [availableRecipeMaps, setAvailableRecipeMaps] = useState<string[]>([]);
@@ -90,11 +90,7 @@ export function RecipeBrowser() {
     [recipeMapIcons, recipeMaps],
   );
 
-  const activeRecipeMap = recipeMaps.includes(selectedRecipeMap)
-    ? selectedRecipeMap
-    : selectedRecipeMap === "all"
-      ? "all"
-      : (recipeMaps[0] ?? "all");
+  const activeRecipeMap = recipeMaps.includes(selectedRecipeMap) ? selectedRecipeMap : "";
 
   const selectedDatasetVersion = useMemo(
     () => datasetManifest?.versions.find((entry) => entry.id === selectedDatasetVersionId),
@@ -159,7 +155,7 @@ export function RecipeBrowser() {
               }
             : undefined,
           mode: browserMode,
-          recipeMap: recipeMap && recipeMap !== "all" ? recipeMap : undefined,
+          recipeMap: recipeMap || undefined,
           maxTier,
           offset: 0,
           limit: RECIPE_QUERY_LIMIT,
@@ -363,7 +359,7 @@ export function RecipeBrowser() {
               }
             : undefined,
           mode: browserMode,
-          recipeMap: activeRecipeMap && activeRecipeMap !== "all" ? activeRecipeMap : undefined,
+          recipeMap: activeRecipeMap || undefined,
           maxTier,
           offset: recipePage * RECIPE_QUERY_LIMIT,
           limit: RECIPE_QUERY_LIMIT,
@@ -374,15 +370,6 @@ export function RecipeBrowser() {
             return;
           }
           setCachedRecipeQuery(recipeQueryCacheRef.current, cacheKey, result);
-          const effectiveRecipeMap =
-            activeRecipeMap && activeRecipeMap !== "all" ? activeRecipeMap : "";
-          if (effectiveRecipeMap && effectiveRecipeMap !== activeRecipeMap && recipePage === 0) {
-            setCachedRecipeQuery(
-              recipeQueryCacheRef.current,
-              getRecipeQueryKey(effectiveRecipeMap, 0),
-              result,
-            );
-          }
           trimRecipeQueryCache(recipeQueryCacheRef.current);
           setFilteredRecipes(result.recipes);
           setAvailableRecipeMaps(result.recipeMaps);
@@ -1029,11 +1016,7 @@ function RecipeBookOverlay({
               onPointerCancel={handlePointerUp}
               className="h-8 cursor-move select-none truncate border-2 border-[#555] bg-[#9b9b9b] px-2 text-center text-[18px] leading-[26px] text-white shadow-[inset_2px_2px_0_#d8d8d8,inset_-2px_-2px_0_#4a4a4a] [text-shadow:2px_2px_0_#3f3f3f]"
             >
-              {activeRecipeMap === "all"
-                ? "All"
-                : activeRecipeMap ||
-                  filteredRecipes[0]?.machineType ||
-                  resourceLabel(activeResource)}
+              {activeRecipeMap || filteredRecipes[0]?.machineType || resourceLabel(activeResource)}
             </div>
             <div />
           </div>
@@ -1477,27 +1460,24 @@ function buildRecipeMapTabs(
   recipeMaps: string[],
   icons: Record<string, DatasetResourceIndexEntry>,
 ): RecipeMapTab[] {
-  return [
-    { id: "all", label: "All" },
-    ...recipeMaps.map((recipeMap) => {
-      const resource = icons[recipeMap];
-      return {
-        id: recipeMap,
-        label: recipeMap,
-        icon: resource
-          ? {
-              kind: resource.kind,
-              id: resource.id,
-              amount: 1,
-              displayName: resource.displayName,
-              iconPath: resource.iconPath,
-              iconAtlas: resource.iconAtlas,
-              dominantColor: resource.dominantColor ?? resource.iconAtlas?.dominantColor,
-            }
-          : undefined,
-      };
-    }),
-  ];
+  return recipeMaps.map((recipeMap) => {
+    const resource = icons[recipeMap];
+    return {
+      id: recipeMap,
+      label: recipeMap,
+      icon: resource
+        ? {
+            kind: resource.kind,
+            id: resource.id,
+            amount: 1,
+            displayName: resource.displayName,
+            iconPath: resource.iconPath,
+            iconAtlas: resource.iconAtlas,
+            dominantColor: resource.dominantColor ?? resource.iconAtlas?.dominantColor,
+          }
+        : undefined,
+    };
+  });
 }
 
 function neiTabClass(active: boolean): string {

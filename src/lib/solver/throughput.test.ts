@@ -393,7 +393,7 @@ describe("calculateThroughput", () => {
     expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(6);
   });
 
-  it("scales storage labels and surplus from final producer utilization", () => {
+  it("routes full producer surplus through storage sinks", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "storage-effective-rate-project",
@@ -481,13 +481,95 @@ describe("calculateThroughput", () => {
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
     expect(result.nodes.consumer.utilization).toBeCloseTo(0.1);
-    expect(result.nodes.source.utilization).toBeCloseTo(0.1);
-    expect(result.edges["source-to-drawer"].demandPerSecond).toBeCloseTo(1);
-    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(1);
-    expect(result.storages["dust-drawer-out"].producedPerSecond).toBeCloseTo(1);
+    expect(result.nodes.source.utilization).toBeCloseTo(1);
+    expect(result.edges["source-to-drawer"].demandPerSecond).toBeCloseTo(10);
+    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(10);
+    expect(result.storages["dust-drawer-out"].producedPerSecond).toBeCloseTo(10);
     expect(result.storages["dust-drawer-out"].consumedPerSecond).toBeCloseTo(1);
-    expect(result.storages["dust-drawer-out"].netPerSecond).toBeCloseTo(0);
-    expect(result.resources["item:dust"].netPerSecond).toBeCloseTo(0);
+    expect(result.storages["dust-drawer-out"].netPerSecond).toBeCloseTo(9);
+    expect(result.resources["item:dust"].netPerSecond).toBeCloseTo(9);
+  });
+
+  it("sends only remaining producer capacity to storage when consumers are directly connected", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "storage-direct-surplus-project",
+      name: "Storage direct surplus test",
+      recipes: [
+        {
+          id: "source-recipe",
+          name: "Dust source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "item", id: "dust", amount: 10 }],
+        },
+        {
+          id: "consumer-recipe",
+          name: "Dust consumer",
+          machineType: "Assembler",
+          minimumTier: "LV",
+          durationTicks: 20,
+          eut: 30,
+          inputs: [{ kind: "item", id: "dust", amount: 2 }],
+          outputs: [{ kind: "item", id: "plate", amount: 1 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "source",
+          recipeId: "source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "consumer",
+          recipeId: "consumer-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 300, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "dust-drawer",
+          kind: "item",
+          resourceId: "dust",
+          position: { x: 160, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "source-to-consumer",
+          source: "source",
+          target: "consumer",
+          resourceKind: "item",
+          resourceId: "dust",
+        },
+        {
+          id: "source-to-drawer",
+          source: "source",
+          target: "dust-drawer",
+          resourceKind: "item",
+          resourceId: "dust",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.nodes.source.utilization).toBeCloseTo(1);
+    expect(result.edges["source-to-consumer"].transferredPerSecond).toBeCloseTo(2);
+    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(8);
+    expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(8);
   });
 
   it("does not add global target demand on top of output fully routed to storage", () => {
@@ -700,10 +782,10 @@ describe("calculateThroughput", () => {
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
     for (const storageId of ["dust-drawer-a", "dust-drawer-b"]) {
-      expect(result.storages[storageId].producedPerSecond).toBeCloseTo(2);
+      expect(result.storages[storageId].producedPerSecond).toBeCloseTo(5);
       expect(result.storages[storageId].consumedPerSecond).toBeCloseTo(2);
-      expect(result.storages[storageId].netPerSecond).toBeCloseTo(0);
-      expect(result.storages[storageId].status).toBe("balanced");
+      expect(result.storages[storageId].netPerSecond).toBeCloseTo(3);
+      expect(result.storages[storageId].status).toBe("filling");
     }
   });
 

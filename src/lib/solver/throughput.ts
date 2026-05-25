@@ -551,6 +551,13 @@ function refreshEdgeResultsFromNodeUtilization(
     projectStorages,
   );
   const storageIncomingCounts = countIncomingEdgesToStorageResource(project, projectStorages);
+  const storageSinkCounts = countStorageSinkEdgesBySourceResource(project, storagesById);
+  const directDemandBySourceResource = calculateDirectConsumerDemandBySourceResource(
+    project,
+    nodes,
+    incomingEdgeCounts,
+    storagesById,
+  );
 
   for (const edge of project.edges) {
     const key = makeResourceKey(edge.resourceKind, edge.resourceId);
@@ -564,18 +571,31 @@ function refreshEdgeResultsFromNodeUtilization(
 
     const sourceResult = nodes[edge.source];
     const targetResult = nodes[edge.target];
-    const sourceCapacity =
+    const sourceFullCapacity =
+      sourceStorage || !sourceResult
+        ? Number.POSITIVE_INFINITY
+        : (sourceResult.outputs[key]?.amountPerSecond ?? 0);
+    const sourceEffectiveCapacity =
       sourceStorage || !sourceResult
         ? Number.POSITIVE_INFINITY
         : getEffectiveFlowRate(sourceResult.outputs[key], sourceResult.utilization);
+    const sourceCapacity = targetStorage ? sourceFullCapacity : sourceEffectiveCapacity;
     const targetCount = targetStorage
       ? (storageIncomingCounts.get(key) ?? 1)
       : (incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1);
     const effectiveStorageDemand = targetStorage ? (storageOutgoingDemand.get(key) ?? 0) : 0;
+    const storageSurplusDemand = targetStorage
+      ? Math.max(
+          0,
+          sourceFullCapacity -
+            (directDemandBySourceResource.get(`${edge.source}|${key}`) ?? 0),
+        ) / (storageSinkCounts.get(`${edge.source}|${key}`) ?? 1)
+      : 0;
     const targetDemand = targetStorage
-      ? effectiveStorageDemand > EPSILON
-        ? effectiveStorageDemand / targetCount
-        : sourceCapacity
+      ? Math.max(
+          storageSurplusDemand,
+          effectiveStorageDemand > EPSILON ? effectiveStorageDemand / targetCount : 0,
+        )
       : !targetResult
         ? sourceCapacity
         : getEffectiveFlowRate(targetResult.inputs[targetDemandKey], targetResult.utilization) /
@@ -590,6 +610,51 @@ function refreshEdgeResultsFromNodeUtilization(
       Number.isFinite(transferredPerSecond) ? transferredPerSecond : demandPerSecond,
     );
   }
+}
+
+function calculateDirectConsumerDemandBySourceResource(
+  project: FactoryProject,
+  nodes: Record<string, NodeThroughputResult>,
+  incomingEdgeCounts: Map<string, number>,
+  storagesById: Map<string, FactoryStorage>,
+): Map<string, number> {
+  const demand = new Map<string, number>();
+
+  for (const edge of project.edges) {
+    if (storagesById.has(edge.source) || storagesById.has(edge.target)) {
+      continue;
+    }
+
+    const key = makeResourceKey(edge.resourceKind, edge.resourceId);
+    const targetDemandKey = getEdgeTargetDemandKey(project, edge) ?? key;
+    const targetResult = nodes[edge.target];
+    const targetCount = incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
+    const edgeDemand =
+      getEffectiveFlowRate(targetResult?.inputs[targetDemandKey], targetResult?.utilization ?? 0) /
+      targetCount;
+    const sourceKey = `${edge.source}|${key}`;
+    demand.set(sourceKey, (demand.get(sourceKey) ?? 0) + edgeDemand);
+  }
+
+  return demand;
+}
+
+function countStorageSinkEdgesBySourceResource(
+  project: FactoryProject,
+  storagesById: Map<string, FactoryStorage>,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const edge of project.edges) {
+    if (storagesById.has(edge.source) || !storagesById.has(edge.target)) {
+      continue;
+    }
+
+    const key = `${edge.source}|${makeResourceKey(edge.resourceKind, edge.resourceId)}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return counts;
 }
 
 function refreshStorageResultsFromEdges(
@@ -641,22 +706,10 @@ function refreshNodeUtilizationFromEdgeResults(
   storagesById: Map<string, FactoryStorage>,
 ): boolean {
   const requiredByNodeAndResource = new Map<string, Map<ResourceKey, number>>();
-  const storageOutgoingDemand = calculateEffectiveStorageOutgoingDemand(project, nodes, [
-    ...storagesById.values(),
-  ]);
   let changed = false;
 
   for (const edge of project.edges) {
     if (storagesById.has(edge.source)) {
-      continue;
-    }
-
-    const targetStorage = storagesById.get(edge.target);
-    if (
-      targetStorage &&
-      (storageOutgoingDemand.get(makeResourceKey(targetStorage.kind, targetStorage.resourceId)) ??
-        0) <= EPSILON
-    ) {
       continue;
     }
 

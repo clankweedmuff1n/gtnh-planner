@@ -63,7 +63,15 @@ describe("factory resource links", () => {
           durationTicks: 100,
           eut: 0,
           inputs: [],
-          outputs: [{ kind: "item", id: "minecraft:log@1", amount: 16, displayName: "Spruce Log" }],
+          outputs: [
+            {
+              kind: "item",
+              id: "minecraft:log@1",
+              amount: 16,
+              displayName: "Spruce Log",
+              iconPath: "/items/spruce-log.png",
+            },
+          ],
         },
         {
           id: "coke",
@@ -79,8 +87,18 @@ describe("factory resource links", () => {
               amount: 16,
               displayName: "Ore Dictionary: logWood",
               alternatives: [
-                { kind: "item", id: "minecraft:log@0", displayName: "Oak Log" },
-                { kind: "item", id: "minecraft:log@1", displayName: "Spruce Log" },
+                {
+                  kind: "item",
+                  id: "minecraft:log@0",
+                  displayName: "Oak Log",
+                  iconPath: "/items/oak-log.png",
+                },
+                {
+                  kind: "item",
+                  id: "minecraft:log@1",
+                  displayName: "Spruce Log",
+                  iconPath: "/items/old-spruce-log.png",
+                },
               ],
             },
           ],
@@ -114,6 +132,7 @@ describe("factory resource links", () => {
       kind: "item",
       id: "minecraft:log@1",
       displayName: "Spruce Log",
+      iconPath: "/items/spruce-log.png",
       sourceHandle: makeResourceHandleId("output", { kind: "item", id: "minecraft:log@1" }, 0),
       targetHandle: makeResourceHandleId("input", { kind: "item", id: "oredict:logWood" }, 0),
     });
@@ -122,6 +141,7 @@ describe("factory resource links", () => {
       expect.objectContaining({
         id: "minecraft:log@1",
         displayName: "Spruce Log",
+        iconPath: "/items/spruce-log.png",
         alternatives: undefined,
       }),
     );

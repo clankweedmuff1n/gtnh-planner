@@ -42,6 +42,8 @@ const cokeOvenRecipe: Recipe = {
       id: "oredict:logWood",
       amount: 16,
       displayName: "Ore Dictionary: logWood",
+      iconPath: "/items/oak-log.png",
+      tooltip: ["Ore Dictionary: logWood"],
       neiSlot: { x: 62, y: 35 },
     },
   ],
@@ -58,6 +60,8 @@ const cokeOvenSummary: RecipeSummary = {
       id: "minecraft:log@1",
       amount: 16,
       displayName: "Spruce Log",
+      iconPath: "/items/spruce-log.png",
+      tooltip: ["Spruce Log"],
       neiSlot: { x: 62, y: 35 },
     },
   ],
@@ -84,6 +88,14 @@ vi.mock("@/lib/datasets/browser-loader", () => ({
 
 describe("RecipeBrowser", () => {
   beforeEach(() => {
+    class TestResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+
     const manifest: DatasetManifest = {
       schemaVersion: 1,
       latestDailyVersion: datasetVersion.id,
@@ -114,7 +126,7 @@ describe("RecipeBrowser", () => {
     render(<RecipeBrowser />);
 
     await screen.findByText("Coke Oven");
-    fireEvent.click(screen.getByLabelText("Add recipe node"));
+    fireEvent.click(await screen.findByLabelText("Add recipe node"));
 
     await waitFor(() => {
       const node = useFactoryStore.getState().project.nodes[0];
@@ -122,6 +134,8 @@ describe("RecipeBrowser", () => {
         expect.objectContaining({
           id: "minecraft:log@1",
           displayName: "Spruce Log",
+          iconPath: "/items/spruce-log.png",
+          tooltip: ["Spruce Log"],
           alternatives: undefined,
         }),
       );

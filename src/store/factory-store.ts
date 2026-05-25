@@ -133,7 +133,10 @@ interface FactoryStore {
   connectNodes: (
     sourceNodeId: string,
     targetNodeId: string,
-    resource?: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+    resource?: Pick<
+      ResourceAmount,
+      "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
+    > & {
       sourceHandle?: string;
       targetHandle?: string;
     },
@@ -161,7 +164,10 @@ const initialProject = createEmptyProject();
 export type RecipeBrowserMode = "recipes" | "uses";
 export type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
 
-type RecipeInputContextResource = Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+type RecipeInputContextResource = Pick<
+  ResourceAmount,
+  "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip" | "modId"
+> & {
   mode: RecipeBrowserMode;
   inputIndex?: number;
   neiSlot?: ResourceAmount["neiSlot"];
@@ -443,13 +449,21 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
 
       const source = pending.side === "output" ? pending : slot;
       const target = pending.side === "input" ? pending : slot;
-      const edge = buildEdgeBetweenNodes(state.project, source.nodeId, target.nodeId, {
+      const resource = {
         kind: source.kind,
         id: source.resourceId,
         displayName: source.displayName ?? target.displayName,
+        iconPath: source.iconPath ?? target.iconPath,
+        iconAtlas: source.iconAtlas ?? target.iconAtlas,
+        dominantColor:
+          source.dominantColor ??
+          source.iconAtlas?.dominantColor ??
+          target.dominantColor ??
+          target.iconAtlas?.dominantColor,
         sourceHandle: source.handleId,
         targetHandle: target.handleId,
-      });
+      };
+      const edge = buildEdgeBetweenNodes(state.project, source.nodeId, target.nodeId, resource);
 
       if (!edge) {
         return {
@@ -486,6 +500,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
             edges: [...state.project.edges, edge],
           },
           edge,
+          resource,
         ),
       );
 
@@ -649,6 +664,9 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         kind: resource.kind,
         id: resource.id,
         displayName: resource.displayName,
+        iconPath: resource.iconPath,
+        iconAtlas: resource.iconAtlas,
+        dominantColor: resource.dominantColor ?? resource.iconAtlas?.dominantColor,
         sourceHandle:
           side === "output"
             ? handleId
@@ -830,6 +848,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
             edges: [...state.project.edges, edge],
           },
           edge,
+          resource,
         ),
       );
       return withProjectHistory(state, {
@@ -1330,6 +1349,11 @@ function buildRecipeInputOverrides(
       kind: resource.kind,
       id: resource.id,
       displayName: resource.displayName ?? alternative?.displayName ?? input.displayName,
+      iconPath: resource.iconPath ?? alternative?.iconPath ?? input.iconPath,
+      iconAtlas: resource.iconAtlas ?? alternative?.iconAtlas ?? input.iconAtlas,
+      dominantColor: resource.dominantColor ?? alternative?.dominantColor ?? input.dominantColor,
+      tooltip: resource.tooltip ?? alternative?.tooltip ?? input.tooltip,
+      modId: resource.modId ?? alternative?.modId ?? input.modId,
       alternatives: undefined,
     };
   });
@@ -1397,7 +1421,14 @@ function applyEdgeInputOverrides(project: FactoryProject, edges: FactoryEdge[]):
   return edges.reduce((nextProject, edge) => applyEdgeInputOverride(nextProject, edge), project);
 }
 
-function applyEdgeInputOverride(project: FactoryProject, edge: FactoryEdge): FactoryProject {
+function applyEdgeInputOverride(
+  project: FactoryProject,
+  edge: FactoryEdge,
+  resource?: Pick<
+    ResourceAmount,
+    "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
+  >,
+): FactoryProject {
   const targetNode = project.nodes.find((node) => node.id === edge.target);
   const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
   if (!targetNode || !targetRecipe) {
@@ -1430,7 +1461,12 @@ function applyEdgeInputOverride(project: FactoryProject, edge: FactoryEdge): Fac
     ...alternative,
     kind: edge.resourceKind,
     id: edge.resourceId,
-    displayName: edge.label ?? alternative?.displayName ?? input.displayName,
+    displayName:
+      resource?.displayName ?? edge.label ?? alternative?.displayName ?? input.displayName,
+    iconPath: resource?.iconPath ?? alternative?.iconPath ?? input.iconPath,
+    iconAtlas: resource?.iconAtlas ?? alternative?.iconAtlas ?? input.iconAtlas,
+    dominantColor: resource?.dominantColor ?? alternative?.dominantColor ?? input.dominantColor,
+    tooltip: resource?.tooltip ?? alternative?.tooltip ?? input.tooltip,
     alternatives: undefined,
   };
 
@@ -1527,7 +1563,10 @@ function buildEdgeBetweenNodes(
   project: FactoryProject,
   sourceNodeId: string,
   targetNodeId: string,
-  selectedResource?: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+  selectedResource?: Pick<
+    ResourceAmount,
+    "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
+  > & {
     sourceHandle?: string;
     targetHandle?: string;
   },

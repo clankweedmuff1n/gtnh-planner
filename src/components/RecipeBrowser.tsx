@@ -201,25 +201,17 @@ export function RecipeBrowser() {
   );
 
   const handleAddRecipe = useCallback(
-    async (recipeId: string) => {
-      const contextRecipe = filteredRecipes.find((recipe) => recipe.id === recipeId);
+    async (recipeSummary: RecipeSummary) => {
       const contextResource = getRecipeAddContextResource(
         activeResource,
         browserMode,
-        contextRecipe,
+        recipeSummary,
       );
-      const recipe = await getFullRecipe(recipeId, Boolean(activeResource));
+      const recipe = await getFullRecipe(recipeSummary.id, Boolean(activeResource));
       addNodeForRecipe(recipe, contextResource);
       clearResourceBrowser();
     },
-    [
-      activeResource,
-      addNodeForRecipe,
-      browserMode,
-      clearResourceBrowser,
-      filteredRecipes,
-      getFullRecipe,
-    ],
+    [activeResource, addNodeForRecipe, browserMode, clearResourceBrowser, getFullRecipe],
   );
 
   useEffect(() => {
@@ -947,7 +939,7 @@ function RecipeBookOverlay({
   queryError?: string;
   recipeMapTabs: RecipeMapTab[];
   selectedRecipeId?: string;
-  onAdd: (recipeId: string) => void | Promise<void>;
+  onAdd: (recipe: RecipeSummary) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
   onBrowseResource: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
   onRecipeMapChange: (recipeMap: string) => void;
@@ -1123,7 +1115,7 @@ function VirtualRecipeResultList({
   pageSize: number;
   selectedRecipeId?: string;
   onSelectRecipe: (recipeId: string) => void;
-  onAdd: (recipeId: string) => void | Promise<void>;
+  onAdd: (recipe: RecipeSummary) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
   onSlotBrowse: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
   contextResource?: PreviewContextResource;
@@ -1215,7 +1207,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
   recipe: RecipeSummary;
   selected: boolean;
   onSelectRecipe: (recipeId: string) => void;
-  onAdd: (recipeId: string) => void | Promise<void>;
+  onAdd: (recipe: RecipeSummary) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
   onSlotBrowse?: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
   contextResource?: PreviewContextResource;
@@ -1227,7 +1219,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
   return (
     <article
       onClick={() => onSelectRecipe(recipe.id)}
-      onDoubleClick={() => void onAdd(recipe.id)}
+      onDoubleClick={() => void onAdd(recipe)}
       className={[
         "relative cursor-pointer transition",
         selected ? "ring-1 ring-cyan-400" : "",
@@ -1243,7 +1235,7 @@ const RecipeResultCard = memo(function RecipeResultCard({
             if (onAddConnected) {
               onAddConnected(recipe.id);
             } else {
-              onAdd(recipe.id);
+              onAdd(recipe);
             }
           }}
           className="absolute right-1 top-1 z-10 inline-flex h-7 w-7 shrink-0 items-center justify-center border border-neutral-600 bg-[#1b1d21] text-neutral-200 hover:border-cyan-400 hover:text-cyan-100"
@@ -1332,7 +1324,17 @@ function getRecipeAddContextResource(
   mode: "recipes" | "uses",
   contextRecipe: RecipeSummary | undefined,
 ):
-  | (Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+  | (Pick<
+      ResourceAmount,
+      | "kind"
+      | "id"
+      | "displayName"
+      | "iconPath"
+      | "iconAtlas"
+      | "dominantColor"
+      | "tooltip"
+      | "modId"
+    > & {
       mode: "recipes" | "uses";
       inputIndex?: number;
       neiSlot?: ResourceAmount["neiSlot"];
@@ -1358,6 +1360,15 @@ function getRecipeAddContextResource(
         kind: contextInput.kind,
         id: contextInput.id,
         displayName: contextInput.displayName ?? activeResource.displayName,
+        iconPath: contextInput.iconPath ?? activeResource.iconPath,
+        iconAtlas: contextInput.iconAtlas ?? activeResource.iconAtlas,
+        dominantColor:
+          contextInput.dominantColor ??
+          contextInput.iconAtlas?.dominantColor ??
+          activeResource.dominantColor ??
+          activeResource.iconAtlas?.dominantColor,
+        tooltip: contextInput.tooltip,
+        modId: contextInput.modId,
         mode,
         inputIndex: contextInputIndex,
         neiSlot: contextInput.neiSlot,
@@ -1369,6 +1380,9 @@ function getRecipeAddContextResource(
     kind: activeResource.kind,
     id: activeResource.id,
     displayName: activeResource.displayName,
+    iconPath: activeResource.iconPath,
+    iconAtlas: activeResource.iconAtlas,
+    dominantColor: activeResource.dominantColor ?? activeResource.iconAtlas?.dominantColor,
     mode,
   };
 }

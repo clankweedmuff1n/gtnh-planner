@@ -24,6 +24,7 @@ import type {
   ThroughputResult,
 } from "../model/types";
 import { TICKS_PER_SECOND } from "../model/types";
+import { applyRecipeInputOverrides } from "../model/recipe-input-overrides";
 import { applyMachineHandlerToRecipe } from "../model/recipe-rules";
 import { getMachineOutputMultiplier, getMachineParallelMultiplier } from "./machine-effects";
 import { getOverclockedRecipeStats } from "./overclock";
@@ -98,8 +99,9 @@ export function calculateThroughput(
       continue;
     }
 
-    const effectiveRecipe = applyMachineHandlerToRecipe(recipe, node);
-    const overclockedRecipe = getOverclockedRecipeStats(recipe, node);
+    const nodeRecipe = applyRecipeInputOverrides(recipe, node);
+    const effectiveRecipe = applyMachineHandlerToRecipe(nodeRecipe, node);
+    const overclockedRecipe = getOverclockedRecipeStats(nodeRecipe, node);
     const machineParallelMultiplier = getMachineParallelMultiplier(effectiveRecipe, node);
     const operationRatePerSecond =
       (node.machineCount * node.parallel * machineParallelMultiplier * TICKS_PER_SECOND) /
@@ -107,7 +109,7 @@ export function calculateThroughput(
     const inputs: FlowRecord = {};
     const outputs: FlowRecord = {};
 
-    for (const input of recipe.inputs) {
+    for (const input of nodeRecipe.inputs) {
       if (!isRecipeInputConsumed(input)) {
         continue;
       }
@@ -255,10 +257,11 @@ export function calculateThroughput(
       }
     }
 
+    const nodeRecipe = applyRecipeInputOverrides(recipe, node);
     const overclockedRecipe = {
-      ...applyMachineHandlerToRecipe(recipe, node),
-      ...getOverclockedRecipeStats(recipe, node),
-      outputs: applyOutputMultipliers(recipe, node),
+      ...applyMachineHandlerToRecipe(nodeRecipe, node),
+      ...getOverclockedRecipeStats(nodeRecipe, node),
+      outputs: applyOutputMultipliers(nodeRecipe, node),
     };
     const utilizationReport = selectLimitingOutput(
       overclockedRecipe,
@@ -587,8 +590,7 @@ function refreshEdgeResultsFromNodeUtilization(
     const storageSurplusDemand = targetStorage
       ? Math.max(
           0,
-          sourceFullCapacity -
-            (directDemandBySourceResource.get(`${edge.source}|${key}`) ?? 0),
+          sourceFullCapacity - (directDemandBySourceResource.get(`${edge.source}|${key}`) ?? 0),
         ) / (storageSinkCounts.get(`${edge.source}|${key}`) ?? 1)
       : 0;
     const targetDemand = targetStorage
@@ -752,10 +754,11 @@ function refreshNodeUtilizationFromEdgeResults(
       }
     }
 
+    const nodeRecipe = applyRecipeInputOverrides(recipe, node);
     const overclockedRecipe = {
-      ...applyMachineHandlerToRecipe(recipe, node),
-      ...getOverclockedRecipeStats(recipe, node),
-      outputs: applyOutputMultipliers(recipe, node),
+      ...applyMachineHandlerToRecipe(nodeRecipe, node),
+      ...getOverclockedRecipeStats(nodeRecipe, node),
+      outputs: applyOutputMultipliers(nodeRecipe, node),
     };
     const utilizationReport = selectLimitingOutput(
       overclockedRecipe,

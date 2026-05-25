@@ -43,6 +43,7 @@ import {
 } from "@/lib/import-export/plan-image";
 import {
   formatRate,
+  applyRecipeInputOverrides,
   isRecipeInputConsumed,
   makeResourceKey,
   resourceMatchesInput,
@@ -134,7 +135,14 @@ type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
 
 type DraggedResourceConnection = Pick<
   ResourceAmount,
-  "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "alternatives"
+  | "kind"
+  | "id"
+  | "displayName"
+  | "iconPath"
+  | "iconAtlas"
+  | "dominantColor"
+  | "tooltip"
+  | "alternatives"
 > & {
   nodeId: string;
   side: "input" | "output";
@@ -367,7 +375,10 @@ export function FactoryFlow() {
     (
       sourceNodeId: string,
       targetNodeId: string,
-      resource?: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+      resource?: Pick<
+        ResourceAmount,
+        "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
+      > & {
         sourceHandle?: string;
         targetHandle?: string;
       },
@@ -462,6 +473,10 @@ export function FactoryFlow() {
             kind: outputResource.kind,
             id: outputResource.id,
             displayName: outputResource.displayName,
+            iconPath: outputResource.iconPath,
+            iconAtlas: outputResource.iconAtlas,
+            dominantColor: outputResource.dominantColor ?? outputResource.iconAtlas?.dominantColor,
+            tooltip: outputResource.tooltip,
             sourceHandle: outputHandle.handleId,
             targetHandle: inputHandle.handleId,
           });
@@ -557,6 +572,10 @@ export function FactoryFlow() {
             kind: outputResource.kind,
             id: outputResource.id,
             displayName: outputResource.displayName,
+            iconPath: outputResource.iconPath,
+            iconAtlas: outputResource.iconAtlas,
+            dominantColor: outputResource.dominantColor ?? outputResource.iconAtlas?.dominantColor,
+            tooltip: outputResource.tooltip,
             sourceHandle: source.handleId,
             targetHandle: target.handleId,
           });
@@ -3368,11 +3387,12 @@ function getDraggedResourceForHandle(
 
   const node = project.nodes.find((entry) => entry.id === nodeId);
   const recipe = project.recipes.find((entry) => entry.id === node?.recipeId);
-  if (!recipe) {
+  if (!node || !recipe) {
     return undefined;
   }
 
-  const resources = handle.side === "input" ? recipe.inputs : recipe.outputs;
+  const contextualRecipe = applyRecipeInputOverrides(recipe, node);
+  const resources = handle.side === "input" ? contextualRecipe.inputs : contextualRecipe.outputs;
   const resource = resources.find(
     (entry) => entry.kind === handle.kind && entry.id === handle.resourceId,
   );
@@ -3390,6 +3410,7 @@ function getDraggedResourceForHandle(
     iconPath: resource.iconPath,
     iconAtlas: resource.iconAtlas,
     dominantColor: resource.dominantColor ?? resource.iconAtlas?.dominantColor,
+    tooltip: resource.tooltip,
     alternatives: resource.alternatives,
   };
 }
@@ -3419,7 +3440,12 @@ function getResourceForHandle(
 
   const node = project.nodes.find((entry) => entry.id === nodeId);
   const recipe = project.recipes.find((entry) => entry.id === node?.recipeId);
-  const resources = handle.side === "input" ? recipe?.inputs : recipe?.outputs;
+  if (!node || !recipe) {
+    return undefined;
+  }
+
+  const contextualRecipe = applyRecipeInputOverrides(recipe, node);
+  const resources = handle.side === "input" ? contextualRecipe.inputs : contextualRecipe.outputs;
 
   return resources?.find((entry) => entry.kind === handle.kind && entry.id === handle.resourceId);
 }

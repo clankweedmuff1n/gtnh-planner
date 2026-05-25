@@ -96,6 +96,7 @@ const EDGE_ENDPOINT_SPACING = 5;
 const EDGE_LABEL_ZOOM = 0.78;
 const EDGE_ARROW_ZOOM = 0.72;
 const EDGE_ROUTE_RELAXATION_PASSES = 2;
+const EDGE_ROUTE_SNAP_GRID = 4;
 const EXPORT_IMAGE_PADDING = 80;
 const EXPORT_PNG_PIXEL_RATIO = 1;
 const EXPORT_PNG_MAX_PIXEL_SIDE = 4096;
@@ -1813,18 +1814,19 @@ function getBestDirectEdgePoints({
   const nodeBounds = getMeasuredAvoidanceNodeBounds([sourceNodeId, targetNodeId]);
   const sourceEndpoints =
     sourceCandidates && sourceCandidates.length > 0
-      ? sourceCandidates
-      : [{ x: sourceX, y: sourceY, side: sourcePosition }];
+      ? normalizeRouteEndpoints(sourceCandidates)
+      : normalizeRouteEndpoints([{ x: sourceX, y: sourceY, side: sourcePosition }]);
   const targetEndpoints =
     targetCandidates && targetCandidates.length > 0
-      ? targetCandidates
-      : [{ x: targetX, y: targetY, side: targetPosition }];
+      ? normalizeRouteEndpoints(targetCandidates)
+      : normalizeRouteEndpoints([{ x: targetX, y: targetY, side: targetPosition }]);
+  const normalizedNodeBounds = normalizeRouteBounds(nodeBounds);
 
   const routeSignature = getDirectRouteSignature({
     laneOffset,
     sourceEndpoints,
     targetEndpoints,
-    nodeBounds,
+    nodeBounds: normalizedNodeBounds,
   });
   const cachedRoute = edgeId ? directRouteCache.get(edgeId) : undefined;
   if (cachedRoute?.signature === routeSignature) {
@@ -1853,7 +1855,8 @@ function getBestDirectEdgePoints({
     .map((candidate) => ({
       points: candidate.points,
       score:
-        scoreEdgeRoute(candidate.points, nodeBounds, obstacleSegments) + candidate.endpointPenalty,
+        scoreEdgeRoute(candidate.points, normalizedNodeBounds, obstacleSegments) +
+        candidate.endpointPenalty,
     }))
     .sort((left, right) => left.score - right.score)[0]?.points;
   if (!bestRoute) {
@@ -1861,7 +1864,7 @@ function getBestDirectEdgePoints({
   }
 
   let optimizedRoute = bestRoute;
-  let optimizedScore = scoreEdgeRoute(bestRoute, nodeBounds, obstacleSegments);
+  let optimizedScore = scoreEdgeRoute(bestRoute, normalizedNodeBounds, obstacleSegments);
   for (let pass = 0; pass < EDGE_ROUTE_RELAXATION_PASSES; pass += 1) {
     const relaxedObstacleSegments = getIndexedRouteObstacleSegments(
       edgeId,
@@ -1872,11 +1875,15 @@ function getBestDirectEdgePoints({
       .map((candidate) => ({
         points: candidate.points,
         score:
-          scoreEdgeRoute(candidate.points, nodeBounds, relaxedObstacleSegments) +
+          scoreEdgeRoute(candidate.points, normalizedNodeBounds, relaxedObstacleSegments) +
           candidate.endpointPenalty,
       }))
       .sort((left, right) => left.score - right.score)[0];
-    const currentScore = scoreEdgeRoute(optimizedRoute, nodeBounds, relaxedObstacleSegments);
+    const currentScore = scoreEdgeRoute(
+      optimizedRoute,
+      normalizedNodeBounds,
+      relaxedObstacleSegments,
+    );
     if (
       !relaxedRoute ||
       relaxedRoute.score >= currentScore ||
@@ -1996,25 +2003,65 @@ function getDirectRouteSignature({
     laneOffset,
     source: sourceEndpoints.map(serializeSlotEdgeEndpoint),
     target: targetEndpoints.map(serializeSlotEdgeEndpoint),
-    bounds: nodeBounds.map((bounds) => ({
-      left: quantizeRouteCoord(bounds.left),
-      right: quantizeRouteCoord(bounds.right),
-      top: quantizeRouteCoord(bounds.top),
-      bottom: quantizeRouteCoord(bounds.bottom),
-    })),
+    bounds: nodeBounds,
   });
+}
+
+function normalizeRouteEndpoints(endpoints: SlotEdgeEndpoint[]) {
+  return [...endpoints]
+    .map((endpoint) => ({
+      x: snapRouteCoord(endpoint.x),
+      y: snapRouteCoord(endpoint.y),
+      side: endpoint.side,
+    }))
+    .sort(
+      (left, right) =>
+        getRouteSideOrder(left.side) - getRouteSideOrder(right.side) ||
+        left.x - right.x ||
+        left.y - right.y,
+    );
+}
+
+function normalizeRouteBounds(
+  bounds: Array<{ left: number; right: number; top: number; bottom: number }>,
+) {
+  return bounds
+    .map((entry) => ({
+      left: snapRouteCoord(entry.left),
+      right: snapRouteCoord(entry.right),
+      top: snapRouteCoord(entry.top),
+      bottom: snapRouteCoord(entry.bottom),
+    }))
+    .sort(
+      (left, right) => left.left - right.left || left.top - right.top || left.right - right.right,
+    );
 }
 
 function serializeSlotEdgeEndpoint(endpoint: SlotEdgeEndpoint) {
   return {
-    x: quantizeRouteCoord(endpoint.x),
-    y: quantizeRouteCoord(endpoint.y),
+    x: endpoint.x,
+    y: endpoint.y,
     side: String(endpoint.side),
   };
 }
 
-function quantizeRouteCoord(value: number) {
-  return Math.round(value * 4) / 4;
+function snapRouteCoord(value: number) {
+  return Math.round(value / EDGE_ROUTE_SNAP_GRID) * EDGE_ROUTE_SNAP_GRID;
+}
+
+function getRouteSideOrder(side: Position) {
+  switch (side) {
+    case Position.Left:
+      return 0;
+    case Position.Right:
+      return 1;
+    case Position.Top:
+      return 2;
+    case Position.Bottom:
+      return 3;
+    default:
+      return 4;
+  }
 }
 
 function getIndexedRouteObstacleSegments(

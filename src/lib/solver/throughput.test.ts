@@ -393,7 +393,7 @@ describe("calculateThroughput", () => {
     expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(6);
   });
 
-  it("routes full producer surplus through storage sinks", () => {
+  it("displays producer surplus through storage sinks without forcing upstream usage", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "storage-effective-rate-project",
@@ -481,16 +481,16 @@ describe("calculateThroughput", () => {
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
     expect(result.nodes.consumer.utilization).toBeCloseTo(0.1);
-    expect(result.nodes.source.utilization).toBeCloseTo(1);
+    expect(result.nodes.source.utilization).toBeCloseTo(0.1);
     expect(result.edges["source-to-drawer"].demandPerSecond).toBeCloseTo(10);
     expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(10);
     expect(result.storages["dust-drawer-out"].producedPerSecond).toBeCloseTo(10);
     expect(result.storages["dust-drawer-out"].consumedPerSecond).toBeCloseTo(1);
     expect(result.storages["dust-drawer-out"].netPerSecond).toBeCloseTo(9);
-    expect(result.resources["item:dust"].netPerSecond).toBeCloseTo(9);
+    expect(result.resources["item:dust"].netPerSecond).toBeCloseTo(0);
   });
 
-  it("lets storage feed untargeted consumers from available incoming supply", () => {
+  it("labels storage output by consumer input demand instead of available supply", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "storage-feed-available-supply-project",
@@ -594,14 +594,15 @@ describe("calculateThroughput", () => {
 
     expect(result.edges["small-to-tank"].demandPerSecond).toBeCloseTo(500);
     expect(result.edges["large-to-tank"].demandPerSecond).toBeCloseTo(25_600);
-    expect(result.edges["tank-to-consumer"].demandPerSecond).toBeCloseTo(26_100);
+    expect(result.edges["tank-to-consumer"].demandPerSecond).toBeCloseTo(1_000);
+    expect(result.edges["tank-to-consumer"].transferredPerSecond).toBeCloseTo(1_000);
     expect(result.storages["woodtar-tank"].producedPerSecond).toBeCloseTo(26_100);
-    expect(result.storages["woodtar-tank"].consumedPerSecond).toBeCloseTo(26_100);
+    expect(result.storages["woodtar-tank"].consumedPerSecond).toBeCloseTo(1_000);
     expect(result.nodes["small-source"].utilization).toBeCloseTo(1);
-    expect(result.nodes.consumer.utilization).toBeGreaterThan(20);
+    expect(result.nodes.consumer.utilization).toBeCloseTo(1);
   });
 
-  it("sends only remaining producer capacity to storage when consumers are directly connected", () => {
+  it("displays only remaining producer capacity to storage when consumers are directly connected", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "storage-direct-surplus-project",
@@ -677,7 +678,7 @@ describe("calculateThroughput", () => {
 
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
-    expect(result.nodes.source.utilization).toBeCloseTo(1);
+    expect(result.nodes.source.utilization).toBeCloseTo(0.2);
     expect(result.edges["source-to-consumer"].transferredPerSecond).toBeCloseTo(2);
     expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(8);
     expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(8);
@@ -894,11 +895,11 @@ describe("calculateThroughput", () => {
 
     for (const storageId of ["dust-drawer-a", "dust-drawer-b"]) {
       expect(result.storages[storageId].producedPerSecond).toBeCloseTo(5);
-      expect(result.storages[storageId].consumedPerSecond).toBeCloseTo(5);
-      expect(result.storages[storageId].netPerSecond).toBeCloseTo(0);
-      expect(result.storages[storageId].status).toBe("balanced");
+      expect(result.storages[storageId].consumedPerSecond).toBeCloseTo(2);
+      expect(result.storages[storageId].netPerSecond).toBeCloseTo(3);
+      expect(result.storages[storageId].status).toBe("filling");
     }
-    expect(result.nodes.consumer.utilization).toBeCloseTo(2.5);
+    expect(result.nodes.consumer.utilization).toBeCloseTo(1);
   });
 
   it("does not consume non-consumed recipe inputs", () => {

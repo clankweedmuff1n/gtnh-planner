@@ -2115,16 +2115,31 @@ function getStorageOutgoingDemandByResource(
   project: FactoryProject,
   result: ThroughputResult,
 ): Map<string, number> {
-  const storageIds = new Set((project.storages ?? []).map((storage) => storage.id));
+  const storagesById = new Map((project.storages ?? []).map((storage) => [storage.id, storage]));
+  const incomingRecipeEdgeCounts = countIncomingRecipeEdgesByResource(project, storagesById);
   const demand = new Map<string, number>();
 
   for (const edge of project.edges) {
-    if (!storageIds.has(edge.source) || storageIds.has(edge.target)) {
+    if (!storagesById.has(edge.source) || storagesById.has(edge.target)) {
       continue;
     }
 
     const key = `${edge.resourceKind}:${edge.resourceId}`;
-    demand.set(key, (demand.get(key) ?? 0) + (result.edges[edge.id]?.demandPerSecond ?? 0));
+    const targetResult = result.nodes[edge.target];
+    const targetDemandKey = getEdgeTargetDemandKey(project, edge) ?? key;
+    const targetInput = targetResult?.inputs[targetDemandKey as keyof typeof targetResult.inputs];
+    if (!targetInput) {
+      continue;
+    }
+
+    const utilization = Number.isFinite(targetResult.utilization)
+      ? Math.min(Math.max(targetResult.utilization, 0), 1)
+      : 1;
+    const incomingCount = incomingRecipeEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
+    demand.set(
+      key,
+      (demand.get(key) ?? 0) + (targetInput.amountPerSecond * utilization) / incomingCount,
+    );
   }
 
   return demand;

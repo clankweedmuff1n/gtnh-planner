@@ -490,6 +490,117 @@ describe("calculateThroughput", () => {
     expect(result.resources["item:dust"].netPerSecond).toBeCloseTo(9);
   });
 
+  it("lets storage feed untargeted consumers from available incoming supply", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "storage-feed-available-supply-project",
+      name: "Storage feed available supply test",
+      recipes: [
+        {
+          id: "small-source-recipe",
+          name: "Small source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "fluid", id: "woodtar", amount: 500 }],
+        },
+        {
+          id: "large-source-recipe",
+          name: "Large source",
+          machineType: "Source Hatch",
+          minimumTier: "DEMO",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "fluid", id: "woodtar", amount: 25_600 }],
+        },
+        {
+          id: "consumer-recipe",
+          name: "Distillation Tower",
+          machineType: "Distillation Tower",
+          minimumTier: "EV",
+          durationTicks: 20,
+          eut: 512,
+          inputs: [{ kind: "fluid", id: "woodtar", amount: 1_000 }],
+          outputs: [{ kind: "fluid", id: "benzene", amount: 400 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "small-source",
+          recipeId: "small-source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "large-source",
+          recipeId: "large-source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "DEMO",
+          enabled: true,
+          position: { x: 0, y: 120 },
+        },
+        {
+          id: "consumer",
+          recipeId: "consumer-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "EV",
+          enabled: true,
+          position: { x: 320, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "woodtar-tank",
+          kind: "fluid",
+          resourceId: "woodtar",
+          position: { x: 160, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "small-to-tank",
+          source: "small-source",
+          target: "woodtar-tank",
+          resourceKind: "fluid",
+          resourceId: "woodtar",
+        },
+        {
+          id: "large-to-tank",
+          source: "large-source",
+          target: "woodtar-tank",
+          resourceKind: "fluid",
+          resourceId: "woodtar",
+        },
+        {
+          id: "tank-to-consumer",
+          source: "woodtar-tank",
+          target: "consumer",
+          resourceKind: "fluid",
+          resourceId: "woodtar",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.edges["small-to-tank"].demandPerSecond).toBeCloseTo(500);
+    expect(result.edges["large-to-tank"].demandPerSecond).toBeCloseTo(25_600);
+    expect(result.edges["tank-to-consumer"].demandPerSecond).toBeCloseTo(26_100);
+    expect(result.storages["woodtar-tank"].producedPerSecond).toBeCloseTo(26_100);
+    expect(result.storages["woodtar-tank"].consumedPerSecond).toBeCloseTo(26_100);
+    expect(result.nodes["small-source"].utilization).toBeCloseTo(1);
+    expect(result.nodes.consumer.utilization).toBeGreaterThan(20);
+  });
+
   it("sends only remaining producer capacity to storage when consumers are directly connected", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
@@ -783,10 +894,11 @@ describe("calculateThroughput", () => {
 
     for (const storageId of ["dust-drawer-a", "dust-drawer-b"]) {
       expect(result.storages[storageId].producedPerSecond).toBeCloseTo(5);
-      expect(result.storages[storageId].consumedPerSecond).toBeCloseTo(2);
-      expect(result.storages[storageId].netPerSecond).toBeCloseTo(3);
-      expect(result.storages[storageId].status).toBe("filling");
+      expect(result.storages[storageId].consumedPerSecond).toBeCloseTo(5);
+      expect(result.storages[storageId].netPerSecond).toBeCloseTo(0);
+      expect(result.storages[storageId].status).toBe("balanced");
     }
+    expect(result.nodes.consumer.utilization).toBeCloseTo(2.5);
   });
 
   it("does not consume non-consumed recipe inputs", () => {

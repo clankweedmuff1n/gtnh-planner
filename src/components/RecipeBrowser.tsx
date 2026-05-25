@@ -202,16 +202,25 @@ export function RecipeBrowser() {
 
   const handleAddRecipe = useCallback(
     async (recipeId: string) => {
+      const contextRecipe = filteredRecipes.find((recipe) => recipe.id === recipeId);
       addNodeForRecipe(
         contextualizeRecipeForSelectedResource(
           await getFullRecipe(recipeId),
           activeResource,
           browserMode,
+          contextRecipe,
         ),
       );
       clearResourceBrowser();
     },
-    [activeResource, addNodeForRecipe, browserMode, clearResourceBrowser, getFullRecipe],
+    [
+      activeResource,
+      addNodeForRecipe,
+      browserMode,
+      clearResourceBrowser,
+      filteredRecipes,
+      getFullRecipe,
+    ],
   );
 
   useEffect(() => {
@@ -1270,6 +1279,7 @@ function contextualizeRecipeForSelectedResource(
   recipe: Recipe,
   resource: IndexedResource | undefined,
   mode: "recipes" | "uses",
+  contextRecipe?: RecipeSummary,
 ): Recipe {
   if (!resource) {
     return recipe;
@@ -1277,8 +1287,11 @@ function contextualizeRecipeForSelectedResource(
 
   if (mode === "uses") {
     let changed = false;
-    const inputs = recipe.inputs.map((input) => {
-      if (!resourceMatchesInput(resource, input)) {
+    const inputs = recipe.inputs.map((input, index) => {
+      if (
+        !resourceMatchesInput(resource, input) &&
+        !contextInputUsesResource(contextRecipe?.inputs[index], input, resource)
+      ) {
         return input;
       }
       changed = true;
@@ -1312,6 +1325,25 @@ function contextualizeRecipeForSelectedResource(
   });
 
   return changed ? { ...recipe, outputs } : recipe;
+}
+
+function contextInputUsesResource(
+  contextInput: RecipeSummary["inputs"][number] | undefined,
+  fullInput: Recipe["inputs"][number],
+  resource: IndexedResource,
+) {
+  if (!contextInput || contextInput.kind !== resource.kind || contextInput.id !== resource.id) {
+    return false;
+  }
+
+  if (contextInput.neiSlot && fullInput.neiSlot) {
+    return (
+      contextInput.neiSlot.x === fullInput.neiSlot.x &&
+      contextInput.neiSlot.y === fullInput.neiSlot.y
+    );
+  }
+
+  return contextInput.kind === fullInput.kind;
 }
 
 function recipeHasRenderableIcons(recipe: Recipe) {

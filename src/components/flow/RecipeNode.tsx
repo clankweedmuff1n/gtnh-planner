@@ -28,10 +28,12 @@ import {
   makeResourceKey,
   resourceMatchesInput,
   resourceLabel,
+  type MachineConfigTierControl,
 } from "@/lib/model";
 import { NeiRecipeWindow } from "@/components/nei/NeiRecipeWindow";
 import { MinecraftTooltip } from "@/components/nei/MinecraftTooltip";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
+import type { NeiPositionedSlot } from "@/lib/nei/layout";
 import { makeResourceHandleId } from "./resource-handles";
 import { useFactoryStore } from "@/store/factory-store";
 import { GT_NODE_COLORS } from "./node-colors";
@@ -48,6 +50,7 @@ export type RecipeFlowNode = Node<RecipeNodeData, "recipeNode">;
 export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const { projectNode, recipe, result } = data;
   const [isMachineMenuOpen, setIsMachineMenuOpen] = useState(false);
+  const [openMachineConfigMenuId, setOpenMachineConfigMenuId] = useState<string>();
   const browseResource = useFactoryStore((state) => state.browseResource);
   const recipeSearch = useFactoryStore((state) => state.recipeSearch);
   const hoveredFlowResourceKey = useFactoryStore((state) => state.hoveredFlowResourceKey);
@@ -88,14 +91,19 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
     ...control,
     resource: resolveDatasetMachineConfigResource(control.resource, dataset),
   }));
+  const tgsToolControls = machineConfigControls.filter(isTreeGrowthSimulatorToolControl);
+  const statsMachineConfigControls = machineConfigControls.filter(
+    (control) => !isTreeGrowthSimulatorToolControl(control),
+  );
   const overclockedStats = getOverclockedRecipeStats(recipe, projectNode);
+  const displayRecipe = applyTreeGrowthSimulatorToolInputs(effectiveRecipe, tgsToolControls);
   const adjustedRecipe = applyMachineOutputMultipliers(
-    effectiveRecipe,
+    displayRecipe,
     projectNode,
     overclockedStats.tier,
   );
   const overclockedRecipe = {
-    ...effectiveRecipe,
+    ...displayRecipe,
     ...adjustedRecipe,
     ...overclockedStats,
   };
@@ -297,7 +305,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
                     ariaLabel={`Coil ${coilResource.displayName ?? coilControl.current.label}`}
                     onStep={updateCoilTier}
                   />
-                  {machineConfigControls.map((control) => (
+                  {statsMachineConfigControls.map((control) => (
                     <MachineConfigButton
                       key={control.id}
                       resource={control.resource}
@@ -312,9 +320,9 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
                     />
                   ))}
                 </div>
-              ) : machineConfigControls.length > 0 ? (
+              ) : statsMachineConfigControls.length > 0 ? (
                 <div className="flex gap-1">
-                  {machineConfigControls.map((control) => (
+                  {statsMachineConfigControls.map((control) => (
                     <MachineConfigButton
                       key={control.id}
                       resource={control.resource}
@@ -359,6 +367,24 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
               );
             }}
             renderHandle={(slot) => {
+              const tgsToolControl = getTreeGrowthSimulatorToolControlForSlot(
+                slot,
+                tgsToolControls,
+              );
+              if (tgsToolControl) {
+                return (
+                  <MachineConfigSlotMenu
+                    control={tgsToolControl}
+                    dataset={dataset}
+                    isOpen={openMachineConfigMenuId === tgsToolControl.id}
+                    onOpenChange={(isOpen) =>
+                      setOpenMachineConfigMenuId(isOpen ? tgsToolControl.id : undefined)
+                    }
+                    onSelect={(nextTier) => updateMachineConfigTier(tgsToolControl.id, nextTier)}
+                  />
+                );
+              }
+
               const isInput = slot.side === "input";
               if (isInput && !isRecipeInputConsumed(slot.resource)) {
                 return null;
@@ -525,6 +551,154 @@ function resolveDatasetMachineConfigResource(
     iconAtlas: indexed.iconAtlas ?? configuredResource.iconAtlas,
     dominantColor: indexed.dominantColor ?? configuredResource.dominantColor,
   };
+}
+
+function isTreeGrowthSimulatorToolControl(control: MachineConfigTierControl) {
+  return control.id.startsWith("tgs") && control.id.endsWith("Tool");
+}
+
+const TREE_GROWTH_SIMULATOR_TOOL_SLOTS: Record<string, { x: number; y: number }> = {
+  tgsLogTool: { x: 36, y: 36 },
+  tgsSaplingTool: { x: 54, y: 36 },
+  tgsLeavesTool: { x: 36, y: 54 },
+  tgsFruitTool: { x: 54, y: 54 },
+};
+
+function getTreeGrowthSimulatorToolControlForSlot(
+  slot: NeiPositionedSlot,
+  controls: MachineConfigTierControl[],
+) {
+  if (slot.side !== "input" || slot.kind !== "item") {
+    return undefined;
+  }
+
+  return controls.find((control) => {
+    const position = TREE_GROWTH_SIMULATOR_TOOL_SLOTS[control.id];
+    return position?.x === slot.x && position.y === slot.y;
+  });
+}
+
+function applyTreeGrowthSimulatorToolInputs(
+  recipe: Recipe,
+  controls: MachineConfigTierControl[],
+): Recipe {
+  if (controls.length === 0) {
+    return recipe;
+  }
+
+  const inputs = recipe.inputs.map((input) => {
+    const matchingControl = controls.find((control) => {
+      const position = TREE_GROWTH_SIMULATOR_TOOL_SLOTS[control.id];
+      return position?.x === input.neiSlot?.x && position.y === input.neiSlot?.y;
+    });
+
+    if (!matchingControl) {
+      return input;
+    }
+
+    return {
+      ...input,
+      ...matchingControl.resource,
+      amount: 1,
+      optional: true,
+      consumed: false,
+      neiSlot: input.neiSlot,
+    };
+  });
+
+  return { ...recipe, inputs };
+}
+
+function MachineConfigSlotMenu({
+  control,
+  dataset,
+  isOpen,
+  onOpenChange,
+  onSelect,
+}: {
+  control: MachineConfigTierControl;
+  dataset: ReturnType<typeof useFactoryStore.getState>["dataset"];
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  onSelect: (nextTier: string) => void;
+}) {
+  const currentResource = control.resource;
+
+  return (
+    <span className="absolute inset-0 z-40 block">
+      <span
+        role="button"
+        tabIndex={0}
+        className="block h-full w-full cursor-pointer hover:ring-2 hover:ring-cyan-300"
+        title={`${control.label}: ${currentResource.displayName ?? control.current.label}`}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpenChange(!isOpen);
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect(getAdjacentMachineConfigTier(control, -1));
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          onOpenChange(!isOpen);
+        }}
+      />
+      {isOpen ? (
+        <span className="absolute left-0 top-full z-50 grid min-w-44 border-2 border-[#252525] bg-[#c6c6c6] p-1 text-[11px] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555,4px_4px_0_rgba(0,0,0,0.35)]">
+          {control.tiers.map((tier) => {
+            const resource = resolveDatasetMachineConfigResource(tier.resource, dataset);
+            return (
+              <span
+                key={tier.key}
+                role="button"
+                tabIndex={0}
+                className={[
+                  "flex h-9 min-w-0 items-center gap-2 border-2 px-1 text-left font-bold",
+                  tier.key === control.current.key
+                    ? "border-[#6b4fd1] bg-[#8b70dd] text-white"
+                    : "border-[#777] bg-[#d8d8d8] text-black hover:bg-white",
+                ].join(" ")}
+                title={resource.displayName ?? tier.label}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelect(tier.key);
+                  onOpenChange(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") {
+                    return;
+                  }
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelect(tier.key);
+                  onOpenChange(false);
+                }}
+              >
+                <ResourceIcon
+                  resource={resource}
+                  bare
+                  tooltip={false}
+                  showAmount={false}
+                  showConsumedState={false}
+                  iconPixelSize={36}
+                  className="h-7 w-7 shrink-0 !overflow-visible"
+                />
+                <span className="truncate">{tier.label}</span>
+              </span>
+            );
+          })}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 function MachineConfigButton({

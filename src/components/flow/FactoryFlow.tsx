@@ -120,7 +120,6 @@ type ResourceEdgeData = {
   targetStorageEndpoint: boolean;
   sourceEndpointOffset?: number;
   targetEndpointOffset?: number;
-  routePriority: number;
   bundle?: {
     role: "primary" | "member";
     mode: "single-target" | "multi-target";
@@ -289,7 +288,7 @@ export function FactoryFlow() {
     const edgeBundles = getEdgeBundles(project, project.edges, result.edges);
     const endpointOffsets = getEdgeEndpointOffsets(project);
 
-    return project.edges.map((edge, edgeIndex) => {
+    return project.edges.map((edge) => {
       const edgeResult = result.edges[edge.id];
       const unit = edge.resourceKind === "fluid" ? "L/s" : "/s";
       const demand = edgeResult?.demandPerSecond ?? edge.ratePerSecond ?? 0;
@@ -341,7 +340,6 @@ export function FactoryFlow() {
           targetStorageEndpoint: Boolean(targetHandle && targetStorage),
           sourceEndpointOffset: endpointOffsets.get(`${edge.id}:source`),
           targetEndpointOffset: endpointOffsets.get(`${edge.id}:target`),
-          routePriority: edgeIndex,
           bundle: edgeBundles.get(edge.id),
           isFlowHighlighted,
         },
@@ -1171,7 +1169,6 @@ function ResourceEdge({
             bundleSourceHandleIds: data.bundle.sourceHandleIds,
           })
         : getDirectEdgePath({
-            edgeId: id,
             sourceNodeId: source,
             sourceCandidates: visualSourceCandidates,
             sourceX: visualSource.x,
@@ -1182,7 +1179,6 @@ function ResourceEdge({
             targetX: visualTarget.x,
             targetY: visualTarget.y,
             targetPosition: visualTarget.side,
-            routePriority: data?.routePriority,
             laneOffset: getEdgeLaneOffset(id),
           });
   const labelX = routedEdge.labelX + labelOffset.x;
@@ -1212,7 +1208,6 @@ function ResourceEdge({
         <>
           <path
             data-resource-edge-route={id}
-            data-resource-edge-priority={data?.routePriority ?? 0}
             d={routedEdge.path}
             fill="none"
             stroke="transparent"
@@ -1643,9 +1638,7 @@ function getRepeatedOutputHandleIds(
 }
 
 function getDirectEdgePath({
-  edgeId,
   laneOffset = 0,
-  routePriority,
   sourceNodeId,
   sourceCandidates,
   sourceX,
@@ -1657,9 +1650,7 @@ function getDirectEdgePath({
   targetY,
   targetPosition,
 }: {
-  edgeId?: string;
   laneOffset?: number;
-  routePriority?: number;
   sourceNodeId?: string;
   sourceIsRecipeNode?: boolean;
   sourceCandidates?: SlotEdgeEndpoint[];
@@ -1675,9 +1666,7 @@ function getDirectEdgePath({
 }) {
   const points =
     getBestDirectEdgePoints({
-      edgeId,
       laneOffset,
-      routePriority,
       sourceNodeId,
       sourceCandidates,
       sourceX,
@@ -1766,9 +1755,7 @@ function getSimpleOrthogonalEdgePoints({
 }
 
 function getBestDirectEdgePoints({
-  edgeId,
   laneOffset,
-  routePriority,
   sourceNodeId,
   sourceCandidates,
   sourceX,
@@ -1780,9 +1767,7 @@ function getBestDirectEdgePoints({
   targetY,
   targetPosition,
 }: {
-  edgeId?: string;
   laneOffset: number;
-  routePriority?: number;
   sourceNodeId?: string;
   sourceCandidates?: SlotEdgeEndpoint[];
   sourceX: number;
@@ -1795,7 +1780,6 @@ function getBestDirectEdgePoints({
   targetPosition: Position;
 }) {
   const nodeBounds = getMeasuredAvoidanceNodeBounds([sourceNodeId, targetNodeId]);
-  const renderedEdgeSegments = getRenderedEdgeSegments(edgeId, routePriority);
   const sourceEndpoints =
     sourceCandidates && sourceCandidates.length > 0
       ? sourceCandidates
@@ -1815,14 +1799,17 @@ function getBestDirectEdgePoints({
         targetX: targetEndpoint.x,
         targetY: targetEndpoint.y,
         targetPosition: targetEndpoint.side,
-      }),
+      }).map((points) => ({
+        points,
+        endpointPenalty: getEndpointDirectionPenalty(sourceEndpoint, targetEndpoint),
+      })),
     ),
   );
 
   return candidates
-    .map((points) => ({
-      points,
-      score: scoreEdgeRoute(points, nodeBounds, renderedEdgeSegments),
+    .map((candidate) => ({
+      points: candidate.points,
+      score: scoreEdgeRoute(candidate.points, nodeBounds) + candidate.endpointPenalty,
     }))
     .sort((left, right) => left.score - right.score)[0]?.points;
 }
@@ -1923,6 +1910,9 @@ function scoreEdgeRoute(
   let edgeIntersections = 0;
   let edgeNearness = 0;
   let edgeOverlap = 0;
+  let selfIntersections = 0;
+  let selfOverlap = 0;
+  let foldBacks = 0;
 
   for (const segment of segments) {
     for (const bounds of nodeBounds) {
@@ -1951,15 +1941,98 @@ function scoreEdgeRoute(
     }
   }
 
+  for (let index = 1; index < segments.length; index += 1) {
+    const previous = segments[index - 1];
+    const current = segments[index];
+    const previousDirection = getSegmentUnitVector(previous);
+    const currentDirection = getSegmentUnitVector(current);
+    const dot = previousDirection.x * currentDirection.x + previousDirection.y * currentDirection.y;
+
+    if (dot < -0.85) {
+      foldBacks += 1;
+    }
+  }
+
+  for (let leftIndex = 0; leftIndex < segments.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 2; rightIndex < segments.length; rightIndex += 1) {
+      if (leftIndex === 0 && rightIndex === segments.length - 1) {
+        continue;
+      }
+
+      const left = segments[leftIndex];
+      const right = segments[rightIndex];
+      if (segmentsIntersect(left.start, left.end, right.start, right.end)) {
+        selfIntersections += 1;
+      }
+      selfOverlap += getCollinearOverlapLength(left, right);
+    }
+  }
+
   const turns = countPolylineTurns(points);
   return (
     nodeHits * 1_000_000 +
+    selfIntersections * 1_000_000 +
+    foldBacks * 750_000 +
+    selfOverlap * 40_000 +
     edgeOverlap * 9_000 +
     edgeIntersections * 80_000 +
     edgeNearness * 2_500 +
     turns * 700 +
     length
   );
+}
+
+function getEndpointDirectionPenalty(source: SlotEdgeEndpoint, target: SlotEdgeEndpoint) {
+  const sourceToTarget = { x: target.x - source.x, y: target.y - source.y };
+  const targetToSource = { x: source.x - target.x, y: source.y - target.y };
+  return (
+    getSideDirectionPenalty(source.side, sourceToTarget) +
+    getSideDirectionPenalty(target.side, targetToSource)
+  );
+}
+
+function getSideDirectionPenalty(side: Position, direction: { x: number; y: number }) {
+  const sideDirection = getSideUnitVector(side);
+  const length = Math.hypot(direction.x, direction.y);
+  if (length < 1) {
+    return 0;
+  }
+
+  const dot = (sideDirection.x * direction.x + sideDirection.y * direction.y) / length;
+  if (dot >= 0.15) {
+    return 0;
+  }
+
+  if (dot >= -0.15) {
+    return 80_000;
+  }
+
+  return 900_000 + Math.abs(dot) * 250_000;
+}
+
+function getSideUnitVector(side: Position) {
+  switch (side) {
+    case Position.Left:
+      return { x: -1, y: 0 };
+    case Position.Top:
+      return { x: 0, y: -1 };
+    case Position.Bottom:
+      return { x: 0, y: 1 };
+    case Position.Right:
+    default:
+      return { x: 1, y: 0 };
+  }
+}
+
+function getSegmentUnitVector(segment: {
+  start: { x: number; y: number };
+  end: { x: number; y: number };
+  length: number;
+}) {
+  return {
+    x: (segment.end.x - segment.start.x) / segment.length,
+    y: (segment.end.y - segment.start.y) / segment.length,
+  };
 }
 
 function offsetPointFromSide(point: { x: number; y: number }, side: Position, distance: number) {
@@ -2578,41 +2651,6 @@ function getPolylineSegments(points: Array<{ x: number; y: number }>) {
   }
 
   return segments;
-}
-
-function getRenderedEdgeSegments(excludedEdgeId?: string, maxRoutePriority?: number) {
-  if (typeof document === "undefined") {
-    return [];
-  }
-
-  return [...document.querySelectorAll<SVGPathElement>("[data-resource-edge-route]")]
-    .filter((path) => {
-      if (path.dataset.resourceEdgeRoute === excludedEdgeId) {
-        return false;
-      }
-
-      if (maxRoutePriority === undefined) {
-        return true;
-      }
-
-      const routePriority = Number(path.dataset.resourceEdgePriority);
-      return Number.isFinite(routePriority) && routePriority < maxRoutePriority;
-    })
-    .flatMap((path) =>
-      parsePolylinePath(path.getAttribute("d") ?? "").map((segment) => ({
-        ...segment,
-        edgeId: path.dataset.resourceEdgeRoute ?? "",
-      })),
-    )
-    .filter((segment) => segment.length > 0.5);
-}
-
-function parsePolylinePath(path: string) {
-  const tokens = [...path.matchAll(/[ML]\s*(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map((match) => ({
-    x: Number(match[1]),
-    y: Number(match[2]),
-  }));
-  return getPolylineSegments(tokens);
 }
 
 function dedupePolylineCandidates(candidates: Array<Array<{ x: number; y: number }>>) {

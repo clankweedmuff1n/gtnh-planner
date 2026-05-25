@@ -947,19 +947,24 @@ describe("calculateThroughput", () => {
           ],
           machineConfigControls: [
             {
-              id: "tgsLogTool",
-              label: "Log Tool",
-              minimumKey: "saw",
-              defaultKey: "saw",
+              id: "tgsToolSlot1",
+              label: "Tool Slot 1",
+              minimumKey: "none",
+              defaultKey: "none",
               tiers: [
                 {
-                  key: "saw",
+                  key: "none",
+                  label: "-",
+                  resource: { kind: "item", id: "empty", amount: 1 },
+                },
+                {
+                  key: "log:saw",
                   label: "Saw",
                   outputMultiplier: 1,
                   resource: { kind: "item", id: "saw", amount: 1 },
                 },
                 {
-                  key: "chainsaw",
+                  key: "log:chainsaw",
                   label: "Chainsaw",
                   outputMultiplier: 4,
                   resource: { kind: "item", id: "chainsaw", amount: 1 },
@@ -977,7 +982,7 @@ describe("calculateThroughput", () => {
           machineCount: 1,
           parallel: 1,
           overclockTier: "LV",
-          machineConfigTiers: { tgsLogTool: "chainsaw" },
+          machineConfigTiers: { tgsToolSlot1: "log:chainsaw" },
           enabled: true,
           position: { x: 0, y: 0 },
         },

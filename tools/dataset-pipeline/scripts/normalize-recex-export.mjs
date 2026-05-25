@@ -138,6 +138,13 @@ const treeGrowthSimulatorTools = {
   fruit: [{ key: "knife", label: "Knife", multiplier: 1, id: "gregtech:gt.metatool.01@34" }],
 };
 
+const treeGrowthSimulatorToolSlots = [
+  { id: "tgsToolSlot1", label: "Tool Slot 1", x: 36, y: 36 },
+  { id: "tgsToolSlot2", label: "Tool Slot 2", x: 54, y: 36 },
+  { id: "tgsToolSlot3", label: "Tool Slot 3", x: 36, y: 54 },
+  { id: "tgsToolSlot4", label: "Tool Slot 4", x: 54, y: 54 },
+];
+
 const sources = Array.isArray(raw.sources) ? raw.sources : [];
 const gregtechSource = sources.find((source) => source.type === "gregtech");
 
@@ -450,26 +457,7 @@ function machineConfigControlsForRecipe(machineType, specialValue) {
   }
 
   if (isTreeGrowthSimulatorRecipeMap(normalized)) {
-    controls.push(
-      treeGrowthSimulatorToolControl("tgsLogTool", "Log Tool", treeGrowthSimulatorTools.log),
-    );
-    controls.push(
-      treeGrowthSimulatorToolControl(
-        "tgsSaplingTool",
-        "Sapling Tool",
-        treeGrowthSimulatorTools.sapling,
-      ),
-    );
-    controls.push(
-      treeGrowthSimulatorToolControl(
-        "tgsLeavesTool",
-        "Leaves Tool",
-        treeGrowthSimulatorTools.leaves,
-      ),
-    );
-    controls.push(
-      treeGrowthSimulatorToolControl("tgsFruitTool", "Fruit Tool", treeGrowthSimulatorTools.fruit),
-    );
+    controls.push(...treeGrowthSimulatorToolSlots.map(treeGrowthSimulatorToolSlotControl));
   }
 
   return controls.length > 0 ? controls : undefined;
@@ -519,22 +507,40 @@ function machineConfigControlsForMachineHandler(label) {
   ];
 }
 
-function treeGrowthSimulatorToolControl(id, label, tools) {
+function treeGrowthSimulatorToolSlotControl(slot) {
+  const tools = treeGrowthSimulatorAllTools();
   return {
-    id,
-    label,
-    minimumKey: tools[0].key,
-    defaultKey: tools[0].key,
-    tiers: tools.map((tool) => ({
-      key: tool.key,
-      label: tool.label,
-      outputMultiplier: tool.multiplier,
-      resource: machineConfigResource(tool.id, tool.label, [
-        `${label}`,
-        `Output multiplier: ${tool.multiplier}x`,
-      ]),
-    })),
+    id: slot.id,
+    label: slot.label,
+    minimumKey: "none",
+    defaultKey: "none",
+    tiers: [
+      {
+        key: "none",
+        label: "-",
+        resource: machineConfigResource("factoryflow:tgs_tool_empty", "-", ["No tool selected"]),
+      },
+      ...tools.map((tool) => ({
+        key: `${tool.category}:${tool.key}`,
+        label: tool.label,
+        outputMultiplier: tool.multiplier,
+        resource: machineConfigResource(tool.id, tool.label, [
+          `${tool.categoryLabel} tool`,
+          `Output multiplier: ${tool.multiplier}x`,
+        ]),
+      })),
+    ],
   };
+}
+
+function treeGrowthSimulatorAllTools() {
+  return Object.entries(treeGrowthSimulatorTools).flatMap(([category, tools]) =>
+    tools.map((tool) => ({
+      ...tool,
+      category,
+      categoryLabel: capitalize(category),
+    })),
+  );
 }
 
 function machineOptionalInputsForRecipe(machineType) {
@@ -543,10 +549,12 @@ function machineOptionalInputsForRecipe(machineType) {
   }
 
   return [
-    machineToolInput(treeGrowthSimulatorTools.log[0], { x: 36, y: 36 }),
-    machineToolInput(treeGrowthSimulatorTools.sapling[0], { x: 54, y: 36 }),
-    machineToolInput(treeGrowthSimulatorTools.leaves[0], { x: 36, y: 54 }),
-    machineToolInput(treeGrowthSimulatorTools.fruit[0], { x: 54, y: 54 }),
+    ...treeGrowthSimulatorToolSlots.map((slot) =>
+      machineToolInput(
+        { id: "factoryflow:tgs_tool_empty", label: "Tool Slot", multiplier: 1 },
+        { x: slot.x, y: slot.y },
+      ),
+    ),
   ];
 }
 
@@ -590,6 +598,10 @@ function formatMultiplier(value) {
   return Number.isInteger(value)
     ? `${value}x`
     : `${value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}x`;
+}
+
+function capitalize(value) {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 }
 
 function coilTierForHeat(heat) {

@@ -46,15 +46,19 @@ function getTreeGrowthSimulatorToolMultiplier(
   output: RecipeOutput,
 ) {
   const category = getTreeGrowthSimulatorOutputCategory(output);
-  const controlId = category ? `tgs${category}Tool` : undefined;
-  if (!controlId) {
+  if (!category) {
     return 1;
   }
 
-  const control = getRecipeMachineConfigTierControls(recipe, node).find(
-    (entry) => entry.id === controlId,
-  );
-  return control?.current.outputMultiplier ?? 1;
+  const normalizedCategory = category.toLowerCase();
+  const controls = getRecipeMachineConfigTierControls(recipe, node);
+  const slotMultipliers = controls
+    .filter((entry) => /^tgsToolSlot\d+$/.test(entry.id))
+    .filter((entry) => getTreeGrowthSimulatorToolCategory(entry.current.key) === normalizedCategory)
+    .map((entry) => entry.current.outputMultiplier ?? 1);
+  const categoryControl = controls.find((entry) => entry.id === `tgs${category}Tool`);
+
+  return Math.max(1, categoryControl?.current.outputMultiplier ?? 1, ...slotMultipliers);
 }
 
 export function getMachineParallelMultiplier(
@@ -119,6 +123,11 @@ function getTreeGrowthSimulatorOutputCategory(output: RecipeOutput) {
     return "Log";
   }
   return "Fruit";
+}
+
+function getTreeGrowthSimulatorToolCategory(key: string): string | undefined {
+  const [category] = key.split(":");
+  return category && category !== "none" ? category : undefined;
 }
 
 function isTreeGrowthSimulatorRecipe(recipe: Pick<Recipe, "machineType" | "source">): boolean {

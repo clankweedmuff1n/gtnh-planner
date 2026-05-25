@@ -366,6 +366,9 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
                 mode,
               );
             }}
+            suppressSlotHover={(slot) =>
+              Boolean(getTreeGrowthSimulatorToolControlForSlot(slot, tgsToolControls))
+            }
             renderHandle={(slot) => {
               const tgsToolControl = getTreeGrowthSimulatorToolControlForSlot(
                 slot,
@@ -373,7 +376,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
               );
               if (tgsToolControl) {
                 return (
-                  <MachineConfigSlotMenu
+                  <TreeGrowthSimulatorToolSlotMenu
                     control={tgsToolControl}
                     dataset={dataset}
                     isOpen={openMachineConfigMenuId === tgsToolControl.id}
@@ -554,10 +557,17 @@ function resolveDatasetMachineConfigResource(
 }
 
 function isTreeGrowthSimulatorToolControl(control: MachineConfigTierControl) {
-  return control.id.startsWith("tgs") && control.id.endsWith("Tool");
+  return (
+    /^tgsToolSlot\d+$/.test(control.id) ||
+    (control.id.startsWith("tgs") && control.id.endsWith("Tool"))
+  );
 }
 
 const TREE_GROWTH_SIMULATOR_TOOL_SLOTS: Record<string, { x: number; y: number }> = {
+  tgsToolSlot1: { x: 36, y: 36 },
+  tgsToolSlot2: { x: 54, y: 36 },
+  tgsToolSlot3: { x: 36, y: 54 },
+  tgsToolSlot4: { x: 54, y: 54 },
   tgsLogTool: { x: 36, y: 36 },
   tgsSaplingTool: { x: 54, y: 36 },
   tgsLeavesTool: { x: 36, y: 54 },
@@ -609,7 +619,11 @@ function applyTreeGrowthSimulatorToolInputs(
   return { ...recipe, inputs };
 }
 
-function MachineConfigSlotMenu({
+function isTreeGrowthSimulatorEmptyTool(control: MachineConfigTierControl) {
+  return control.current.key === "none";
+}
+
+function TreeGrowthSimulatorToolSlotMenu({
   control,
   dataset,
   isOpen,
@@ -622,15 +636,21 @@ function MachineConfigSlotMenu({
   onOpenChange: (isOpen: boolean) => void;
   onSelect: (nextTier: string) => void;
 }) {
-  const currentResource = control.resource;
+  const selectedEmpty = isTreeGrowthSimulatorEmptyTool(control);
+  const currentTitle = selectedEmpty
+    ? `${control.label}: empty`
+    : `${control.label}: ${control.resource.displayName ?? control.current.label}`;
 
   return (
-    <span className="absolute inset-0 z-40 block">
+    <span className="absolute inset-0 z-[70] block">
       <span
         role="button"
         tabIndex={0}
-        className="block h-full w-full cursor-pointer hover:ring-2 hover:ring-cyan-300"
-        title={`${control.label}: ${currentResource.displayName ?? control.current.label}`}
+        className={[
+          "block h-full w-full cursor-pointer",
+          isOpen ? "" : "hover:ring-2 hover:ring-cyan-300",
+        ].join(" ")}
+        title={currentTitle}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -639,7 +659,7 @@ function MachineConfigSlotMenu({
         onContextMenu={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          onSelect(getAdjacentMachineConfigTier(control, -1));
+          onOpenChange(!isOpen);
         }}
         onKeyDown={(event) => {
           if (event.key !== "Enter" && event.key !== " ") {
@@ -649,10 +669,24 @@ function MachineConfigSlotMenu({
           event.stopPropagation();
           onOpenChange(!isOpen);
         }}
-      />
+      >
+        {selectedEmpty ? (
+          <span className="grid h-full w-full place-items-center text-[17px] font-bold leading-none text-white [text-shadow:1px_1px_0_#000]">
+            +
+          </span>
+        ) : null}
+      </span>
       {isOpen ? (
-        <span className="absolute left-0 top-full z-50 grid min-w-44 border-2 border-[#252525] bg-[#c6c6c6] p-1 text-[11px] shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555,4px_4px_0_rgba(0,0,0,0.35)]">
+        <span
+          className="absolute left-0 top-full z-[120] grid grid-cols-3 gap-1 border-2 border-[#252525] bg-[#c6c6c6] p-1 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555,4px_4px_0_rgba(0,0,0,0.35)]"
+          onClick={(event) => event.stopPropagation()}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
           {control.tiers.map((tier) => {
+            const isEmpty = tier.key === "none";
             const resource = resolveDatasetMachineConfigResource(tier.resource, dataset);
             return (
               <span
@@ -660,12 +694,12 @@ function MachineConfigSlotMenu({
                 role="button"
                 tabIndex={0}
                 className={[
-                  "flex h-9 min-w-0 items-center gap-2 border-2 px-1 text-left font-bold",
+                  "grid h-9 w-9 place-items-center border-2 text-[18px] font-bold leading-none",
                   tier.key === control.current.key
                     ? "border-[#6b4fd1] bg-[#8b70dd] text-white"
                     : "border-[#777] bg-[#d8d8d8] text-black hover:bg-white",
                 ].join(" ")}
-                title={resource.displayName ?? tier.label}
+                title={isEmpty ? "-" : (resource.displayName ?? tier.label)}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -682,16 +716,19 @@ function MachineConfigSlotMenu({
                   onOpenChange(false);
                 }}
               >
-                <ResourceIcon
-                  resource={resource}
-                  bare
-                  tooltip={false}
-                  showAmount={false}
-                  showConsumedState={false}
-                  iconPixelSize={36}
-                  className="h-7 w-7 shrink-0 !overflow-visible"
-                />
-                <span className="truncate">{tier.label}</span>
+                {isEmpty ? (
+                  <span>-</span>
+                ) : (
+                  <ResourceIcon
+                    resource={resource}
+                    bare
+                    tooltip={false}
+                    showAmount={false}
+                    showConsumedState={false}
+                    iconPixelSize={40}
+                    className="h-8 w-8 !overflow-visible"
+                  />
+                )}
               </span>
             );
           })}

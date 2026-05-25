@@ -24,6 +24,7 @@ interface NeiRecipeCanvasProps {
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
+  suppressSlotHover?: (slot: NeiPositionedSlot) => boolean;
   slotTooltip?: boolean;
 }
 
@@ -38,6 +39,7 @@ export function NeiRecipeCanvas({
   renderHandle,
   getSlotConnectionAttributes,
   onSlotClick,
+  suppressSlotHover,
   slotTooltip = true,
 }: NeiRecipeCanvasProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
@@ -97,6 +99,7 @@ export function NeiRecipeCanvas({
             renderHandle={renderHandle}
             getSlotConnectionAttributes={getSlotConnectionAttributes}
             onSlotClick={onSlotClick}
+            suppressSlotHover={suppressSlotHover}
             slotTooltip={slotTooltip}
             onOverflowClick={
               frame.action === "overflow"
@@ -334,6 +337,7 @@ function NeiSlotFrameView({
   renderHandle,
   getSlotConnectionAttributes,
   onSlotClick,
+  suppressSlotHover,
   slotTooltip,
   onOverflowClick,
   onCollapseClick,
@@ -343,6 +347,7 @@ function NeiSlotFrameView({
   renderHandle?: (slot: NeiPositionedSlot) => ReactNode;
   getSlotConnectionAttributes?: (slot: NeiPositionedSlot) => Record<string, string> | undefined;
   onSlotClick?: (slot: NeiPositionedSlot, mode: "recipes" | "uses") => void;
+  suppressSlotHover?: (slot: NeiPositionedSlot) => boolean;
   slotTooltip: boolean;
   onOverflowClick?: () => void;
   onCollapseClick?: () => void;
@@ -350,6 +355,7 @@ function NeiSlotFrameView({
   const slot = frame.resource ? (frame as NeiPositionedSlot) : undefined;
   const isOverflow = frame.action === "overflow";
   const isCollapse = frame.action === "collapse";
+  const shouldSuppressSlotHover = slot ? suppressSlotHover?.(slot) : false;
   const connectionAttributes = slot ? getSlotConnectionAttributes?.(slot) : undefined;
   const backgroundStyle = {
     backgroundImage: `url('${getSlotTexture(frame)}')`,
@@ -402,7 +408,7 @@ function NeiSlotFrameView({
       }}
       className={[
         "relative h-full w-full border-0 bg-transparent p-0 text-left",
-        (slot && onSlotClick) || isOverflow || isCollapse
+        (slot && onSlotClick && !shouldSuppressSlotHover) || isOverflow || isCollapse
           ? "cursor-pointer hover:ring-2 hover:ring-cyan-300"
           : "",
       ].join(" ")}
@@ -422,6 +428,7 @@ function NeiSlotFrameView({
           className="!h-full !w-full"
           iconPixelSize={iconPixelSize}
           tooltip={slotTooltip}
+          showConsumedState={false}
           bare
         />
       ) : null}

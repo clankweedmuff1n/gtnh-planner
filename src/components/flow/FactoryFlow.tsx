@@ -120,6 +120,7 @@ type ResourceEdgeData = {
   targetStorageEndpoint: boolean;
   sourceEndpointOffset?: number;
   targetEndpointOffset?: number;
+  routePriority: number;
   bundle?: {
     role: "primary" | "member";
     mode: "single-target" | "multi-target";
@@ -286,7 +287,7 @@ export function FactoryFlow() {
     const edgeBundles = getEdgeBundles(project, project.edges, result.edges);
     const endpointOffsets = getEdgeEndpointOffsets(project);
 
-    return project.edges.map((edge) => {
+    return project.edges.map((edge, edgeIndex) => {
       const edgeResult = result.edges[edge.id];
       const unit = edge.resourceKind === "fluid" ? "L/s" : "/s";
       const demand = edgeResult?.demandPerSecond ?? edge.ratePerSecond ?? 0;
@@ -338,6 +339,7 @@ export function FactoryFlow() {
           targetStorageEndpoint: Boolean(targetHandle && targetStorage),
           sourceEndpointOffset: endpointOffsets.get(`${edge.id}:source`),
           targetEndpointOffset: endpointOffsets.get(`${edge.id}:target`),
+          routePriority: edgeIndex,
           bundle: edgeBundles.get(edge.id),
           isFlowHighlighted,
         },
@@ -1174,6 +1176,7 @@ function ResourceEdge({
             targetX: visualTarget.x,
             targetY: visualTarget.y,
             targetPosition: visualTarget.side,
+            routePriority: data?.routePriority,
             laneOffset: getEdgeLaneOffset(id),
           });
   const labelX = routedEdge.labelX + labelOffset.x;
@@ -1203,6 +1206,7 @@ function ResourceEdge({
         <>
           <path
             data-resource-edge-route={id}
+            data-resource-edge-priority={data?.routePriority ?? 0}
             d={routedEdge.path}
             fill="none"
             stroke="transparent"
@@ -1635,6 +1639,7 @@ function getRepeatedOutputHandleIds(
 function getDirectEdgePath({
   edgeId,
   laneOffset = 0,
+  routePriority,
   sourceNodeId,
   sourceX,
   sourceY,
@@ -1646,6 +1651,7 @@ function getDirectEdgePath({
 }: {
   edgeId?: string;
   laneOffset?: number;
+  routePriority?: number;
   sourceNodeId?: string;
   sourceIsRecipeNode?: boolean;
   sourceX: number;
@@ -1661,6 +1667,7 @@ function getDirectEdgePath({
     getBestDirectEdgePoints({
       edgeId,
       laneOffset,
+      routePriority,
       sourceNodeId,
       sourceX,
       sourceY,
@@ -1749,6 +1756,7 @@ function getSimpleOrthogonalEdgePoints({
 function getBestDirectEdgePoints({
   edgeId,
   laneOffset,
+  routePriority,
   sourceNodeId,
   sourceX,
   sourceY,
@@ -1760,6 +1768,7 @@ function getBestDirectEdgePoints({
 }: {
   edgeId?: string;
   laneOffset: number;
+  routePriority?: number;
   sourceNodeId?: string;
   sourceX: number;
   sourceY: number;
@@ -1779,7 +1788,7 @@ function getBestDirectEdgePoints({
     targetPosition,
   });
   const nodeBounds = getMeasuredAvoidanceNodeBounds([sourceNodeId, targetNodeId]);
-  const renderedEdgeSegments = getRenderedEdgeSegments(edgeId);
+  const renderedEdgeSegments = getRenderedEdgeSegments(edgeId, routePriority);
 
   return candidates
     .map((points) => ({
@@ -2542,13 +2551,24 @@ function getPolylineSegments(points: Array<{ x: number; y: number }>) {
   return segments;
 }
 
-function getRenderedEdgeSegments(excludedEdgeId?: string) {
+function getRenderedEdgeSegments(excludedEdgeId?: string, maxRoutePriority?: number) {
   if (typeof document === "undefined") {
     return [];
   }
 
   return [...document.querySelectorAll<SVGPathElement>("[data-resource-edge-route]")]
-    .filter((path) => path.dataset.resourceEdgeRoute !== excludedEdgeId)
+    .filter((path) => {
+      if (path.dataset.resourceEdgeRoute === excludedEdgeId) {
+        return false;
+      }
+
+      if (maxRoutePriority === undefined) {
+        return true;
+      }
+
+      const routePriority = Number(path.dataset.resourceEdgePriority);
+      return Number.isFinite(routePriority) && routePriority < maxRoutePriority;
+    })
     .flatMap((path) =>
       parsePolylinePath(path.getAttribute("d") ?? "").map((segment) => ({
         ...segment,

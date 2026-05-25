@@ -10,7 +10,9 @@ export async function GET(
 ) {
   try {
     const { versionId } = await params;
-    await prewarmDatasetVersion(versionId);
+    void prewarmDatasetVersion(versionId).catch((error) => {
+      console.error(`Dataset ${versionId} prewarm failed.`, error);
+    });
     const catalog = await getDatasetCatalog(versionId);
     return NextResponse.json(catalog, {
       headers: datasetCacheHeaders(),

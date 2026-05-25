@@ -1294,10 +1294,6 @@ function buildRecipeInputOverrides(
     mode: RecipeBrowserMode;
   },
 ): FactoryNode["recipeInputOverrides"] {
-  if (resource.mode !== "uses") {
-    return undefined;
-  }
-
   const overrides: NonNullable<FactoryNode["recipeInputOverrides"]> = {};
   recipe.inputs.forEach((input, index) => {
     if (!resourceMatchesInput(resource, input)) {

@@ -1603,7 +1603,6 @@ function getRepeatedOutputHandleIds(
 }
 
 function getDirectEdgePath({
-  edgeId,
   laneOffset = 0,
   sourceNodeId,
   sourceX,
@@ -1629,7 +1628,6 @@ function getDirectEdgePath({
 }) {
   const points =
     getBestDirectEdgePoints({
-      edgeId,
       laneOffset,
       sourceNodeId,
       sourceX,
@@ -1717,7 +1715,6 @@ function getSimpleOrthogonalEdgePoints({
 }
 
 function getBestDirectEdgePoints({
-  edgeId,
   laneOffset,
   sourceNodeId,
   sourceX,
@@ -1728,7 +1725,6 @@ function getBestDirectEdgePoints({
   targetY,
   targetPosition,
 }: {
-  edgeId?: string;
   laneOffset: number;
   sourceNodeId?: string;
   sourceX: number;
@@ -1749,12 +1745,11 @@ function getBestDirectEdgePoints({
     targetPosition,
   });
   const nodeBounds = getMeasuredAvoidanceNodeBounds([sourceNodeId, targetNodeId]);
-  const existingEdges = getMeasuredExistingEdgePoints(edgeId);
 
   return candidates
     .map((points) => ({
       points,
-      score: scoreEdgeRoute(points, nodeBounds, existingEdges),
+      score: scoreEdgeRoute(points, nodeBounds),
     }))
     .sort((left, right) => left.score - right.score)[0]?.points;
 }
@@ -1842,13 +1837,10 @@ function getDirectEdgePointCandidates({
 function scoreEdgeRoute(
   points: Array<{ x: number; y: number }>,
   nodeBounds: Array<{ left: number; right: number; top: number; bottom: number }>,
-  existingEdges: Array<Array<{ x: number; y: number }>>,
 ) {
   const segments = getPolylineSegments(points);
   const length = segments.reduce((sum, segment) => sum + segment.length, 0);
   let nodeHits = 0;
-  let linkHits = 0;
-  let nearLinks = 0;
 
   for (const segment of segments) {
     for (const bounds of nodeBounds) {
@@ -1858,26 +1850,10 @@ function scoreEdgeRoute(
         nodeHits += 1;
       }
     }
-
-    for (const edgePoints of existingEdges) {
-      for (const edgeSegment of getPolylineSegments(edgePoints)) {
-        const distance = segmentDistance(
-          segment.start,
-          segment.end,
-          edgeSegment.start,
-          edgeSegment.end,
-        );
-        if (distance < 0.5) {
-          linkHits += 1;
-        } else if (distance < EDGE_LINK_CLEARANCE) {
-          nearLinks += 1;
-        }
-      }
-    }
   }
 
   const turns = countPolylineTurns(points);
-  return nodeHits * 1_000_000 + linkHits * 80_000 + nearLinks * 6_000 + turns * 700 + length;
+  return nodeHits * 1_000_000 + turns * 700 + length;
 }
 
 function offsetPointFromSide(point: { x: number; y: number }, side: Position, distance: number) {
@@ -2542,25 +2518,6 @@ function getMeasuredAvoidanceNodeBounds(excludedNodeIds: Array<string | undefine
     );
 }
 
-function getMeasuredExistingEdgePoints(currentEdgeId: string | undefined) {
-  if (typeof document === "undefined") {
-    return [];
-  }
-
-  return [...document.querySelectorAll<SVGPathElement>(".react-flow__edge path")]
-    .filter((path) => path.closest<SVGGElement>(".react-flow__edge")?.dataset.id !== currentEdgeId)
-    .map((path) => parseLinePathPoints(path.getAttribute("d") ?? ""))
-    .filter((points) => points.length >= 2);
-}
-
-function parseLinePathPoints(path: string) {
-  const matches = [...path.matchAll(/[ML]\s*(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/g)];
-  return matches.map((match) => ({
-    x: Number.parseFloat(match[1]),
-    y: Number.parseFloat(match[2]),
-  }));
-}
-
 function expandBounds(
   bounds: { left: number; right: number; top: number; bottom: number },
   amount: number,
@@ -2621,26 +2578,6 @@ function pointInBounds(
     point.x <= bounds.right &&
     point.y >= bounds.top &&
     point.y <= bounds.bottom
-  );
-}
-
-function segmentDistance(
-  firstStart: { x: number; y: number },
-  firstEnd: { x: number; y: number },
-  secondStart: { x: number; y: number },
-  secondEnd: { x: number; y: number },
-) {
-  if (segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd)) {
-    return 0;
-  }
-
-  return Math.sqrt(
-    Math.min(
-      getClosestPointOnSegment(firstStart, secondStart, secondEnd).distanceSquared,
-      getClosestPointOnSegment(firstEnd, secondStart, secondEnd).distanceSquared,
-      getClosestPointOnSegment(secondStart, firstStart, firstEnd).distanceSquared,
-      getClosestPointOnSegment(secondEnd, firstStart, firstEnd).distanceSquared,
-    ),
   );
 }
 
@@ -2839,9 +2776,14 @@ function getSlotEdgeSideTowardPoint({
   const center = getMeasuredSlotCenter({ nodeId, handleId }) ?? { x: estimatedX, y: estimatedY };
   const distanceX = counterpartX - center.x;
   const distanceY = counterpartY - center.y;
+  const verticalSide = distanceY >= 0 ? Position.Bottom : Position.Top;
 
-  if (Math.abs(distanceY) > Math.abs(distanceX) * 1.15) {
-    return distanceY >= 0 ? Position.Bottom : Position.Top;
+  if (Math.abs(distanceY) >= 24) {
+    return verticalSide;
+  }
+
+  if (Math.abs(distanceY) > Math.abs(distanceX) * 0.45) {
+    return verticalSide;
   }
 
   if (Math.abs(distanceX) > 1) {
@@ -2872,16 +2814,25 @@ function getRecipeSlotEdgeSideTowardPoint({
   const distanceX = counterpartX - center.x;
   const distanceY = counterpartY - center.y;
   const horizontalSide = distanceX >= 0 ? Position.Right : Position.Left;
+  const verticalSide = distanceY >= 0 ? Position.Bottom : Position.Top;
+  const isNaturallyHorizontal = horizontalSide === logicalSide && Math.abs(distanceX) >= 48;
 
-  if (Math.abs(distanceY) > Math.abs(distanceX) * 1.1) {
-    return distanceY >= 0 ? Position.Bottom : Position.Top;
+  if (Math.abs(distanceY) >= 24 && (!isNaturallyHorizontal || verticalSide === Position.Bottom)) {
+    return verticalSide;
+  }
+
+  if (
+    Math.abs(distanceY) > Math.abs(distanceX) * 0.45 &&
+    (!isNaturallyHorizontal || verticalSide === Position.Bottom)
+  ) {
+    return verticalSide;
   }
 
   if (horizontalSide === logicalSide) {
     return logicalSide;
   }
 
-  return distanceY >= 0 ? Position.Bottom : Position.Top;
+  return verticalSide;
 }
 
 function getMeasuredSlotEndpoint({

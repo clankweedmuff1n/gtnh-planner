@@ -393,7 +393,7 @@ describe("calculateThroughput", () => {
     expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(6);
   });
 
-  it("tracks effective storage transfer without forcing upstream usage", () => {
+  it("shows free producer surplus through storage sinks without forcing upstream usage", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "storage-effective-rate-project",
@@ -483,10 +483,10 @@ describe("calculateThroughput", () => {
     expect(result.nodes.consumer.utilization).toBeCloseTo(0.1);
     expect(result.nodes.source.utilization).toBeCloseTo(0.1);
     expect(result.edges["source-to-drawer"].demandPerSecond).toBeCloseTo(10);
-    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(1);
-    expect(result.storages["dust-drawer-out"].producedPerSecond).toBeCloseTo(1);
+    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(10);
+    expect(result.storages["dust-drawer-out"].producedPerSecond).toBeCloseTo(10);
     expect(result.storages["dust-drawer-out"].consumedPerSecond).toBeCloseTo(1);
-    expect(result.storages["dust-drawer-out"].netPerSecond).toBeCloseTo(0);
+    expect(result.storages["dust-drawer-out"].netPerSecond).toBeCloseTo(9);
     expect(result.resources["item:dust"].netPerSecond).toBeCloseTo(0);
   });
 
@@ -596,13 +596,13 @@ describe("calculateThroughput", () => {
     expect(result.edges["large-to-tank"].demandPerSecond).toBeCloseTo(25_600);
     expect(result.edges["tank-to-consumer"].demandPerSecond).toBeCloseTo(1_000);
     expect(result.edges["tank-to-consumer"].transferredPerSecond).toBeCloseTo(1_000);
-    expect(result.storages["woodtar-tank"].producedPerSecond).toBeCloseTo(1_000);
+    expect(result.storages["woodtar-tank"].producedPerSecond).toBeCloseTo(26_100);
     expect(result.storages["woodtar-tank"].consumedPerSecond).toBeCloseTo(1_000);
     expect(result.nodes["small-source"].utilization).toBeCloseTo(1);
     expect(result.nodes.consumer.utilization).toBeCloseTo(1);
   });
 
-  it("does not display unproduced remaining capacity to storage when consumers are directly connected", () => {
+  it("does not display unproduced remaining capacity from consuming recipes", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "storage-direct-surplus-project",
@@ -615,7 +615,7 @@ describe("calculateThroughput", () => {
           minimumTier: "DEMO",
           durationTicks: 20,
           eut: 0,
-          inputs: [],
+          inputs: [{ kind: "item", id: "ore", amount: 1 }],
           outputs: [{ kind: "item", id: "dust", amount: 10 }],
         },
         {
@@ -682,6 +682,88 @@ describe("calculateThroughput", () => {
     expect(result.edges["source-to-consumer"].transferredPerSecond).toBeCloseTo(2);
     expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(0);
     expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(0);
+  });
+
+  it("fills storage from surplus when producer inputs are not consumed", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "non-consumed-input-storage-surplus-project",
+      name: "Non consumed input storage surplus test",
+      recipes: [
+        {
+          id: "tree-growth-recipe",
+          name: "Tree Growth",
+          machineType: "Tree Growth Simulator",
+          minimumTier: "LV",
+          durationTicks: 20,
+          eut: 0,
+          inputs: [{ kind: "item", id: "sapling", amount: 1, consumed: false }],
+          outputs: [{ kind: "item", id: "log", amount: 10 }],
+        },
+        {
+          id: "consumer-recipe",
+          name: "Log consumer",
+          machineType: "Coke Oven",
+          minimumTier: "LV",
+          durationTicks: 20,
+          eut: 30,
+          inputs: [{ kind: "item", id: "log", amount: 2 }],
+          outputs: [{ kind: "item", id: "charcoal", amount: 1 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "tree-growth",
+          recipeId: "tree-growth-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "consumer",
+          recipeId: "consumer-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 300, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "log-drawer",
+          kind: "item",
+          resourceId: "log",
+          position: { x: 160, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "tree-to-consumer",
+          source: "tree-growth",
+          target: "consumer",
+          resourceKind: "item",
+          resourceId: "log",
+        },
+        {
+          id: "tree-to-drawer",
+          source: "tree-growth",
+          target: "log-drawer",
+          resourceKind: "item",
+          resourceId: "log",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.nodes["tree-growth"].utilization).toBeCloseTo(2 / 18);
+    expect(result.edges["tree-to-consumer"].transferredPerSecond).toBeCloseTo(2);
+    expect(result.edges["tree-to-drawer"].transferredPerSecond).toBeCloseTo(16);
+    expect(result.storages["log-drawer"].netPerSecond).toBeCloseTo(16);
   });
 
   it("does not add global target demand on top of output fully routed to storage", () => {
@@ -894,10 +976,10 @@ describe("calculateThroughput", () => {
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
     for (const storageId of ["dust-drawer-a", "dust-drawer-b"]) {
-      expect(result.storages[storageId].producedPerSecond).toBeCloseTo(2);
+      expect(result.storages[storageId].producedPerSecond).toBeCloseTo(5);
       expect(result.storages[storageId].consumedPerSecond).toBeCloseTo(2);
-      expect(result.storages[storageId].netPerSecond).toBeCloseTo(0);
-      expect(result.storages[storageId].status).toBe("balanced");
+      expect(result.storages[storageId].netPerSecond).toBeCloseTo(3);
+      expect(result.storages[storageId].status).toBe("filling");
     }
     expect(result.nodes.consumer.utilization).toBeCloseTo(1);
   });

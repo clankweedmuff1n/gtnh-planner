@@ -52,6 +52,22 @@ type StorageProducer = {
   resourceKey: ResourceKey;
 };
 
+type StorageConsumer = {
+  targetNodeId: string;
+  inputKey: ResourceKey;
+};
+
+type OutputConsumer =
+  | {
+      kind: "node";
+      targetNodeId: string;
+      inputKey: ResourceKey;
+    }
+  | {
+      kind: "storage";
+      resourceKey: ResourceKey;
+    };
+
 type ContributionLink = {
   childNodeId: string;
   childInputKey: ResourceKey;
@@ -75,6 +91,7 @@ type GraphContext = {
   cyclicComponents: Set<number>;
   incomingSuppliersByNodeResource: Map<string, Supplier[]>;
   storageProducersByResource: Map<ResourceKey, StorageProducer[]>;
+  storageConsumersByResource: Map<ResourceKey, StorageConsumer[]>;
   nodeToStorageEdges: Map<string, FactoryEdge[]>;
   nodeToNodeEdges: Map<string, FactoryEdge[]>;
   diagnostics: string[];
@@ -84,7 +101,10 @@ class MachineCountOptimizer {
   private readonly machineCounts = new Map<string, number>();
   private readonly operationDemand = new Map<string, number>();
   private readonly outputDemand = new Map<string, number>();
+  private readonly inputDemand = new Map<string, number>();
   private readonly storageCredits = new Map<ResourceKey, number>();
+  private readonly storageForwardContributions = new Map<ResourceKey, Map<EndpointId, number>>();
+  private readonly storageForwardRouted = new Map<ResourceKey, number>();
   private readonly contributionCache = new Map<string, StorageContribution>();
 
   constructor(private readonly context: GraphContext) {
@@ -119,13 +139,55 @@ class MachineCountOptimizer {
     }
 
     if (!hasExplicitDemand) {
-      this.seedImplicitTerminalDemands();
+      const seededFromProducedOutput = this.seedMaximumProducedOutputDemands();
+      if (!seededFromProducedOutput) {
+        this.seedImplicitTerminalDemands();
+      }
     }
 
     return {
       machineCounts: this.machineCounts,
       diagnostics: this.context.diagnostics,
     };
+  }
+
+  private seedMaximumProducedOutputDemands(): boolean {
+    let seeded = false;
+
+    for (const plan of this.context.ratePlans.values()) {
+      if (!this.canSeedProducedOutput(plan)) {
+        continue;
+      }
+
+      const exactMachineDemand = normalizeMachineCount(plan.node.machineCount);
+      const appliedDelta = this.ensureNodeOperations(plan.node.id, exactMachineDemand, new Set());
+      if (appliedDelta <= EPSILON) {
+        continue;
+      }
+
+      seeded = true;
+      this.pushNodeOutputs(plan.node.id, appliedDelta, new Set());
+    }
+
+    if (seeded) {
+      this.flushStorageOutputConsumers(new Set());
+    }
+
+    return seeded;
+  }
+
+  private canSeedProducedOutput(plan: RatePlan): boolean {
+    if (!plan.enabled || !plan.valid || plan.inputs.size > 0 || plan.outputs.size === 0) {
+      return false;
+    }
+
+    for (const resourceKey of plan.outputs.keys()) {
+      if (this.getOutputConsumers(plan.node.id, resourceKey).length > 0) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private seedImplicitTerminalDemands() {
@@ -199,6 +261,191 @@ class MachineCountOptimizer {
     this.outputDemand.set(demandKey, nextDemand);
 
     this.ensureNodeOperations(nodeId, nextDemand / outputRate, new Set());
+  }
+
+  private requireNodeInputConsumption(
+    nodeId: string,
+    inputKey: ResourceKey,
+    amountPerSecond: number,
+    sourceEndpoint: EndpointId,
+    stack: Set<string>,
+  ) {
+    if (amountPerSecond <= EPSILON || this.isInternalCyclicDemand(sourceEndpoint, nodeId)) {
+      return;
+    }
+
+    const plan = this.context.ratePlans.get(nodeId);
+    const inputRate = plan?.inputs.get(inputKey) ?? 0;
+    if (!plan?.enabled || !plan.valid || inputRate <= EPSILON) {
+      return;
+    }
+
+    const stackKey = `input:${sourceEndpoint}->${nodeId}:${inputKey}`;
+    if (stack.has(stackKey)) {
+      return;
+    }
+
+    const demandKey = makeDemandKey(nodeId, inputKey);
+    const nextDemand = (this.inputDemand.get(demandKey) ?? 0) + amountPerSecond;
+    this.inputDemand.set(demandKey, nextDemand);
+
+    const exactMachineDemand = limitInputDrivenMachineDemand(nextDemand / inputRate);
+    stack.add(stackKey);
+    const appliedDelta = this.ensureNodeOperations(nodeId, exactMachineDemand, new Set([inputKey]));
+    if (appliedDelta > EPSILON) {
+      this.pushNodeOutputs(nodeId, appliedDelta, stack);
+    }
+    stack.delete(stackKey);
+  }
+
+  private pushNodeOutputs(nodeId: string, exactMachineDelta: number, stack: Set<string>) {
+    const plan = this.context.ratePlans.get(nodeId);
+    if (!plan || exactMachineDelta <= EPSILON) {
+      return;
+    }
+
+    for (const [resourceKey, outputRate] of plan.outputs) {
+      if (outputRate <= EPSILON) {
+        continue;
+      }
+
+      const consumers = this.getOutputConsumers(nodeId, resourceKey);
+      if (consumers.length === 0) {
+        continue;
+      }
+
+      const sharePerConsumer = (outputRate * exactMachineDelta) / consumers.length;
+      for (const consumer of consumers) {
+        if (consumer.kind === "node") {
+          this.requireNodeInputConsumption(
+            consumer.targetNodeId,
+            consumer.inputKey,
+            sharePerConsumer,
+            nodeId,
+            stack,
+          );
+          continue;
+        }
+
+        this.pushStorageOutputToConsumers(consumer.resourceKey, sharePerConsumer, nodeId);
+      }
+    }
+  }
+
+  private pushStorageOutputToConsumers(
+    resourceKey: ResourceKey,
+    amountPerSecond: number,
+    producerEndpoint: EndpointId,
+  ) {
+    const consumers = this.context.storageConsumersByResource.get(resourceKey) ?? [];
+    if (amountPerSecond <= EPSILON || consumers.length === 0) {
+      return;
+    }
+
+    const contributions = this.storageForwardContributions.get(resourceKey) ?? new Map();
+    contributions.set(
+      producerEndpoint,
+      (contributions.get(producerEndpoint) ?? 0) + amountPerSecond,
+    );
+    this.storageForwardContributions.set(resourceKey, contributions);
+  }
+
+  private flushStorageOutputConsumers(stack: Set<string>) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+
+      for (const [resourceKey, contributions] of this.storageForwardContributions) {
+        const consumers = this.context.storageConsumersByResource.get(resourceKey) ?? [];
+        if (consumers.length === 0) {
+          continue;
+        }
+
+        const contributedAmounts = [...contributions.values()].filter((amount) => amount > EPSILON);
+        const totalContributed = contributedAmounts.reduce((total, amount) => total + amount, 0);
+        const routableAmount =
+          contributedAmounts.length > 1
+            ? Math.min(
+                totalContributed,
+                Math.min(...contributedAmounts) * contributedAmounts.length,
+              )
+            : totalContributed;
+        const previousRouted = this.storageForwardRouted.get(resourceKey) ?? 0;
+        const nextAmount = routableAmount - previousRouted;
+        if (nextAmount <= EPSILON) {
+          continue;
+        }
+
+        changed = true;
+        this.storageForwardRouted.set(resourceKey, routableAmount);
+        const sharePerConsumer = nextAmount / consumers.length;
+        const sourceEndpoint = storageBusId(resourceKey);
+        for (const consumer of consumers) {
+          this.requireNodeInputConsumption(
+            consumer.targetNodeId,
+            consumer.inputKey,
+            sharePerConsumer,
+            sourceEndpoint,
+            stack,
+          );
+        }
+      }
+    }
+  }
+
+  private getOutputConsumers(nodeId: string, resourceKey: ResourceKey): OutputConsumer[] {
+    const consumers: OutputConsumer[] = [];
+    const seen = new Set<string>();
+
+    for (const edge of this.context.nodeToNodeEdges.get(nodeId) ?? []) {
+      if (makeResourceKey(edge.resourceKind, edge.resourceId) !== resourceKey) {
+        continue;
+      }
+
+      const inputKey = getEdgeTargetDemandKey(this.context, edge);
+      if (!inputKey) {
+        continue;
+      }
+
+      const consumerKey = `node:${edge.target}:${inputKey}`;
+      if (seen.has(consumerKey)) {
+        continue;
+      }
+
+      seen.add(consumerKey);
+      consumers.push({
+        kind: "node",
+        targetNodeId: edge.target,
+        inputKey,
+      });
+    }
+
+    for (const edge of this.context.nodeToStorageEdges.get(nodeId) ?? []) {
+      if (makeResourceKey(edge.resourceKind, edge.resourceId) !== resourceKey) {
+        continue;
+      }
+
+      const storageKey = this.context.storageResourceById.get(edge.target);
+      if (
+        !storageKey ||
+        (this.context.storageConsumersByResource.get(storageKey) ?? []).length === 0
+      ) {
+        continue;
+      }
+
+      const consumerKey = `storage:${storageKey}`;
+      if (seen.has(consumerKey)) {
+        continue;
+      }
+
+      seen.add(consumerKey);
+      consumers.push({
+        kind: "storage",
+        resourceKey: storageKey,
+      });
+    }
+
+    return consumers;
   }
 
   private ensureNodeOperations(
@@ -742,6 +989,7 @@ function buildGraphContext(project: FactoryProject): GraphContext {
   const adjacency = new Map<EndpointId, EndpointId[]>();
   const incomingSuppliersByNodeResource = new Map<string, Supplier[]>();
   const storageProducersByResource = new Map<ResourceKey, StorageProducer[]>();
+  const storageConsumersByResource = new Map<ResourceKey, StorageConsumer[]>();
   const nodeToStorageEdges = new Map<string, FactoryEdge[]>();
   const nodeToNodeEdges = new Map<string, FactoryEdge[]>();
 
@@ -794,6 +1042,13 @@ function buildGraphContext(project: FactoryProject): GraphContext {
           ? sourceStorageKey
           : makeResourceKey(edge.resourceKind, edge.resourceId),
       });
+
+      if (sourceStorageKey) {
+        addStorageConsumer(storageConsumersByResource, sourceStorageKey, {
+          targetNodeId: edge.target,
+          inputKey: targetInputKey,
+        });
+      }
     }
   }
 
@@ -814,6 +1069,7 @@ function buildGraphContext(project: FactoryProject): GraphContext {
     cyclicComponents,
     incomingSuppliersByNodeResource,
     storageProducersByResource,
+    storageConsumersByResource,
     nodeToStorageEdges,
     nodeToNodeEdges,
     diagnostics,
@@ -994,12 +1250,42 @@ function addToMapList<K, V>(map: Map<K, V[]>, key: K, value: V) {
   map.set(key, [...(map.get(key) ?? []), value]);
 }
 
+function addStorageConsumer(
+  map: Map<ResourceKey, StorageConsumer[]>,
+  resourceKey: ResourceKey,
+  consumer: StorageConsumer,
+) {
+  const existing = map.get(resourceKey) ?? [];
+  if (
+    existing.some(
+      (entry) =>
+        entry.targetNodeId === consumer.targetNodeId && entry.inputKey === consumer.inputKey,
+    )
+  ) {
+    return;
+  }
+
+  map.set(resourceKey, [...existing, consumer]);
+}
+
 function roundMachineCount(exactMachineDemand: number): number {
   if (!Number.isFinite(exactMachineDemand) || exactMachineDemand <= EPSILON) {
     return 1;
   }
 
   return Math.max(1, Math.ceil(exactMachineDemand - EPSILON));
+}
+
+function limitInputDrivenMachineDemand(exactMachineDemand: number): number {
+  if (!Number.isFinite(exactMachineDemand) || exactMachineDemand <= EPSILON) {
+    return 0;
+  }
+
+  if (exactMachineDemand <= 1) {
+    return exactMachineDemand;
+  }
+
+  return Math.max(1, Math.floor(exactMachineDemand + EPSILON));
 }
 
 function normalizeMachineCount(machineCount: number): number {

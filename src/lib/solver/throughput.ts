@@ -281,6 +281,7 @@ export function calculateThroughput(
   for (let pass = 0; pass < maxUtilizationPasses; pass += 1) {
     refreshEdgeResultsFromNodeUtilization(
       project,
+      recipesById,
       projectStorages,
       nodes,
       edgeResults,
@@ -295,6 +296,7 @@ export function calculateThroughput(
   }
   refreshEdgeResultsFromNodeUtilization(
     project,
+    recipesById,
     projectStorages,
     nodes,
     edgeResults,
@@ -542,6 +544,7 @@ function countIncomingEdgesToStorageResource(
 
 function refreshEdgeResultsFromNodeUtilization(
   project: FactoryProject,
+  recipesById: Map<string, Recipe>,
   projectStorages: FactoryStorage[],
   nodes: Record<string, NodeThroughputResult>,
   edgeResults: Record<string, EdgeThroughput>,
@@ -576,10 +579,14 @@ function refreshEdgeResultsFromNodeUtilization(
       sourceStorage || !sourceResult
         ? Number.POSITIVE_INFINITY
         : getEffectiveFlowRate(sourceResult.outputs[key], sourceResult.utilization);
+    const sourceStorageCapacityBase =
+      targetStorage && canRunForStorageSurplus(project, recipesById, edge.source)
+        ? sourceFullCapacity
+        : sourceEffectiveCapacity;
     const sourceCapacity = targetStorage
       ? Math.max(
           0,
-          sourceEffectiveCapacity -
+          sourceStorageCapacityBase -
             (directDemandBySourceResource.get(`${edge.source}|${key}`) ?? 0),
         ) / (storageSinkCounts.get(`${edge.source}|${key}`) ?? 1)
       : sourceEffectiveCapacity;
@@ -608,6 +615,22 @@ function refreshEdgeResultsFromNodeUtilization(
       Number.isFinite(transferredPerSecond) ? transferredPerSecond : demandPerSecond,
     );
   }
+}
+
+function canRunForStorageSurplus(
+  project: FactoryProject,
+  recipesById: Map<string, Recipe>,
+  nodeId: string,
+): boolean {
+  const node = project.nodes.find((entry) => entry.id === nodeId);
+  const recipe = node ? recipesById.get(node.recipeId) : undefined;
+  if (!node || !recipe || !node.enabled) {
+    return false;
+  }
+
+  return applyRecipeInputOverrides(recipe, node).inputs.every(
+    (input) => !isRecipeInputConsumed(input),
+  );
 }
 
 function calculateDirectConsumerDemandBySourceResource(
@@ -720,8 +743,9 @@ function refreshNodeUtilizationFromEdgeResults(
 
     const key = makeResourceKey(edge.resourceKind, edge.resourceId);
     if (storagesById.has(edge.target)) {
-      const requiredRate =
-        (storageOutgoingDemand.get(key) ?? 0) / (storageIncomingCounts.get(key) ?? 1);
+      const requiredRate = canRunForStorageSurplus(project, recipesById, edge.source)
+        ? (storageOutgoingDemand.get(key) ?? 0) / (storageIncomingCounts.get(key) ?? 1)
+        : (edgeResults[edge.id]?.transferredPerSecond ?? 0);
       if (requiredRate > EPSILON) {
         addRequiredRate(requiredByNodeAndResource, edge.source, key, requiredRate);
       }

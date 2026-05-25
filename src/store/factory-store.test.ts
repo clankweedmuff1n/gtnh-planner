@@ -1192,6 +1192,11 @@ describe("factory machine count optimization", () => {
       nodes: project.nodes.map((node) =>
         node.id === "input-source" ? { ...node, machineCount: 100 } : node,
       ),
+      targetRate: {
+        kind: "fluid",
+        resourceId: "benzene",
+        amountPerSecond: 1,
+      },
     });
 
     useFactoryStore.getState().optimizeMachineCounts();
@@ -1204,15 +1209,15 @@ describe("factory machine count optimization", () => {
     );
   });
 
-  it("uses terminal consumers as implicit demand when no explicit target exists", () => {
+  it("scales terminal consumers to consume produced output when no explicit target exists", () => {
     useFactoryStore.getState().setProject(createImplicitTerminalStorageDemandProject());
 
     useFactoryStore.getState().optimizeMachineCounts();
 
     expect(useFactoryStore.getState().project.nodes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "implicit-source", machineCount: 10 }),
-        expect.objectContaining({ id: "implicit-consumer", machineCount: 1 }),
+        expect.objectContaining({ id: "implicit-source", machineCount: 1 }),
+        expect.objectContaining({ id: "implicit-consumer", machineCount: 10 }),
       ]),
     );
   });
@@ -1224,9 +1229,9 @@ describe("factory machine count optimization", () => {
 
     expect(useFactoryStore.getState().project.nodes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "implicit-coke", machineCount: 3 }),
-        expect.objectContaining({ id: "implicit-extractor", machineCount: 1 }),
-        expect.objectContaining({ id: "implicit-distillation", machineCount: 1 }),
+        expect.objectContaining({ id: "implicit-coke", machineCount: 1 }),
+        expect.objectContaining({ id: "implicit-extractor", machineCount: 3 }),
+        expect.objectContaining({ id: "implicit-distillation", machineCount: 5 }),
       ]),
     );
   });
@@ -2150,7 +2155,7 @@ function createImplicitTerminalStorageDemandProject(): FactoryProject {
         durationTicks: 20,
         eut: 1,
         inputs: [],
-        outputs: [{ kind: "fluid", id: "oil", amount: 1 }],
+        outputs: [{ kind: "fluid", id: "oil", amount: 10 }],
       },
       {
         id: "implicit-consumer-recipe",
@@ -2159,7 +2164,7 @@ function createImplicitTerminalStorageDemandProject(): FactoryProject {
         minimumTier: "LV",
         durationTicks: 20,
         eut: 1,
-        inputs: [{ kind: "fluid", id: "oil", amount: 10 }],
+        inputs: [{ kind: "fluid", id: "oil", amount: 1 }],
         outputs: [{ kind: "fluid", id: "fuel", amount: 1 }],
       },
     ],
@@ -2205,8 +2210,8 @@ function createImplicitDirectAndIndirectStorageOutputProject(): FactoryProject {
         eut: 1,
         inputs: [],
         outputs: [
-          { kind: "item", id: "charcoal", amount: 3 },
-          { kind: "fluid", id: "woodtar", amount: 4 },
+          { kind: "item", id: "charcoal", amount: 300 },
+          { kind: "fluid", id: "woodtar", amount: 2000 },
         ],
       },
       {
@@ -2226,7 +2231,7 @@ function createImplicitDirectAndIndirectStorageOutputProject(): FactoryProject {
         minimumTier: "LV",
         durationTicks: 20,
         eut: 1,
-        inputs: [{ kind: "fluid", id: "woodtar", amount: 70 }],
+        inputs: [{ kind: "fluid", id: "woodtar", amount: 700 }],
         outputs: [{ kind: "fluid", id: "benzene", amount: 1 }],
       },
     ],

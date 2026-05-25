@@ -1047,7 +1047,7 @@ describe("factory machine count optimization", () => {
     expect(Math.max(...machineCounts)).toBeLessThanOrEqual(2);
   });
 
-  it("rounds small cyclic bottlenecks below full usage", () => {
+  it("keeps cyclic SCC optimization bounded from external demand", () => {
     const project = createSmallCyclicBottleneckProject();
     useFactoryStore.getState().setProject({
       ...project,
@@ -1060,13 +1060,18 @@ describe("factory machine count optimization", () => {
 
     useFactoryStore.getState().optimizeMachineCount("small-cycle-source");
 
-    const source = useFactoryStore
+    const firstCounts = useFactoryStore
       .getState()
-      .project.nodes.find((node) => node.id === "small-cycle-source");
-    const sourceResult = useFactoryStore.getState().lastResult.nodes["small-cycle-source"];
+      .project.nodes.map((node) => [node.id, node.machineCount]);
 
-    expect(source?.machineCount).toBe(52);
-    expect(sourceResult?.utilization).toBeLessThan(1);
+    useFactoryStore.getState().optimizeMachineCount("small-cycle-source");
+
+    expect(
+      useFactoryStore.getState().project.nodes.map((node) => [node.id, node.machineCount]),
+    ).toEqual(firstCounts);
+    expect(
+      Math.max(...useFactoryStore.getState().project.nodes.map((node) => node.machineCount)),
+    ).toBeLessThanOrEqual(51);
   });
 
   it("keeps global optimization idempotent across repeated clicks", () => {
@@ -1211,6 +1216,41 @@ describe("factory machine count optimization", () => {
         expect.objectContaining({ id: "distillation-tower", machineCount: 1 }),
       ]),
     );
+  });
+
+  it("uses the global solver result for single-node optimization", () => {
+    const project = createDirectAndIndirectStorageOutputProject();
+    useFactoryStore.getState().setProject(project);
+    useFactoryStore.getState().optimizeMachineCounts();
+    const globalCokeCount = useFactoryStore
+      .getState()
+      .project.nodes.find((node) => node.id === "coke-oven")?.machineCount;
+
+    useFactoryStore.getState().setProject(project);
+    useFactoryStore.getState().optimizeMachineCount("coke-oven");
+
+    expect(
+      useFactoryStore.getState().project.nodes.find((node) => node.id === "coke-oven")
+        ?.machineCount,
+    ).toBe(globalCokeCount);
+  });
+
+  it("does not amplify an externally seeded recipe cycle", () => {
+    useFactoryStore.getState().setProject(createAmplifyingCycleProject());
+
+    useFactoryStore.getState().optimizeMachineCounts();
+    const firstCounts = useFactoryStore
+      .getState()
+      .project.nodes.map((node) => [node.id, node.machineCount]);
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(
+      useFactoryStore.getState().project.nodes.map((node) => [node.id, node.machineCount]),
+    ).toEqual(firstCounts);
+    expect(
+      Math.max(...useFactoryStore.getState().project.nodes.map((node) => node.machineCount)),
+    ).toBeLessThanOrEqual(10);
   });
 
   it("keeps single-node optimization idempotent across repeated clicks", () => {
@@ -1660,6 +1700,65 @@ function createSmallCyclicBottleneckProject(): FactoryProject {
         targetHandle: makeResourceHandleId("input", { kind: "item", id: "seed" }, 0),
         resourceKind: "item",
         resourceId: "seed",
+      },
+    ],
+    fuelProfiles: [],
+  };
+}
+
+function createAmplifyingCycleProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "amplifying-cycle",
+    name: "Amplifying cycle",
+    recipes: [
+      {
+        id: "amplifying-a-recipe",
+        name: "Amplifying A",
+        machineType: "A",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "b", amount: 2 }],
+        outputs: [{ kind: "item", id: "a", amount: 1 }],
+      },
+      {
+        id: "amplifying-b-recipe",
+        name: "Amplifying B",
+        machineType: "B",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "a", amount: 2 }],
+        outputs: [{ kind: "item", id: "b", amount: 1 }],
+      },
+    ],
+    nodes: [
+      {
+        ...makeNode("amplifying-a", "amplifying-a-recipe", 0),
+        targetOutput: {
+          kind: "item",
+          resourceId: "a",
+          amountPerSecond: 10,
+        },
+      },
+      makeNode("amplifying-b", "amplifying-b-recipe", 240),
+    ],
+    storages: [],
+    edges: [
+      {
+        id: "amplifying-a-to-b",
+        source: "amplifying-a",
+        target: "amplifying-b",
+        resourceKind: "item",
+        resourceId: "a",
+      },
+      {
+        id: "amplifying-b-to-a",
+        source: "amplifying-b",
+        target: "amplifying-a",
+        resourceKind: "item",
+        resourceId: "b",
       },
     ],
     fuelProfiles: [],

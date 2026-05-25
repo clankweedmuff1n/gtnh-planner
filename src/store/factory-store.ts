@@ -6,19 +6,14 @@ import type { DatasetManifest, RecipeDataset } from "@/lib/datasets";
 import { normalizeProjectFuelProfiles } from "@/lib/model/fuels";
 import { calculateThroughput } from "@/lib/solver";
 import { applyRecipeInputOverrides } from "@/lib/model/recipe-input-overrides";
+import { optimizeMachineCountsForProject } from "@/lib/solver/machine-count-optimizer";
 import {
-  getMachineOutputMultiplier,
-  getMachineParallelMultiplier,
-} from "@/lib/solver/machine-effects";
-import {
-  getChanceMultiplier,
   getResourceKey,
   isOreDictionaryResource,
   isRecipeInputConsumed,
   resourceMatchesInput,
   resourceLabel,
 } from "@/lib/model/resources";
-import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
 import type {
   FactoryEdge,
   FactoryNode,
@@ -29,18 +24,14 @@ import type {
   Recipe,
   ResourceAmount,
   ResourceKind,
-  ResourceKey,
   TargetRate,
   ThroughputResult,
 } from "@/lib/model/types";
-import { TICKS_PER_SECOND } from "@/lib/model/types";
 
 export const LOCAL_STORAGE_KEY = "gtnh-factory-flow.project.v2";
 export const RESOURCE_HISTORY_STORAGE_KEY = "gtnh-factory-flow.resource-history.v1";
 const RESOURCE_HISTORY_LIMIT = 8;
 const PROJECT_HISTORY_LIMIT = 100;
-const CYCLIC_SMALL_BOTTLENECK_UTILIZATION = 1.2;
-const OPTIMIZATION_EPSILON = 0.000001;
 
 interface FactoryStore {
   project: FactoryProject;
@@ -995,56 +986,22 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   optimizeMachineCount: (nodeId) => {
     set((state) => {
-      if (!state.project.nodes.some((node) => node.id === nodeId)) {
+      const currentNode = state.project.nodes.find((node) => node.id === nodeId);
+      if (!currentNode) {
         return state;
       }
 
-      let project = state.project;
-      let result = state.lastResult;
-      const cyclicNodeIds = getCyclicRecipeNodeIds(project);
-      const maxPasses = Math.max(1, project.nodes.length + 1);
-      let changed = false;
-
-      for (let pass = 0; pass < maxPasses; pass += 1) {
-        const node = project.nodes.find((entry) => entry.id === nodeId);
-        const nodeResult = result.nodes[nodeId];
-        if (!node || !node.enabled || !nodeResult || nodeResult.status === "missing-recipe") {
-          break;
-        }
-
-        const isCyclicNode = cyclicNodeIds.has(node.id);
-        const untargetedCyclicMachineCounts = getUntargetedCyclicMachineCounts(
-          project,
-          cyclicNodeIds,
-          result,
-        );
-        const machineCount = isCyclicNode
-          ? getCyclicOptimizedMachineCount(
-              project,
-              node,
-              untargetedCyclicMachineCounts.get(node.id),
-            )
-          : getOptimizableMachineCount(project, node, nodeResult, result);
-
-        if (machineCount === node.machineCount) {
-          break;
-        }
-
-        changed = true;
-        project = {
-          ...project,
-          nodes: project.nodes.map((entry) =>
-            entry.id === nodeId ? { ...entry, machineCount } : entry,
-          ),
-        };
-        result = calculateThroughput(project);
-      }
-
-      if (!changed) {
+      const machineCount = optimizeMachineCountsForProject(state.project).machineCounts.get(nodeId);
+      if (machineCount === undefined || machineCount === currentNode.machineCount) {
         return state;
       }
 
-      const touchedProject = touchProject(project);
+      const touchedProject = touchProject({
+        ...state.project,
+        nodes: state.project.nodes.map((node) =>
+          node.id === nodeId ? { ...node, machineCount } : node,
+        ),
+      });
       return withProjectHistory(state, {
         project: touchedProject,
         lastResult: calculateThroughput(touchedProject),
@@ -1057,50 +1014,16 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      let project = resetRecipeMachineCounts(state.project);
-      let result = calculateThroughput(project);
-      const cyclicNodeIds = getCyclicRecipeNodeIds(project);
-      const maxPasses = Math.max(1, project.nodes.length + 1);
-
-      for (let pass = 0; pass < maxPasses; pass += 1) {
-        let passChanged = false;
-        const untargetedCyclicMachineCounts = getUntargetedCyclicMachineCounts(
-          project,
-          cyclicNodeIds,
-          result,
-        );
-        const nodes = project.nodes.map((node) => {
-          const isCyclicNode = cyclicNodeIds.has(node.id);
-          const nodeResult = result.nodes[node.id];
-          if (!node.enabled || !nodeResult || nodeResult.status === "missing-recipe") {
-            return node;
-          }
-
-          const machineCount = isCyclicNode
-            ? getCyclicOptimizedMachineCount(
-                project,
-                node,
-                untargetedCyclicMachineCounts.get(node.id),
-              )
-            : getOptimizableMachineCount(project, node, nodeResult, result);
-          if (machineCount === node.machineCount) {
-            return node;
-          }
-
-          passChanged = true;
-          return { ...node, machineCount };
-        });
-
-        if (!passChanged) {
-          break;
-        }
-
-        project = {
-          ...project,
-          nodes,
-        };
-        result = calculateThroughput(project);
-      }
+      const optimized = optimizeMachineCountsForProject(state.project);
+      const project = {
+        ...state.project,
+        nodes: state.project.nodes.map((node) => {
+          const machineCount = optimized.machineCounts.get(node.id);
+          return machineCount === undefined || machineCount === node.machineCount
+            ? node
+            : { ...node, machineCount };
+        }),
+      };
 
       if (haveSameMachineCounts(state.project, project)) {
         return state;
@@ -1936,427 +1859,6 @@ function parseResourceHandleId(handleId?: string | null):
   };
 }
 
-function getOptimizedMachineCount(theoreticalMachinesRequired: number, current: number): number {
-  if (
-    !Number.isFinite(theoreticalMachinesRequired) ||
-    theoreticalMachinesRequired === undefined ||
-    theoreticalMachinesRequired <= 0
-  ) {
-    return Math.max(1, Math.round(current));
-  }
-
-  return Math.max(1, Math.ceil(theoreticalMachinesRequired));
-}
-
-function getOptimizableMachineCount(
-  project: FactoryProject,
-  node: FactoryNode,
-  nodeResult: ThroughputResult["nodes"][string],
-  result: ThroughputResult,
-): number {
-  const context = createOptimizableDemandContext(project, result);
-  const requiredByResource = getOptimizableRequiredRates(project, node, result, context);
-  if (node.targetOutput) {
-    const targetKey = `${node.targetOutput.kind}:${node.targetOutput.resourceId}`;
-    requiredByResource.set(
-      targetKey,
-      Math.max(requiredByResource.get(targetKey) ?? 0, node.targetOutput.amountPerSecond),
-    );
-  }
-
-  let theoreticalMachinesRequired = 0;
-  const currentMachineCount = Math.max(1, node.machineCount);
-  for (const [resourceKey, requiredRate] of requiredByResource) {
-    const output = nodeResult.outputs[resourceKey as keyof typeof nodeResult.outputs];
-    if (!output || requiredRate <= 0 || output.amountPerSecond <= 0) {
-      continue;
-    }
-
-    theoreticalMachinesRequired = Math.max(
-      theoreticalMachinesRequired,
-      requiredRate / (output.amountPerSecond / currentMachineCount),
-    );
-  }
-
-  for (const contribution of getCombinedStorageContributions(
-    project,
-    node,
-    nodeResult,
-    result,
-    context,
-  )) {
-    const demand = context.storageOutgoingDemand.get(contribution.resourceKey) ?? 0;
-    if (demand <= 0 || contribution.amountPerMachine <= 0) {
-      continue;
-    }
-
-    theoreticalMachinesRequired = Math.max(
-      theoreticalMachinesRequired,
-      demand / contribution.amountPerMachine,
-    );
-  }
-
-  return getOptimizedMachineCount(theoreticalMachinesRequired, node.machineCount);
-}
-
-function getOptimizableRequiredRates(
-  project: FactoryProject,
-  node: FactoryNode,
-  result: ThroughputResult,
-  context: OptimizableDemandContext,
-): Map<string, number> {
-  const requiredByResource = new Map<string, number>();
-
-  for (const edge of project.edges) {
-    if (edge.source !== node.id) {
-      continue;
-    }
-
-    const key = `${edge.resourceKind}:${edge.resourceId}`;
-    const targetStorage = context.storagesById.get(edge.target);
-    if (
-      targetStorage &&
-      getIndirectStorageContributionPerMachine(
-        project,
-        node,
-        result.nodes[node.id],
-        result,
-        context,
-        `${targetStorage.kind}:${targetStorage.resourceId}` as ResourceKey,
-      ) > OPTIMIZATION_EPSILON
-    ) {
-      continue;
-    }
-
-    const requiredRate = targetStorage
-      ? (context.storageOutgoingDemand.get(key) ?? 0) /
-        (context.storageIncomingCounts.get(key) ?? 1)
-      : getOptimizableDirectEdgeDemand(project, edge, result, context);
-
-    if (requiredRate > 0) {
-      requiredByResource.set(key, (requiredByResource.get(key) ?? 0) + requiredRate);
-    }
-  }
-
-  return requiredByResource;
-}
-
-type CombinedStorageContribution = {
-  resourceKey: ResourceKey;
-  amountPerMachine: number;
-};
-
-function getCombinedStorageContributions(
-  project: FactoryProject,
-  node: FactoryNode,
-  nodeResult: ThroughputResult["nodes"][string],
-  result: ThroughputResult,
-  context: OptimizableDemandContext,
-): CombinedStorageContribution[] {
-  const currentMachineCount = Math.max(1, node.machineCount);
-  const directByStorageResource = new Map<ResourceKey, number>();
-
-  for (const edge of project.edges) {
-    const storage = context.storagesById.get(edge.target);
-    if (edge.source !== node.id || !storage) {
-      continue;
-    }
-
-    const edgeKey = `${edge.resourceKind}:${edge.resourceId}` as ResourceKey;
-    const storageKey = `${storage.kind}:${storage.resourceId}` as ResourceKey;
-    const directPerMachine =
-      (nodeResult.outputs[edgeKey]?.amountPerSecond ?? 0) / currentMachineCount;
-    if (directPerMachine <= OPTIMIZATION_EPSILON) {
-      continue;
-    }
-
-    directByStorageResource.set(
-      storageKey,
-      (directByStorageResource.get(storageKey) ?? 0) + directPerMachine,
-    );
-  }
-
-  const contributions: CombinedStorageContribution[] = [];
-  for (const [resourceKey, directPerMachine] of directByStorageResource) {
-    const indirectPerMachine = getIndirectStorageContributionPerMachine(
-      project,
-      node,
-      nodeResult,
-      result,
-      context,
-      resourceKey,
-    );
-    if (indirectPerMachine <= OPTIMIZATION_EPSILON) {
-      continue;
-    }
-
-    contributions.push({
-      resourceKey,
-      amountPerMachine: directPerMachine + indirectPerMachine,
-    });
-  }
-
-  return contributions;
-}
-
-function getIndirectStorageContributionPerMachine(
-  project: FactoryProject,
-  node: FactoryNode,
-  nodeResult: ThroughputResult["nodes"][string] | undefined,
-  result: ThroughputResult,
-  context: OptimizableDemandContext,
-  storageResourceKey: ResourceKey,
-): number {
-  if (!nodeResult) {
-    return 0;
-  }
-
-  const currentMachineCount = Math.max(1, node.machineCount);
-  const countedConsumers = new Set<string>();
-  let contributionPerMachine = 0;
-
-  for (const edge of project.edges) {
-    if (edge.source !== node.id || context.storagesById.has(edge.target)) {
-      continue;
-    }
-
-    const sourceOutputKey = `${edge.resourceKind}:${edge.resourceId}` as ResourceKey;
-    const sourceOutputPerMachine =
-      (nodeResult.outputs[sourceOutputKey]?.amountPerSecond ?? 0) / currentMachineCount;
-    if (sourceOutputPerMachine <= OPTIMIZATION_EPSILON) {
-      continue;
-    }
-
-    const consumerResult = result.nodes[edge.target];
-    const consumerInputKey = (getEdgeTargetDemandKey(project, edge) ??
-      sourceOutputKey) as ResourceKey;
-    const consumerInput = consumerResult?.inputs[consumerInputKey]?.amountPerSecond ?? 0;
-    if (!consumerResult || consumerInput <= OPTIMIZATION_EPSILON) {
-      continue;
-    }
-
-    for (const consumerEdge of project.edges) {
-      const outputStorage = context.storagesById.get(consumerEdge.target);
-      if (consumerEdge.source !== edge.target || !outputStorage) {
-        continue;
-      }
-
-      const consumerOutputKey =
-        `${consumerEdge.resourceKind}:${consumerEdge.resourceId}` as ResourceKey;
-      const consumerStorageKey = `${outputStorage.kind}:${outputStorage.resourceId}` as ResourceKey;
-      if (consumerStorageKey !== storageResourceKey) {
-        continue;
-      }
-
-      const countedKey = `${edge.target}|${consumerInputKey}|${consumerOutputKey}`;
-      if (countedConsumers.has(countedKey)) {
-        continue;
-      }
-
-      const consumerOutput = consumerResult.outputs[consumerOutputKey]?.amountPerSecond ?? 0;
-      if (consumerOutput <= OPTIMIZATION_EPSILON) {
-        continue;
-      }
-
-      countedConsumers.add(countedKey);
-      contributionPerMachine += sourceOutputPerMachine * (consumerOutput / consumerInput);
-    }
-  }
-
-  return contributionPerMachine;
-}
-
-type OptimizableDemandContext = {
-  storagesById: Map<string, FactoryStorage>;
-  storageOutgoingDemand: Map<string, number>;
-  storageIncomingCounts: Map<string, number>;
-  incomingRecipeEdgeCounts: Map<string, number>;
-  utilizationByNodeId: Map<string, number>;
-  visitingNodeIds: Set<string>;
-};
-
-function createOptimizableDemandContext(
-  project: FactoryProject,
-  result: ThroughputResult,
-): OptimizableDemandContext {
-  const storagesById = new Map((project.storages ?? []).map((storage) => [storage.id, storage]));
-  return {
-    storagesById,
-    storageOutgoingDemand: getStorageOutgoingDemandByResource(project, result),
-    storageIncomingCounts: countIncomingStorageEdgesByResource(project, storagesById),
-    incomingRecipeEdgeCounts: countIncomingRecipeEdgesByResource(project, storagesById),
-    utilizationByNodeId: new Map(),
-    visitingNodeIds: new Set(),
-  };
-}
-
-function getOptimizableDirectEdgeDemand(
-  project: FactoryProject,
-  edge: FactoryEdge,
-  result: ThroughputResult,
-  context: OptimizableDemandContext,
-): number {
-  const targetNode = project.nodes.find((entry) => entry.id === edge.target);
-  const targetResult = targetNode ? result.nodes[targetNode.id] : undefined;
-  const targetDemandKey = (getEdgeTargetDemandKey(project, edge) ??
-    `${edge.resourceKind}:${edge.resourceId}`) as ResourceKey;
-  const targetInput = targetResult?.inputs[targetDemandKey];
-  if (!targetNode || !targetResult || !targetInput) {
-    return result.edges[edge.id]?.demandPerSecond ?? 0;
-  }
-
-  const targetUtilization = getOptimizableNodeUtilization(
-    project,
-    targetNode,
-    targetResult,
-    result,
-    context,
-  );
-  const incomingCount =
-    context.incomingRecipeEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
-  return (targetInput.amountPerSecond * targetUtilization) / incomingCount;
-}
-
-function getOptimizableNodeUtilization(
-  project: FactoryProject,
-  node: FactoryNode,
-  nodeResult: ThroughputResult["nodes"][string],
-  result: ThroughputResult,
-  context: OptimizableDemandContext,
-): number {
-  const cached = context.utilizationByNodeId.get(node.id);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  if (context.visitingNodeIds.has(node.id)) {
-    return Number.isFinite(nodeResult.utilization) ? Math.max(0, nodeResult.utilization) : 1;
-  }
-
-  context.visitingNodeIds.add(node.id);
-  const requiredByResource = getOptimizableRequiredRates(project, node, result, context);
-  if (node.targetOutput) {
-    const targetKey = `${node.targetOutput.kind}:${node.targetOutput.resourceId}`;
-    requiredByResource.set(
-      targetKey,
-      Math.max(requiredByResource.get(targetKey) ?? 0, node.targetOutput.amountPerSecond),
-    );
-  }
-
-  if (requiredByResource.size === 0) {
-    const recipe = project.recipes.find((entry) => entry.id === node.recipeId);
-    const output = recipe?.outputs.find((entry) => entry.amount > 0);
-    if (output) {
-      const key = `${output.kind}:${output.id}` as ResourceKey;
-      requiredByResource.set(key, nodeResult.outputs[key]?.amountPerSecond ?? 0);
-    }
-  }
-
-  let utilization = 0;
-  for (const [resourceKey, requiredRate] of requiredByResource) {
-    const output = nodeResult.outputs[resourceKey as keyof typeof nodeResult.outputs];
-    if (!output || requiredRate <= 0 || output.amountPerSecond <= 0) {
-      continue;
-    }
-
-    utilization = Math.max(utilization, requiredRate / output.amountPerSecond);
-  }
-
-  context.visitingNodeIds.delete(node.id);
-  context.utilizationByNodeId.set(node.id, utilization);
-  return utilization;
-}
-
-function getStorageOutgoingDemandByResource(
-  project: FactoryProject,
-  result: ThroughputResult,
-): Map<string, number> {
-  const storagesById = new Map((project.storages ?? []).map((storage) => [storage.id, storage]));
-  const incomingRecipeEdgeCounts = countIncomingRecipeEdgesByResource(project, storagesById);
-  const demand = new Map<string, number>();
-
-  for (const edge of project.edges) {
-    if (!storagesById.has(edge.source) || storagesById.has(edge.target)) {
-      continue;
-    }
-
-    const key = `${edge.resourceKind}:${edge.resourceId}`;
-    const targetResult = result.nodes[edge.target];
-    const targetDemandKey = getEdgeTargetDemandKey(project, edge) ?? key;
-    const targetInput = targetResult?.inputs[targetDemandKey as keyof typeof targetResult.inputs];
-    if (!targetInput) {
-      continue;
-    }
-
-    const utilization = Number.isFinite(targetResult.utilization)
-      ? Math.min(Math.max(targetResult.utilization, 0), 1)
-      : 1;
-    const incomingCount = incomingRecipeEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
-    demand.set(
-      key,
-      (demand.get(key) ?? 0) + (targetInput.amountPerSecond * utilization) / incomingCount,
-    );
-  }
-
-  return demand;
-}
-
-function countIncomingStorageEdgesByResource(
-  project: FactoryProject,
-  storagesById: Map<string, FactoryStorage>,
-): Map<string, number> {
-  const counts = new Map<string, number>();
-
-  for (const edge of project.edges) {
-    const storage = storagesById.get(edge.target);
-    if (!storage) {
-      continue;
-    }
-
-    const key = `${storage.kind}:${storage.resourceId}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  return counts;
-}
-
-function countIncomingRecipeEdgesByResource(
-  project: FactoryProject,
-  storagesById: Map<string, FactoryStorage>,
-): Map<string, number> {
-  const counts = new Map<string, number>();
-
-  for (const edge of project.edges) {
-    if (storagesById.has(edge.target)) {
-      continue;
-    }
-
-    const key = getEdgeTargetDemandKey(project, edge) ?? `${edge.resourceKind}:${edge.resourceId}`;
-    const countKey = `${edge.target}|${key}`;
-    counts.set(countKey, (counts.get(countKey) ?? 0) + 1);
-  }
-
-  return counts;
-}
-
-function getEdgeTargetDemandKey(project: FactoryProject, edge: FactoryEdge): string | undefined {
-  const targetNode = project.nodes.find((node) => node.id === edge.target);
-  const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
-  const edgeResource = { kind: edge.resourceKind, id: edge.resourceId };
-  const input = targetRecipe?.inputs.find(
-    (entry) => isRecipeInputConsumed(entry) && resourceMatchesInput(edgeResource, entry),
-  );
-
-  return input ? `${input.kind}:${input.id}` : undefined;
-}
-
-function resetRecipeMachineCounts(project: FactoryProject): FactoryProject {
-  return {
-    ...project,
-    nodes: project.nodes.map((node) => ({ ...node, machineCount: 1 })),
-  };
-}
-
 function haveSameMachineCounts(left: FactoryProject, right: FactoryProject): boolean {
   if (left.nodes.length !== right.nodes.length) {
     return false;
@@ -2364,230 +1866,6 @@ function haveSameMachineCounts(left: FactoryProject, right: FactoryProject): boo
 
   const rightCounts = new Map(right.nodes.map((node) => [node.id, node.machineCount]));
   return left.nodes.every((node) => rightCounts.get(node.id) === node.machineCount);
-}
-
-function getUntargetedCyclicMachineCounts(
-  project: FactoryProject,
-  cyclicNodeIds: Set<string>,
-  result: ThroughputResult,
-): Map<string, number> {
-  const machineCounts = new Map<string, number>();
-
-  for (const node of project.nodes) {
-    if (!cyclicNodeIds.has(node.id) || node.targetOutput) {
-      continue;
-    }
-
-    const nodeResult = result.nodes[node.id];
-    const theoreticalMachinesRequired = nodeResult?.theoreticalMachinesRequired ?? 0;
-    const machineCount = getOptimizedMachineCount(theoreticalMachinesRequired, node.machineCount);
-    if (isSmallCyclicBottleneck(nodeResult)) {
-      machineCounts.set(node.id, machineCount + 1);
-      continue;
-    }
-
-    if (
-      node.machineCount <= 1 ||
-      (machineCount < node.machineCount &&
-        isProjectedBelowFullUsage(theoreticalMachinesRequired, machineCount)) ||
-      (nodeResult?.status === "bottleneck" &&
-        hasDemandOutsideCyclicFeedback(project, node, cyclicNodeIds))
-    ) {
-      machineCounts.set(node.id, machineCount);
-    } else {
-      machineCounts.set(node.id, Math.max(1, Math.round(node.machineCount)));
-    }
-  }
-
-  return machineCounts;
-}
-
-function isProjectedBelowFullUsage(theoreticalMachinesRequired: number, machineCount: number) {
-  return (
-    Number.isFinite(theoreticalMachinesRequired) &&
-    machineCount > 0 &&
-    theoreticalMachinesRequired / machineCount < 1
-  );
-}
-
-function isSmallCyclicBottleneck(
-  nodeResult: ThroughputResult["nodes"][string] | undefined,
-): boolean {
-  return (
-    nodeResult?.status === "bottleneck" &&
-    Number.isFinite(nodeResult.utilization) &&
-    nodeResult.utilization > 1 &&
-    nodeResult.utilization <= CYCLIC_SMALL_BOTTLENECK_UTILIZATION
-  );
-}
-
-function hasDemandOutsideCyclicFeedback(
-  project: FactoryProject,
-  node: FactoryNode,
-  cyclicNodeIds: Set<string>,
-): boolean {
-  const storageIds = new Set((project.storages ?? []).map((storage) => storage.id));
-  const storagesByResource = new Map<string, FactoryStorage[]>();
-  for (const storage of project.storages ?? []) {
-    const key = `${storage.kind}:${storage.resourceId}`;
-    storagesByResource.set(key, [...(storagesByResource.get(key) ?? []), storage]);
-  }
-
-  for (const edge of project.edges) {
-    if (edge.source !== node.id) {
-      continue;
-    }
-
-    if (!storageIds.has(edge.target)) {
-      if (!cyclicNodeIds.has(edge.target)) {
-        return true;
-      }
-      continue;
-    }
-
-    const key = `${edge.resourceKind}:${edge.resourceId}`;
-    for (const storage of storagesByResource.get(key) ?? []) {
-      for (const storageEdge of project.edges) {
-        if (storageEdge.source !== storage.id || storageIds.has(storageEdge.target)) {
-          continue;
-        }
-
-        if (!cyclicNodeIds.has(storageEdge.target)) {
-          return true;
-        }
-      }
-    }
-  }
-
-  return false;
-}
-
-function getCyclicOptimizedMachineCount(
-  project: FactoryProject,
-  node: FactoryNode,
-  untargetedMachineCount: number | undefined,
-): number {
-  if (!node.targetOutput) {
-    return untargetedMachineCount ?? Math.max(1, Math.round(node.machineCount));
-  }
-
-  const recipe = project.recipes.find((entry) => entry.id === node.recipeId);
-  const output = recipe?.outputs.find(
-    (entry) =>
-      getResourceKey(entry) === `${node.targetOutput?.kind}:${node.targetOutput?.resourceId}`,
-  );
-  if (!recipe || !output) {
-    return getOptimizedMachineCount(0, node.machineCount);
-  }
-
-  const overclockedRecipe = getOverclockedRecipeStats(recipe, node);
-  const outputMultiplier = getMachineOutputMultiplier(recipe, node, output, overclockedRecipe.tier);
-  const parallelMultiplier = getMachineParallelMultiplier(recipe, node);
-  const outputPerMachineSecond =
-    (output.amount *
-      getChanceMultiplier(output) *
-      outputMultiplier *
-      node.parallel *
-      parallelMultiplier *
-      TICKS_PER_SECOND) /
-    overclockedRecipe.durationTicks;
-  if (outputPerMachineSecond <= 0) {
-    return getOptimizedMachineCount(0, node.machineCount);
-  }
-
-  return getOptimizedMachineCount(
-    node.targetOutput.amountPerSecond / outputPerMachineSecond,
-    node.machineCount,
-  );
-}
-
-function getCyclicRecipeNodeIds(project: FactoryProject): Set<string> {
-  const adjacency = new Map<string, string[]>();
-
-  for (const node of project.nodes) {
-    adjacency.set(node.id, []);
-  }
-  for (const storage of project.storages ?? []) {
-    adjacency.set(storage.id, []);
-  }
-  for (const edge of project.edges) {
-    if (!adjacency.has(edge.source) || !adjacency.has(edge.target)) {
-      continue;
-    }
-
-    adjacency.get(edge.source)?.push(edge.target);
-  }
-
-  const storageProducerIds = new Set<string>();
-  const storageConsumerIds = new Set<string>();
-  const storagesByResource = new Map<string, FactoryStorage[]>();
-  for (const storage of project.storages ?? []) {
-    const key = `${storage.kind}:${storage.resourceId}`;
-    storagesByResource.set(key, [...(storagesByResource.get(key) ?? []), storage]);
-  }
-  const storageIds = new Set((project.storages ?? []).map((storage) => storage.id));
-  for (const edge of project.edges) {
-    const sourceIsStorage = storageIds.has(edge.source);
-    const targetIsStorage = storageIds.has(edge.target);
-    if (targetIsStorage && !sourceIsStorage) {
-      storageProducerIds.add(edge.target);
-    }
-    if (sourceIsStorage && !targetIsStorage) {
-      storageConsumerIds.add(edge.source);
-    }
-  }
-
-  for (const storages of storagesByResource.values()) {
-    if (storages.length < 2) {
-      continue;
-    }
-
-    for (const source of storages) {
-      if (!storageProducerIds.has(source.id)) {
-        continue;
-      }
-
-      for (const target of storages) {
-        if (source.id !== target.id && storageConsumerIds.has(target.id)) {
-          adjacency.get(source.id)?.push(target.id);
-        }
-      }
-    }
-  }
-
-  const cyclicIds = new Set<string>();
-  for (const node of project.nodes) {
-    if (canReachNode(adjacency, node.id, node.id)) {
-      cyclicIds.add(node.id);
-    }
-  }
-
-  return cyclicIds;
-}
-
-function canReachNode(adjacency: Map<string, string[]>, start: string, target: string): boolean {
-  const visited = new Set<string>();
-  const stack = [...(adjacency.get(start) ?? [])];
-
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) {
-      continue;
-    }
-
-    if (current === target) {
-      return true;
-    }
-
-    if (visited.has(current)) {
-      continue;
-    }
-
-    visited.add(current);
-    stack.push(...(adjacency.get(current) ?? []));
-  }
-
-  return false;
 }
 
 function touchProject(project: FactoryProject): FactoryProject {

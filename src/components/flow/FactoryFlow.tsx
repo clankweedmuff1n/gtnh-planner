@@ -1201,6 +1201,14 @@ function ResourceEdge({
     <>
       {!isHiddenBundleMember ? (
         <>
+          <path
+            data-resource-edge-route={id}
+            d={routedEdge.path}
+            fill="none"
+            stroke="transparent"
+            strokeWidth="0"
+            pointerEvents="none"
+          />
           <BaseEdge
             path={routedEdge.path}
             interactionWidth={0}
@@ -1625,6 +1633,7 @@ function getRepeatedOutputHandleIds(
 }
 
 function getDirectEdgePath({
+  edgeId,
   laneOffset = 0,
   sourceNodeId,
   sourceX,
@@ -1650,6 +1659,7 @@ function getDirectEdgePath({
 }) {
   const points =
     getBestDirectEdgePoints({
+      edgeId,
       laneOffset,
       sourceNodeId,
       sourceX,
@@ -1737,6 +1747,7 @@ function getSimpleOrthogonalEdgePoints({
 }
 
 function getBestDirectEdgePoints({
+  edgeId,
   laneOffset,
   sourceNodeId,
   sourceX,
@@ -1747,6 +1758,7 @@ function getBestDirectEdgePoints({
   targetY,
   targetPosition,
 }: {
+  edgeId?: string;
   laneOffset: number;
   sourceNodeId?: string;
   sourceX: number;
@@ -1767,11 +1779,12 @@ function getBestDirectEdgePoints({
     targetPosition,
   });
   const nodeBounds = getMeasuredAvoidanceNodeBounds([sourceNodeId, targetNodeId]);
+  const renderedEdgeSegments = getRenderedEdgeSegments(edgeId);
 
   return candidates
     .map((points) => ({
       points,
-      score: scoreEdgeRoute(points, nodeBounds),
+      score: scoreEdgeRoute(points, nodeBounds, renderedEdgeSegments),
     }))
     .sort((left, right) => left.score - right.score)[0]?.points;
 }
@@ -1859,10 +1872,19 @@ function getDirectEdgePointCandidates({
 function scoreEdgeRoute(
   points: Array<{ x: number; y: number }>,
   nodeBounds: Array<{ left: number; right: number; top: number; bottom: number }>,
+  existingEdgeSegments: Array<{
+    edgeId: string;
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    length: number;
+  }> = [],
 ) {
   const segments = getPolylineSegments(points);
   const length = segments.reduce((sum, segment) => sum + segment.length, 0);
   let nodeHits = 0;
+  let edgeIntersections = 0;
+  let edgeNearness = 0;
+  let edgeOverlap = 0;
 
   for (const segment of segments) {
     for (const bounds of nodeBounds) {
@@ -1872,10 +1894,34 @@ function scoreEdgeRoute(
         nodeHits += 1;
       }
     }
+
+    for (const existing of existingEdgeSegments) {
+      if (segment.length < 0.5 || existing.length < 0.5) {
+        continue;
+      }
+
+      if (segmentsIntersect(segment.start, segment.end, existing.start, existing.end)) {
+        edgeIntersections += 1;
+      }
+
+      edgeOverlap += getCollinearOverlapLength(segment, existing);
+
+      const distance = getSegmentDistance(segment.start, segment.end, existing.start, existing.end);
+      if (distance < EDGE_LINK_CLEARANCE) {
+        edgeNearness += ((EDGE_LINK_CLEARANCE - distance) / EDGE_LINK_CLEARANCE) * segment.length;
+      }
+    }
   }
 
   const turns = countPolylineTurns(points);
-  return nodeHits * 1_000_000 + turns * 700 + length;
+  return (
+    nodeHits * 1_000_000 +
+    edgeOverlap * 9_000 +
+    edgeIntersections * 80_000 +
+    edgeNearness * 2_500 +
+    turns * 700 +
+    length
+  );
 }
 
 function offsetPointFromSide(point: { x: number; y: number }, side: Position, distance: number) {
@@ -2496,6 +2542,30 @@ function getPolylineSegments(points: Array<{ x: number; y: number }>) {
   return segments;
 }
 
+function getRenderedEdgeSegments(excludedEdgeId?: string) {
+  if (typeof document === "undefined") {
+    return [];
+  }
+
+  return [...document.querySelectorAll<SVGPathElement>("[data-resource-edge-route]")]
+    .filter((path) => path.dataset.resourceEdgeRoute !== excludedEdgeId)
+    .flatMap((path) =>
+      parsePolylinePath(path.getAttribute("d") ?? "").map((segment) => ({
+        ...segment,
+        edgeId: path.dataset.resourceEdgeRoute ?? "",
+      })),
+    )
+    .filter((segment) => segment.length > 0.5);
+}
+
+function parsePolylinePath(path: string) {
+  const tokens = [...path.matchAll(/[ML]\s*(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map((match) => ({
+    x: Number(match[1]),
+    y: Number(match[2]),
+  }));
+  return getPolylineSegments(tokens);
+}
+
 function dedupePolylineCandidates(candidates: Array<Array<{ x: number; y: number }>>) {
   const seen = new Set<string>();
   return candidates.filter((points) => {
@@ -2672,6 +2742,65 @@ function getClosestPointOnSegment(
   };
 }
 
+function getSegmentDistance(
+  firstStart: { x: number; y: number },
+  firstEnd: { x: number; y: number },
+  secondStart: { x: number; y: number },
+  secondEnd: { x: number; y: number },
+) {
+  if (segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd)) {
+    return 0;
+  }
+
+  return Math.sqrt(
+    Math.min(
+      getClosestPointOnSegment(firstStart, secondStart, secondEnd).distanceSquared,
+      getClosestPointOnSegment(firstEnd, secondStart, secondEnd).distanceSquared,
+      getClosestPointOnSegment(secondStart, firstStart, firstEnd).distanceSquared,
+      getClosestPointOnSegment(secondEnd, firstStart, firstEnd).distanceSquared,
+    ),
+  );
+}
+
+function getCollinearOverlapLength(
+  first: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  },
+  second: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  },
+) {
+  const firstHorizontal = Math.abs(first.start.y - first.end.y) < 0.5;
+  const secondHorizontal = Math.abs(second.start.y - second.end.y) < 0.5;
+  const firstVertical = Math.abs(first.start.x - first.end.x) < 0.5;
+  const secondVertical = Math.abs(second.start.x - second.end.x) < 0.5;
+
+  if (firstHorizontal && secondHorizontal && Math.abs(first.start.y - second.start.y) < 0.5) {
+    return getRangeOverlapLength(first.start.x, first.end.x, second.start.x, second.end.x);
+  }
+
+  if (firstVertical && secondVertical && Math.abs(first.start.x - second.start.x) < 0.5) {
+    return getRangeOverlapLength(first.start.y, first.end.y, second.start.y, second.end.y);
+  }
+
+  return 0;
+}
+
+function getRangeOverlapLength(
+  firstStart: number,
+  firstEnd: number,
+  secondStart: number,
+  secondEnd: number,
+) {
+  const firstMin = Math.min(firstStart, firstEnd);
+  const firstMax = Math.max(firstStart, firstEnd);
+  const secondMin = Math.min(secondStart, secondEnd);
+  const secondMax = Math.max(secondStart, secondEnd);
+  return Math.max(0, Math.min(firstMax, secondMax) - Math.max(firstMin, secondMin));
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -2843,6 +2972,10 @@ function getRecipeSlotEdgeSideTowardPoint({
   const horizontalSide = distanceX >= 0 ? Position.Right : Position.Left;
   const verticalSide = distanceY >= 0 ? Position.Bottom : Position.Top;
   const isNaturallyHorizontal = horizontalSide === logicalSide && Math.abs(distanceX) >= 48;
+
+  if (Math.abs(distanceY) >= 64 && Math.abs(distanceY) > Math.abs(distanceX) * 0.35) {
+    return verticalSide;
+  }
 
   if (Math.abs(distanceY) >= 24 && (!isNaturallyHorizontal || verticalSide === Position.Bottom)) {
     return verticalSide;

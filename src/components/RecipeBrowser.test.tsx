@@ -100,26 +100,23 @@ const browserLoaderMock = vi.hoisted(() => {
 
   return {
     getRecipeDatasetRecipe: vi.fn(async () => fullRecipe),
-    queryRecipeDatasetRecipes: vi.fn(async (_manifestUrl, _version, query) => ({
+    queryRecipeDatasetRecipes: vi.fn(async () => ({
       recipes: [
         {
           ...fullRecipe,
           recipeMap: "Coke Oven",
           slots: [],
-          inputs:
-            query.mode === "uses"
-              ? [
-                  {
-                    kind: "item",
-                    id: "minecraft:log@1",
-                    amount: 16,
-                    displayName: "Spruce Log",
-                    iconPath: "/items/spruce-log.png",
-                    tooltip: ["Spruce Log"],
-                    neiSlot: { x: 62, y: 35 },
-                  },
-                ]
-              : fullRecipe.inputs,
+          inputs: [
+            {
+              kind: "item",
+              id: "minecraft:log@1",
+              amount: 16,
+              displayName: "Spruce Log",
+              iconPath: "/items/spruce-log.png",
+              tooltip: ["Spruce Log"],
+              neiSlot: { x: 62, y: 35 },
+            },
+          ],
         },
       ],
       total: 1,
@@ -191,6 +188,9 @@ describe("RecipeBrowser", () => {
         expect.any(Object),
         expect.objectContaining({ mode: "uses" }),
       );
+    });
+
+    await waitFor(() => {
       const node = useFactoryStore.getState().project.nodes[0];
       expect(node?.recipeInputOverrides?.["1"]).toEqual(
         expect.objectContaining({

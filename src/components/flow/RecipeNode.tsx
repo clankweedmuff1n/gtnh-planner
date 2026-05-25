@@ -14,7 +14,6 @@ import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
 import {
   formatRate,
   applyMachineHandlerToRecipe,
-  getAdjacentCoilTier,
   getAdjacentMachineConfigTier,
   GT_VOLTAGE_TIERS,
   getRecipeMachineHandlers,
@@ -112,11 +111,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
       return;
     }
 
-    const nextTier = getAdjacentCoilTier(
-      coilControl.current.key,
-      coilControl.minimum.key,
-      direction,
-    );
+    const nextTier = getAdjacentMachineConfigTier(coilControl, direction);
     if (nextTier !== coilControl.current.key) {
       updateNode(projectNode.id, { coilTier: nextTier });
     }

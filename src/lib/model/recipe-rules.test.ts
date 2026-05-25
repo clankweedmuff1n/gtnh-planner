@@ -62,8 +62,70 @@ describe("recipe machine handlers", () => {
 });
 
 describe("multiblock machine config controls", () => {
-  it("keeps chemical plant coil and pipe casing controls independent", () => {
-    const recipe = testRecipe("Chemical Plant");
+  it("keeps imported coil and pipe casing controls independent", () => {
+    const recipe: Recipe = {
+      ...testRecipe("Chemical Plant"),
+      machineConfigControls: [
+        {
+          id: "heatingCoil",
+          label: "Heating Coil",
+          minimumKey: "cupronickel",
+          defaultKey: "cupronickel",
+          tiers: [
+            {
+              key: "cupronickel",
+              label: "Cupronickel",
+              heat: 1801,
+              resource: {
+                kind: "item",
+                id: "gregtech:gt.blockcasings5",
+                amount: 1,
+                displayName: "Cupronickel Coil Block",
+              },
+            },
+            {
+              key: "kanthal",
+              label: "Kanthal",
+              heat: 2701,
+              resource: {
+                kind: "item",
+                id: "gregtech:gt.blockcasings5@1",
+                amount: 1,
+                displayName: "Kanthal Coil Block",
+              },
+            },
+          ],
+        },
+        {
+          id: "pipeCasing",
+          label: "Pipe Casing",
+          minimumKey: "bronze",
+          defaultKey: "bronze",
+          tiers: [
+            {
+              key: "bronze",
+              label: "Bronze",
+              resource: {
+                kind: "item",
+                id: "gregtech:gt.blockcasings2@12",
+                amount: 1,
+                displayName: "Bronze Pipe Casing",
+              },
+            },
+            {
+              key: "tungstensteel",
+              label: "Tungstensteel",
+              resource: {
+                kind: "item",
+                id: "gregtech:gt.blockcasings2@15",
+                amount: 1,
+                displayName: "Tungstensteel Pipe Casing",
+              },
+            },
+          ],
+        },
+      ],
+    };
     const coilControl = getRecipeCoilTierControl(recipe, {
       coilTier: "kanthal",
     });
@@ -131,6 +193,12 @@ describe("multiblock machine config controls", () => {
 
   it("does not add pipe casing controls to unrelated machines", () => {
     expect(getRecipeMachineConfigTierControls(testRecipe("Macerator"), {})).toEqual([]);
+  });
+
+  it("does not synthesize coil controls without imported machine config controls", () => {
+    expect(
+      getRecipeCoilTierControl(testRecipe("Chemical Plant"), { coilTier: "kanthal" }),
+    ).toBeUndefined();
   });
 });
 

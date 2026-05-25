@@ -129,25 +129,17 @@ export async function getDatasetCatalog(versionId: string) {
 }
 
 function getMachineConfigResources(catalog: LoadedRecipeIndex): DatasetResourceIndexEntry[] {
-  const resources = [...catalog.resourceIndex, ...catalog.resources].filter(
-    isMachineConfigResource,
-  );
-  return [
-    ...new Map(resources.map((resource) => [`${resource.kind}:${resource.id}`, resource])).values(),
-  ].map((resource) => ({
-    ...resource,
-    recipeCount: "recipeCount" in resource ? resource.recipeCount : 0,
-  }));
+  return catalog.resources
+    .filter((resource) => resource.tooltip?.some(isMachineConfigTooltipLine))
+    .map((resource) => ({
+      ...resource,
+      recipeCount: 0,
+    }));
 }
 
-function isMachineConfigResource(resource: DatasetResource | DatasetResourceIndexEntry) {
-  return (
-    resource.kind === "item" &&
-    (/^gregtech:gt\.blockcasings5(?:@\d+)?$/.test(resource.id) ||
-      /^gregtech:gt\.blockcasings2@(?:12|13|14|15)$/.test(resource.id) ||
-      /^gregtech:gt\.blockcasings8@1$/.test(resource.id) ||
-      /^gregtech:gt\.blockcasings9$/.test(resource.id))
-  );
+function isMachineConfigTooltipLine(line: string) {
+  const normalized = line.trim().toLowerCase();
+  return normalized === "heating coil tier" || normalized === "pipe casing tier";
 }
 
 export async function getDatasetRecipeIds(versionId: string): Promise<string[]> {

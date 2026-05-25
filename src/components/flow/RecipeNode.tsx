@@ -11,7 +11,10 @@ import type {
   ResourceAmount,
 } from "@/lib/model/types";
 import { getOverclockedRecipeStats } from "@/lib/solver/overclock";
-import { applyMachineOutputMultipliers } from "@/lib/solver/machine-effects";
+import {
+  applyMachineOutputMultipliers,
+  getMachineParallelMultiplier,
+} from "@/lib/solver/machine-effects";
 import {
   formatRate,
   applyMachineHandlerToRecipe,
@@ -97,6 +100,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const statsMachineConfigControls = machineConfigControls.filter(
     (control) => !isTreeGrowthSimulatorToolControl(control),
   );
+  const machineParallelMultiplier = getMachineParallelMultiplier(effectiveRecipe, projectNode);
   const overclockedStats = getOverclockedRecipeStats(nodeRecipe, projectNode);
   const displayRecipe = applyTreeGrowthSimulatorToolInputs(effectiveRecipe, tgsToolControls);
   const adjustedRecipe = applyMachineOutputMultipliers(
@@ -321,6 +325,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
                       }
                     />
                   ))}
+                  <MachineParallelIndicator multiplier={machineParallelMultiplier} />
                 </div>
               ) : statsMachineConfigControls.length > 0 ? (
                 <div className="flex gap-1">
@@ -338,6 +343,11 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
                       }
                     />
                   ))}
+                  <MachineParallelIndicator multiplier={machineParallelMultiplier} />
+                </div>
+              ) : machineParallelMultiplier > 1 ? (
+                <div className="flex gap-1">
+                  <MachineParallelIndicator multiplier={machineParallelMultiplier} />
                 </div>
               ) : undefined
             }
@@ -839,6 +849,28 @@ function MachineConfigButton({
       />
     </button>
   );
+}
+
+function MachineParallelIndicator({ multiplier }: { multiplier: number }) {
+  if (!Number.isFinite(multiplier) || multiplier <= 1) {
+    return null;
+  }
+
+  return (
+    <div
+      className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#252525] bg-[#b6b6b6] text-[13px] font-black leading-none text-[#202020] shadow-[inset_2px_2px_0_#eeeeee,inset_-2px_-2px_0_#777]"
+      title={`${formatMachineParallelMultiplier(multiplier)} parallels`}
+      aria-label={`${formatMachineParallelMultiplier(multiplier)} parallels`}
+    >
+      {formatMachineParallelMultiplier(multiplier)}
+    </div>
+  );
+}
+
+function formatMachineParallelMultiplier(multiplier: number) {
+  return Number.isInteger(multiplier)
+    ? String(multiplier)
+    : multiplier.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function getSuggestedMachineCount(result: NodeThroughputResult | undefined, current: number) {

@@ -3,11 +3,12 @@ export async function register() {
     return;
   }
 
-  try {
-    const { prewarmLatestDatasetVersions } = await import("@/lib/server/dataset-query");
-    await prewarmLatestDatasetVersions();
-    console.info("GTNH dataset cache prewarmed.");
-  } catch (error) {
-    console.error("GTNH dataset cache prewarm failed.", error);
-  }
+  const { prewarmLatestDatasetVersions } = await import("@/lib/server/dataset-query");
+  void prewarmLatestDatasetVersions()
+    .then(() => {
+      console.info("GTNH dataset cache prewarmed.");
+    })
+    .catch((error) => {
+      console.error("GTNH dataset cache prewarm failed.", error);
+    });
 }

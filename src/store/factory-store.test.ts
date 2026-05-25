@@ -48,6 +48,85 @@ describe("factory resource links", () => {
     );
   });
 
+  it("stores the concrete connected resource on an ore dictionary input node", () => {
+    useFactoryStore.getState().setProject({
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "connected-oredict-override-test",
+      name: "Connected oredict override test",
+      fuelProfiles: [],
+      recipes: [
+        {
+          id: "tgs",
+          name: "Tree Growth Simulator",
+          machineType: "Tree Growth Simulator",
+          minimumTier: "LV",
+          durationTicks: 100,
+          eut: 0,
+          inputs: [],
+          outputs: [{ kind: "item", id: "minecraft:log@1", amount: 16, displayName: "Spruce Log" }],
+        },
+        {
+          id: "coke",
+          name: "Coke Oven",
+          machineType: "Coke Oven",
+          minimumTier: "MV",
+          durationTicks: 256,
+          eut: 96,
+          inputs: [
+            {
+              kind: "item",
+              id: "oredict:logWood",
+              amount: 16,
+              displayName: "Ore Dictionary: logWood",
+              alternatives: [
+                { kind: "item", id: "minecraft:log@0", displayName: "Oak Log" },
+                { kind: "item", id: "minecraft:log@1", displayName: "Spruce Log" },
+              ],
+            },
+          ],
+          outputs: [{ kind: "item", id: "minecraft:coal@1", amount: 20 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "tgs-node",
+          recipeId: "tgs",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "coke-node",
+          recipeId: "coke",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "MV",
+          enabled: true,
+          position: { x: 400, y: 0 },
+        },
+      ],
+      edges: [],
+    });
+
+    useFactoryStore.getState().connectNodes("tgs-node", "coke-node", {
+      kind: "item",
+      id: "minecraft:log@1",
+      displayName: "Spruce Log",
+      sourceHandle: makeResourceHandleId("output", { kind: "item", id: "minecraft:log@1" }, 0),
+      targetHandle: makeResourceHandleId("input", { kind: "item", id: "oredict:logWood" }, 0),
+    });
+
+    expect(useFactoryStore.getState().project.nodes[1]?.recipeInputOverrides?.["0"]).toEqual(
+      expect.objectContaining({
+        id: "minecraft:log@1",
+        displayName: "Spruce Log",
+        alternatives: undefined,
+      }),
+    );
+  });
+
   it("connects tool outputs to matching ore dictionary tool inputs", () => {
     useFactoryStore.getState().connectNodes("screwdriver-source", "screwdriver-oredict-target", {
       kind: "item",

@@ -482,10 +482,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         };
       }
 
-      const project = touchProject({
-        ...state.project,
-        edges: [...state.project.edges, edge],
-      });
+      const project = touchProject(
+        applyEdgeInputOverride(
+          {
+            ...state.project,
+            edges: [...state.project.edges, edge],
+          },
+          edge,
+        ),
+      );
 
       return withProjectHistory(state, {
         project,
@@ -821,10 +826,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      const project = touchProject({
-        ...state.project,
-        edges: [...state.project.edges, edge],
-      });
+      const project = touchProject(
+        applyEdgeInputOverride(
+          {
+            ...state.project,
+            edges: [...state.project.edges, edge],
+          },
+          edge,
+        ),
+      );
       return withProjectHistory(state, {
         project,
         lastResult: calculateThroughput(project),
@@ -887,13 +897,14 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
+      const projectWithEdge = pruneOrphanStorages({
+        ...projectWithoutOld,
+        edges: duplicateEdge
+          ? projectWithoutOld.edges.filter((entry) => entry.id !== duplicateEdge.id)
+          : [...projectWithoutOld.edges, edge],
+      });
       const project = touchProject(
-        pruneOrphanStorages({
-          ...projectWithoutOld,
-          edges: duplicateEdge
-            ? projectWithoutOld.edges.filter((entry) => entry.id !== duplicateEdge.id)
-            : [...projectWithoutOld.edges, edge],
-        }),
+        duplicateEdge ? projectWithEdge : applyEdgeInputOverride(projectWithEdge, edge),
       );
 
       return withProjectHistory(state, {
@@ -947,10 +958,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      const project = touchProject({
-        ...state.project,
-        edges: [...state.project.edges, ...edges],
-      });
+      const project = touchProject(
+        applyEdgeInputOverrides(
+          {
+            ...state.project,
+            edges: [...state.project.edges, ...edges],
+          },
+          edges,
+        ),
+      );
 
       return withProjectHistory(state, {
         project,
@@ -1373,6 +1389,63 @@ function isContextualRecipeInput(
   );
 }
 
+function applyEdgeInputOverrides(project: FactoryProject, edges: FactoryEdge[]): FactoryProject {
+  return edges.reduce((nextProject, edge) => applyEdgeInputOverride(nextProject, edge), project);
+}
+
+function applyEdgeInputOverride(project: FactoryProject, edge: FactoryEdge): FactoryProject {
+  const targetNode = project.nodes.find((node) => node.id === edge.target);
+  const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
+  if (!targetNode || !targetRecipe) {
+    return project;
+  }
+
+  const targetHandle = parseResourceHandleId(edge.targetHandle);
+  const inputIndex =
+    targetHandle?.side === "input" && targetHandle.slotIndex !== undefined
+      ? targetHandle.slotIndex
+      : targetRecipe.inputs.findIndex(
+          (input) =>
+            isRecipeInputConsumed(input) &&
+            resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, input),
+        );
+  const input = inputIndex >= 0 ? targetRecipe.inputs[inputIndex] : undefined;
+  if (
+    !input ||
+    !isRecipeInputConsumed(input) ||
+    !resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, input)
+  ) {
+    return project;
+  }
+
+  const alternative = input.alternatives?.find(
+    (entry) => entry.kind === edge.resourceKind && entry.id === edge.resourceId,
+  );
+  const override: Recipe["inputs"][number] = {
+    ...input,
+    ...alternative,
+    kind: edge.resourceKind,
+    id: edge.resourceId,
+    displayName: edge.label ?? alternative?.displayName ?? input.displayName,
+    alternatives: undefined,
+  };
+
+  return {
+    ...project,
+    nodes: project.nodes.map((node) =>
+      node.id === targetNode.id
+        ? {
+            ...node,
+            recipeInputOverrides: {
+              ...node.recipeInputOverrides,
+              [String(inputIndex)]: override,
+            },
+          }
+        : node,
+    ),
+  };
+}
+
 function pruneOrphanStorages(project: FactoryProject): FactoryProject {
   const storages = project.storages ?? [];
   if (storages.length === 0) {
@@ -1732,13 +1805,14 @@ function parseResourceHandleId(handleId?: string | null):
       side: "input" | "output";
       kind: ResourceKind;
       resourceId: string;
+      slotIndex?: number;
     }
   | undefined {
   if (!handleId) {
     return undefined;
   }
 
-  const [side, kind, encodedResourceId] = handleId.split(":");
+  const [side, kind, encodedResourceId, encodedSlotIndex] = handleId.split(":");
   if (
     (side !== "input" && side !== "output") ||
     (kind !== "item" && kind !== "fluid") ||
@@ -1751,6 +1825,10 @@ function parseResourceHandleId(handleId?: string | null):
     side,
     kind,
     resourceId: decodeURIComponent(encodedResourceId),
+    slotIndex:
+      encodedSlotIndex !== undefined && encodedSlotIndex.trim() !== ""
+        ? Number.parseInt(encodedSlotIndex, 10)
+        : undefined,
   };
 }
 

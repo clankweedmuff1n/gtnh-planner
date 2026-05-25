@@ -734,7 +734,7 @@ function TreeGrowthSimulatorToolSlotMenu({
       </span>
       {isOpen ? (
         <span
-          className="absolute left-0 top-[calc(100%+6px)] z-[120] grid w-[190px] grid-cols-[repeat(3,52px)] gap-3 border-2 border-[#252525] bg-[#c6c6c6] p-3 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555,4px_4px_0_rgba(0,0,0,0.35)]"
+          className="absolute left-0 top-[calc(100%+6px)] z-[120] grid w-[208px] grid-cols-[repeat(3,52px)] gap-3 border-2 border-[#252525] bg-[#c6c6c6] p-3 shadow-[inset_2px_2px_0_#ffffff,inset_-2px_-2px_0_#555,4px_4px_0_rgba(0,0,0,0.35)]"
           onClick={(event) => event.stopPropagation()}
           onContextMenu={(event) => {
             event.preventDefault();
@@ -783,17 +783,6 @@ function TreeGrowthSimulatorToolSlotMenu({
 }
 
 function TreeGrowthSimulatorMenuIcon({ resource }: { resource: ResourceAmount }) {
-  if (resource.iconPath) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={resource.iconPath}
-        alt={resource.displayName ?? resource.id}
-        className="h-9 w-9 object-contain"
-      />
-    );
-  }
-
   return (
     <ResourceIcon
       resource={resource}
@@ -801,8 +790,8 @@ function TreeGrowthSimulatorMenuIcon({ resource }: { resource: ResourceAmount })
       tooltip={false}
       showAmount={false}
       showConsumedState={false}
-      iconPixelSize={36}
-      className="h-9 w-9"
+      iconPixelSize={64}
+      className="h-full w-full"
     />
   );
 }

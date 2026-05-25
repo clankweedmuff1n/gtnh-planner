@@ -2098,6 +2098,7 @@ function scoreEdgeRoute(
   const segments = getPolylineSegments(points);
   const length = segments.reduce((sum, segment) => sum + segment.length, 0);
   let nodeHits = 0;
+  let nodeOverlapLength = 0;
   let edgeIntersections = 0;
   let edgeNearness = 0;
   let edgeOverlap = 0;
@@ -2107,10 +2108,14 @@ function scoreEdgeRoute(
 
   for (const segment of segments) {
     for (const bounds of nodeBounds) {
-      if (
-        segmentIntersectsRect(segment.start, segment.end, expandBounds(bounds, EDGE_LINK_CLEARANCE))
-      ) {
+      const overlapLength = getSegmentRectOverlapLength(
+        segment.start,
+        segment.end,
+        expandBounds(bounds, EDGE_LINK_CLEARANCE),
+      );
+      if (overlapLength > 0) {
         nodeHits += 1;
+        nodeOverlapLength += overlapLength;
       }
     }
 
@@ -2161,7 +2166,8 @@ function scoreEdgeRoute(
 
   const turns = countPolylineTurns(points);
   return (
-    nodeHits * 1_000_000 +
+    nodeOverlapLength * 25_000 +
+    nodeHits * 5_000 +
     selfIntersections * 1_000_000 +
     foldBacks * 750_000 +
     selfOverlap * 40_000 +
@@ -2900,43 +2906,44 @@ function expandBounds(
   };
 }
 
-function segmentIntersectsRect(
+function getSegmentRectOverlapLength(
   start: { x: number; y: number },
   end: { x: number; y: number },
   bounds: { left: number; right: number; top: number; bottom: number },
 ) {
-  if (
-    pointInBounds(start, bounds) ||
-    pointInBounds(end, bounds) ||
-    segmentsIntersect(
-      start,
-      end,
-      { x: bounds.left, y: bounds.top },
-      { x: bounds.right, y: bounds.top },
-    ) ||
-    segmentsIntersect(
-      start,
-      end,
-      { x: bounds.right, y: bounds.top },
-      { x: bounds.right, y: bounds.bottom },
-    ) ||
-    segmentsIntersect(
-      start,
-      end,
-      { x: bounds.right, y: bounds.bottom },
-      { x: bounds.left, y: bounds.bottom },
-    ) ||
-    segmentsIntersect(
-      start,
-      end,
-      { x: bounds.left, y: bounds.bottom },
-      { x: bounds.left, y: bounds.top },
-    )
-  ) {
-    return true;
+  const deltaX = end.x - start.x;
+  const deltaY = end.y - start.y;
+  let entry = 0;
+  let exit = 1;
+
+  const clips = [
+    { p: -deltaX, q: start.x - bounds.left },
+    { p: deltaX, q: bounds.right - start.x },
+    { p: -deltaY, q: start.y - bounds.top },
+    { p: deltaY, q: bounds.bottom - start.y },
+  ];
+
+  for (const { p, q } of clips) {
+    if (Math.abs(p) < 0.0001) {
+      if (q < 0) {
+        return 0;
+      }
+      continue;
+    }
+
+    const ratio = q / p;
+    if (p < 0) {
+      entry = Math.max(entry, ratio);
+    } else {
+      exit = Math.min(exit, ratio);
+    }
+
+    if (entry > exit) {
+      return 0;
+    }
   }
 
-  return false;
+  return Math.hypot(deltaX, deltaY) * Math.max(0, exit - entry);
 }
 
 function pointInBounds(

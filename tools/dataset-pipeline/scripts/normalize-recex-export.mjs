@@ -1,7 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import { PNG } from "pngjs";
 import { writeDatasetJson } from "./dataset-json-writer.mjs";
+import { getDominantOpaqueColor } from "./icon-utils.mjs";
 
 const inputPath = process.argv[2];
 const outputPath = process.argv[3];
@@ -16,6 +18,7 @@ const generatedAt = new Date().toISOString();
 const outDir = path.dirname(outputPath);
 const renderedIconDir = process.env.GTNH_RENDERED_ICON_DIR;
 const renderedIconFiles = await stageRenderedIcons(renderedIconDir, outDir);
+const renderedIconColors = await indexRenderedIconColors(outDir, renderedIconFiles);
 const raw = JSON.parse(stripBom(await fs.readFile(inputPath, "utf8")));
 const rawItemResources = collectRawItemResources(raw);
 
@@ -888,6 +891,9 @@ function addResource(resource) {
     if (!existingResource.iconPath && resource.iconPath) {
       existingResource.iconPath = resource.iconPath;
     }
+    if (!existingResource.dominantColor && resource.dominantColor) {
+      existingResource.dominantColor = resource.dominantColor;
+    }
     if (!existingResource.tooltip && resource.tooltip) {
       existingResource.tooltip = resource.tooltip;
     }
@@ -905,6 +911,7 @@ function addResource(resource) {
     kind: resource.kind,
     displayName: resource.displayName ?? resource.id,
     iconPath: resource.iconPath,
+    dominantColor: resource.dominantColor,
     tooltip: resource.tooltip,
     oreDictionary: resource.oreDictionary,
     alternatives: resource.alternatives,
@@ -997,6 +1004,7 @@ function itemAmount(item, options = {}) {
     displayName: text(item.lN, id),
     tooltip: itemTooltip(item, id, options),
     iconPath,
+    dominantColor: renderedIconDominantColor(item.ic),
     consumed: options.consumed === false ? false : undefined,
   };
   if (options.chance !== undefined) {
@@ -1038,6 +1046,7 @@ function oreDictionaryAmount(item) {
     amount: 1,
     displayName: primaryAlternative?.displayName ?? primaryName,
     iconPath: primaryAlternative?.iconPath,
+    dominantColor: primaryAlternative?.dominantColor,
     alternatives: alternatives.map(resourceAlternative),
     tooltip: [
       names.length > 0 ? `Ore dictionary: ${names.join(", ")}` : undefined,
@@ -1058,6 +1067,7 @@ function resourceAlternative(resource) {
     id: resource.id,
     displayName: resource.displayName,
     iconPath: resource.iconPath,
+    dominantColor: resource.dominantColor,
     tooltip: resource.tooltip,
   };
 }
@@ -1176,6 +1186,7 @@ function fluidAmount(fluid, options = {}) {
     amount: fluid.a,
     displayName: text(fluid.lN, fluid.id),
     iconPath: renderedIconPath(fluid.ic),
+    dominantColor: renderedIconDominantColor(fluid.ic),
   };
   if (options.neiSlot) {
     resource.neiSlot = options.neiSlot;
@@ -1354,6 +1365,34 @@ function renderedIconPath(fileName) {
   }
 
   return `/datasets/gtnh/${datasetVersionId}/textures/rendered/${safeFileName}`;
+}
+
+function renderedIconDominantColor(fileName) {
+  if (!fileName) {
+    return undefined;
+  }
+
+  return renderedIconColors.get(path.basename(String(fileName)));
+}
+
+async function indexRenderedIconColors(datasetOutDir, files) {
+  const colors = new Map();
+  const renderedDir = path.join(datasetOutDir, "textures", "rendered");
+
+  for (const fileName of files) {
+    const filePath = path.join(renderedDir, fileName);
+    try {
+      const icon = PNG.sync.read(await fs.readFile(filePath));
+      colors.set(fileName, getDominantOpaqueColor(icon));
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return colors;
 }
 
 async function pruneUnusedRenderedIcons(dataset, datasetOutDir) {

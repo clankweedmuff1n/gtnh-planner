@@ -1148,6 +1148,57 @@ describe("factory machine count optimization", () => {
     );
   });
 
+  it("uses the split share when storage and another edge feed the same input", () => {
+    const project = createSplitStorageInputOptimizationProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) =>
+        node.id === "storage-source" ? { ...node, machineCount: 10 } : node,
+      ),
+    });
+
+    useFactoryStore.getState().optimizeMachineCount("storage-source");
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "storage-source", machineCount: 1 }),
+      ]),
+    );
+  });
+
+  it("optimizes a multi-output producer when one output is split through storage", () => {
+    const project = createMultiOutputSplitInputOptimizationProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) => (node.id === "source" ? { ...node, machineCount: 41 } : node)),
+    });
+
+    useFactoryStore.getState().optimizeMachineCount("source");
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "source", machineCount: 1 })]),
+    );
+  });
+
+  it("sizes upstream inputs from downstream storage demand instead of storage surplus", () => {
+    const project = createSurplusStorageConsumerInputProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) =>
+        node.id === "input-source" ? { ...node, machineCount: 100 } : node,
+      ),
+    });
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "input-source", machineCount: 1 }),
+        expect.objectContaining({ id: "storage-producer", machineCount: 1 }),
+      ]),
+    );
+  });
+
   it("keeps single-node optimization idempotent across repeated clicks", () => {
     useFactoryStore.getState().setProject(createStorageBusCycleProject());
 
@@ -1679,6 +1730,267 @@ function createRecipeChainWithStorageSinkProject(): FactoryProject {
         resourceId: "dust",
       },
     ],
+  };
+}
+
+function createSplitStorageInputOptimizationProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "split-storage-input-optimization",
+    name: "Split storage input optimization",
+    recipes: [
+      {
+        id: "storage-source-recipe",
+        name: "Storage source",
+        machineType: "Source",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [],
+        outputs: [{ kind: "item", id: "dust", amount: 10 }],
+      },
+      {
+        id: "direct-source-recipe",
+        name: "Direct source",
+        machineType: "Source",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [],
+        outputs: [{ kind: "item", id: "dust", amount: 10 }],
+      },
+      {
+        id: "consumer-recipe",
+        name: "Consumer",
+        machineType: "Assembler",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "dust", amount: 10 }],
+        outputs: [{ kind: "item", id: "plate", amount: 1 }],
+      },
+    ],
+    nodes: [
+      makeNode("storage-source", "storage-source-recipe", 0),
+      makeNode("direct-source", "direct-source-recipe", 160),
+      {
+        ...makeNode("consumer", "consumer-recipe", 320),
+        targetOutput: {
+          kind: "item",
+          resourceId: "plate",
+          amountPerSecond: 1,
+        },
+      },
+    ],
+    storages: [{ id: "dust-storage", kind: "item", resourceId: "dust", position: { x: 160, y: 120 } }],
+    edges: [
+      {
+        id: "storage-source-to-storage",
+        source: "storage-source",
+        target: "dust-storage",
+        resourceKind: "item",
+        resourceId: "dust",
+      },
+      {
+        id: "storage-to-consumer",
+        source: "dust-storage",
+        target: "consumer",
+        resourceKind: "item",
+        resourceId: "dust",
+      },
+      {
+        id: "direct-source-to-consumer",
+        source: "direct-source",
+        target: "consumer",
+        resourceKind: "item",
+        resourceId: "dust",
+      },
+    ],
+    fuelProfiles: [],
+  };
+}
+
+function createMultiOutputSplitInputOptimizationProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "multi-output-split-input-optimization",
+    name: "Multi output split input optimization",
+    recipes: [
+      {
+        id: "source-recipe",
+        name: "Source",
+        machineType: "Source",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [],
+        outputs: [
+          { kind: "item", id: "dust", amount: 10 },
+          { kind: "fluid", id: "oil", amount: 1000 },
+        ],
+      },
+      {
+        id: "item-consumer-recipe",
+        name: "Item consumer",
+        machineType: "Assembler",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "dust", amount: 10 }],
+        outputs: [{ kind: "item", id: "plate", amount: 1 }],
+      },
+      {
+        id: "fluid-consumer-recipe",
+        name: "Fluid consumer",
+        machineType: "Distillation Tower",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "fluid", id: "oil", amount: 1000 }],
+        outputs: [{ kind: "fluid", id: "light", amount: 1000 }],
+      },
+    ],
+    nodes: [
+      makeNode("source", "source-recipe", 0),
+      {
+        ...makeNode("item-consumer", "item-consumer-recipe", 220),
+        targetOutput: {
+          kind: "item",
+          resourceId: "plate",
+          amountPerSecond: 1,
+        },
+      },
+      {
+        ...makeNode("fluid-consumer", "fluid-consumer-recipe", 440),
+        targetOutput: {
+          kind: "fluid",
+          resourceId: "light",
+          amountPerSecond: 1000,
+        },
+      },
+    ],
+    storages: [{ id: "oil-tank", kind: "fluid", resourceId: "oil", position: { x: 260, y: 120 } }],
+    edges: [
+      {
+        id: "source-to-item-consumer",
+        source: "source",
+        target: "item-consumer",
+        resourceKind: "item",
+        resourceId: "dust",
+      },
+      {
+        id: "source-to-fluid-consumer",
+        source: "source",
+        target: "fluid-consumer",
+        resourceKind: "fluid",
+        resourceId: "oil",
+      },
+      {
+        id: "source-to-oil-tank",
+        source: "source",
+        target: "oil-tank",
+        resourceKind: "fluid",
+        resourceId: "oil",
+      },
+      {
+        id: "oil-tank-to-fluid-consumer",
+        source: "oil-tank",
+        target: "fluid-consumer",
+        resourceKind: "fluid",
+        resourceId: "oil",
+      },
+    ],
+    fuelProfiles: [],
+  };
+}
+
+function createSurplusStorageConsumerInputProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "surplus-storage-consumer-input-optimization",
+    name: "Surplus storage consumer input optimization",
+    recipes: [
+      {
+        id: "input-source-recipe",
+        name: "Input source",
+        machineType: "Source",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [],
+        outputs: [{ kind: "item", id: "coal", amount: 1 }],
+      },
+      {
+        id: "storage-producer-recipe",
+        name: "Storage producer",
+        machineType: "Fluid Extractor",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "coal", amount: 100 }],
+        outputs: [{ kind: "fluid", id: "woodtar", amount: 10000 }],
+      },
+      {
+        id: "direct-producer-recipe",
+        name: "Direct producer",
+        machineType: "Source",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [],
+        outputs: [{ kind: "fluid", id: "woodtar", amount: 100 }],
+      },
+      {
+        id: "storage-consumer-recipe",
+        name: "Storage consumer",
+        machineType: "Distillation Tower",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "fluid", id: "woodtar", amount: 100 }],
+        outputs: [{ kind: "fluid", id: "benzene", amount: 1 }],
+      },
+    ],
+    nodes: [
+      makeNode("input-source", "input-source-recipe", 0),
+      makeNode("storage-producer", "storage-producer-recipe", 220),
+      makeNode("direct-producer", "direct-producer-recipe", 220, 140),
+      makeNode("storage-consumer", "storage-consumer-recipe", 520),
+    ],
+    storages: [
+      { id: "woodtar-tank", kind: "fluid", resourceId: "woodtar", position: { x: 380, y: 80 } },
+    ],
+    edges: [
+      {
+        id: "input-source-to-storage-producer",
+        source: "input-source",
+        target: "storage-producer",
+        resourceKind: "item",
+        resourceId: "coal",
+      },
+      {
+        id: "storage-producer-to-tank",
+        source: "storage-producer",
+        target: "woodtar-tank",
+        resourceKind: "fluid",
+        resourceId: "woodtar",
+      },
+      {
+        id: "direct-producer-to-tank",
+        source: "direct-producer",
+        target: "woodtar-tank",
+        resourceKind: "fluid",
+        resourceId: "woodtar",
+      },
+      {
+        id: "tank-to-storage-consumer",
+        source: "woodtar-tank",
+        target: "storage-consumer",
+        resourceKind: "fluid",
+        resourceId: "woodtar",
+      },
+    ],
+    fuelProfiles: [],
   };
 }
 

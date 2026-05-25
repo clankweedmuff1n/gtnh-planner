@@ -34,10 +34,6 @@ const cokeOvenRecipe: Recipe = {
       id: "oredict:logWood",
       amount: 16,
       displayName: "Ore Dictionary: logWood",
-      alternatives: [
-        { kind: "item", id: "minecraft:log@0", displayName: "Oak Log" },
-        { kind: "item", id: "minecraft:log@1", displayName: "Spruce Log" },
-      ],
     },
   ],
   outputs: [{ kind: "item", id: "minecraft:coal@1", amount: 20, displayName: "Charcoal" }],

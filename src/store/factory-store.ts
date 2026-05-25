@@ -96,25 +96,16 @@ interface FactoryStore {
   selectNode: (nodeId?: string) => void;
   selectRecipe: (recipeId?: string) => void;
   addNodeForRecipe: (recipeId: string) => void;
-  addNodeForRecipeObject: (
-    recipe: Recipe,
-    resource?: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
-      mode: RecipeBrowserMode;
-    },
-  ) => void;
+  addNodeForRecipeObject: (recipe: Recipe, resource?: RecipeInputContextResource) => void;
   addConnectedNodeForRecipe: (
     recipeId: string,
     anchorNodeId: string,
-    resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
-      mode: RecipeBrowserMode;
-    },
+    resource: RecipeInputContextResource,
   ) => void;
   addConnectedNodeForRecipeObject: (
     recipe: Recipe,
     anchorNodeId: string,
-    resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
-      mode: RecipeBrowserMode;
-    },
+    resource: RecipeInputContextResource,
   ) => void;
   updateNode: (nodeId: string, patch: Partial<FactoryNode>) => void;
   deleteNode: (nodeId: string) => void;
@@ -169,6 +160,11 @@ const initialProject = createEmptyProject();
 
 export type RecipeBrowserMode = "recipes" | "uses";
 export type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
+
+type RecipeInputContextResource = Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
+  mode: RecipeBrowserMode;
+  inputIndex?: number;
+};
 
 export interface RecipeBrowserResource {
   kind: ResourceKind;
@@ -1211,9 +1207,7 @@ function findRecipeForPlanning(state: FactoryStore, recipeId: string): Recipe | 
 function addRecipeNodeToState(
   state: FactoryStore,
   recipe: Recipe,
-  resource?: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
-    mode: RecipeBrowserMode;
-  },
+  resource?: RecipeInputContextResource,
 ): Partial<FactoryStore> {
   const index = state.project.nodes.length;
   const viewportPosition = state.flowViewportCenter
@@ -1258,9 +1252,7 @@ function addConnectedRecipeNodeToState(
   state: FactoryStore,
   recipe: Recipe,
   anchorNodeId: string,
-  resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
-    mode: RecipeBrowserMode;
-  },
+  resource: RecipeInputContextResource,
 ): Partial<FactoryStore> {
   const anchorNode = state.project.nodes.find((node) => node.id === anchorNodeId);
   const anchorRecipe = state.project.recipes.find((entry) => entry.id === anchorNode?.recipeId);
@@ -1306,13 +1298,17 @@ function addConnectedRecipeNodeToState(
 
 function buildRecipeInputOverrides(
   recipe: Recipe,
-  resource: Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
-    mode: RecipeBrowserMode;
-  },
+  resource: RecipeInputContextResource,
 ): FactoryNode["recipeInputOverrides"] {
   const overrides: NonNullable<FactoryNode["recipeInputOverrides"]> = {};
   recipe.inputs.forEach((input, index) => {
-    if (!resourceMatchesInput(resource, input)) {
+    if (
+      resource.inputIndex !== index &&
+      (resource.inputIndex !== undefined || !resourceMatchesInput(resource, input))
+    ) {
+      return;
+    }
+    if (input.kind !== resource.kind) {
       return;
     }
 

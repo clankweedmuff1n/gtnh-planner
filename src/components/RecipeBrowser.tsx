@@ -1334,6 +1334,7 @@ function getRecipeAddContextResource(
 ):
   | (Pick<ResourceAmount, "kind" | "id" | "displayName"> & {
       mode: "recipes" | "uses";
+      inputIndex?: number;
     })
   | undefined {
   if (!activeResource) {
@@ -1341,18 +1342,23 @@ function getRecipeAddContextResource(
   }
 
   if (mode === "uses") {
-    const contextInput = contextRecipe?.inputs.find(
+    const contextInputIndex = contextRecipe?.inputs.findIndex(
       (input) =>
         input.kind === activeResource.kind &&
         (input.id === activeResource.id ||
           resourceMatchesInput({ kind: activeResource.kind, id: activeResource.id }, input)),
     );
+    const contextInput =
+      contextInputIndex !== undefined && contextInputIndex >= 0
+        ? contextRecipe?.inputs[contextInputIndex]
+        : undefined;
     if (contextInput && !contextInput.id.startsWith("oredict:")) {
       return {
         kind: contextInput.kind,
         id: contextInput.id,
         displayName: contextInput.displayName ?? activeResource.displayName,
         mode,
+        inputIndex: contextInputIndex,
       };
     }
   }

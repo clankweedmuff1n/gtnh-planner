@@ -705,13 +705,16 @@ function shouldExposeSingleMachineHandler(handler) {
 }
 
 function machineHandlerFamilyLabel(label) {
-  return text(label, "")
+  const familyLabel = text(label, "")
     .replace(/^(?:Basic|Advanced|Elite)\s+/i, "")
     .replace(/^(?:Ultimate|Epic)\s+/i, "")
     .replace(/\s+\((?:ULV|LV|MV|HV|EV|IV|LuV|ZPM|UV|UHV|UEV|UIV|UXV|OpV|MAX)\)$/i, "")
     .replace(/\s+(?:I|II|III|IV|V|VI|VII|VIII|IX|X)$/i, "")
     .trim();
+  return MACHINE_HANDLER_FAMILY_ALIASES.get(normalizeLabel(familyLabel)) ?? familyLabel;
 }
+
+const MACHINE_HANDLER_FAMILY_ALIASES = new Map([["liquefying sucker", "Fluid Extractor"]]);
 
 function lowerKnownTier(left, right) {
   if (left === "UNKNOWN") {

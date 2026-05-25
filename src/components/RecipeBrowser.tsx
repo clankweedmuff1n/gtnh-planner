@@ -12,7 +12,12 @@ import {
   type RecipeDatasetQueryResult,
 } from "@/lib/datasets/browser-loader";
 import type { DatasetResourceIndexEntry, RecipeSummary } from "@/lib/datasets/types";
-import { GT_VOLTAGE_TIERS, isVirtualChoiceResource, resourceLabel } from "@/lib/model";
+import {
+  GT_VOLTAGE_TIERS,
+  isVirtualChoiceResource,
+  resourceLabel,
+  resourceMatchesInput,
+} from "@/lib/model";
 import { useFactoryStore } from "@/store/factory-store";
 import type { TierFilter } from "@/store/factory-store";
 import type { Recipe, ResourceAmount } from "@/lib/model/types";
@@ -644,6 +649,11 @@ interface IndexedResource extends Pick<
   recipeCount: number;
 }
 
+type PreviewContextResource = Pick<
+  ResourceAmount,
+  "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor"
+>;
+
 interface RecipeMapTab {
   id: string;
   label: string;
@@ -1113,7 +1123,7 @@ function VirtualRecipeResultList({
   onAdd: (recipeId: string) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
   onSlotBrowse: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
-  contextResource?: Pick<ResourceAmount, "kind" | "id">;
+  contextResource?: PreviewContextResource;
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ scrollTop: 0, height: 360 });
@@ -1205,9 +1215,12 @@ const RecipeResultCard = memo(function RecipeResultCard({
   onAdd: (recipeId: string) => void | Promise<void>;
   onAddConnected?: (recipeId: string) => void | Promise<void>;
   onSlotBrowse?: (resource: ResourceAmount, mode: "recipes" | "uses") => void;
-  contextResource?: Pick<ResourceAmount, "kind" | "id">;
+  contextResource?: PreviewContextResource;
 }) {
-  const previewRecipe = useMemo(() => summaryToPreviewRecipe(recipe), [recipe]);
+  const previewRecipe = useMemo(
+    () => contextualizePreviewRecipe(summaryToPreviewRecipe(recipe), contextResource),
+    [contextResource, recipe],
+  );
   return (
     <article
       onClick={() => onSelectRecipe(recipe.id)}
@@ -1265,6 +1278,50 @@ function summaryToPreviewRecipe(summary: RecipeSummary): Recipe {
     source: summary.source,
     nei: summary.nei,
   };
+}
+
+function contextualizePreviewRecipe(
+  recipe: Recipe,
+  resource: PreviewContextResource | undefined,
+): Recipe {
+  if (!resource) {
+    return recipe;
+  }
+
+  let changed = false;
+  const inputs = recipe.inputs.map((input) => {
+    if (!resourceMatchesInput(resource, input)) {
+      return input;
+    }
+
+    changed = true;
+    return {
+      ...input,
+      kind: resource.kind,
+      id: resource.id,
+      displayName: resource.displayName ?? input.displayName,
+      iconPath: resource.iconPath ?? input.iconPath,
+      iconAtlas: resource.iconAtlas ?? input.iconAtlas,
+      dominantColor: resource.dominantColor ?? input.dominantColor,
+      alternatives: undefined,
+    };
+  });
+  const outputs = recipe.outputs.map((output) => {
+    if (output.kind !== resource.kind || output.id !== resource.id) {
+      return output;
+    }
+
+    changed = true;
+    return {
+      ...output,
+      displayName: resource.displayName ?? output.displayName,
+      iconPath: resource.iconPath ?? output.iconPath,
+      iconAtlas: resource.iconAtlas ?? output.iconAtlas,
+      dominantColor: resource.dominantColor ?? output.dominantColor,
+    };
+  });
+
+  return changed ? { ...recipe, inputs, outputs } : recipe;
 }
 
 function recipeHasRenderableIcons(recipe: Recipe) {

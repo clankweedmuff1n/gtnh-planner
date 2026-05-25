@@ -29,6 +29,33 @@ describe("recipe machine handlers", () => {
     ]);
   });
 
+  it("folds renamed tier variants into their recipe map machine family", () => {
+    const recipe: Recipe = {
+      ...testRecipe("Fluid Extractor"),
+      machineHandlers: [
+        {
+          id: "nei-catalyst-ultimate-liquefying-sucker",
+          label: "Ultimate Liquefying Sucker",
+          machineType: "Ultimate Liquefying Sucker",
+          minimumTier: "UV",
+          kind: "single",
+        },
+        {
+          id: "nei-catalyst-large-fluid-extractor",
+          label: "Large Fluid Extractor",
+          machineType: "Large Fluid Extractor",
+          minimumTier: "EV",
+          kind: "multiblock",
+        },
+      ],
+    };
+
+    expect(getRecipeMachineHandlers(recipe).map((handler) => handler.label)).toEqual([
+      "Fluid Extractor",
+      "Large Fluid Extractor",
+    ]);
+  });
+
   it("applies the selected handler to the effective recipe", () => {
     const recipe = {
       ...testRecipe("Shaped Crafting", "NONE"),

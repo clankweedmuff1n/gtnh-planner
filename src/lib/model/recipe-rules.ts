@@ -22,16 +22,24 @@ export function expandMachineRecipeVariants(recipes: Recipe[]): Recipe[] {
 export function getRecipeMachineHandlers(
   recipe: Pick<Recipe, "machineType" | "minimumTier" | "source" | "machineHandlers">,
 ): MachineHandler[] {
+  const baseMachineType = machineHandlerFamilyLabel(recipe.machineType);
   const baseHandler: MachineHandler = {
-    id: slug(recipe.machineType),
-    label: recipe.machineType,
-    machineType: recipe.machineType,
+    id: slug(baseMachineType),
+    label: baseMachineType,
+    machineType: baseMachineType,
     minimumTier: recipe.minimumTier,
     kind: "single",
   };
-  const handlers = [baseHandler, ...(recipe.machineHandlers ?? [])];
+  const handlersByFamily = new Map<string, MachineHandler>([[slug(baseMachineType), baseHandler]]);
+  for (const handler of recipe.machineHandlers ?? []) {
+    const normalized = normalizeMachineHandler(handler);
+    const familyId = slug(normalized.label);
+    if (!handlersByFamily.has(familyId)) {
+      handlersByFamily.set(familyId, normalized);
+    }
+  }
 
-  return [...new Map(handlers.map((handler) => [handler.id, handler])).values()];
+  return [...handlersByFamily.values()];
 }
 
 export function getSelectedMachineHandler(
@@ -190,8 +198,33 @@ function recipeMapName(recipe: Pick<Recipe, "machineType" | "source">): string {
   return recipe.source?.recipeMap ?? recipe.machineType;
 }
 
+function normalizeMachineHandler(handler: MachineHandler): MachineHandler {
+  const familyLabel = machineHandlerFamilyLabel(handler.label);
+  return {
+    ...handler,
+    label: familyLabel,
+    machineType: machineHandlerFamilyLabel(handler.machineType),
+  };
+}
+
+function machineHandlerFamilyLabel(label: string): string {
+  const familyLabel = label
+    .replace(/^(?:Basic|Advanced|Elite)\s+/i, "")
+    .replace(/^(?:Ultimate|Epic)\s+/i, "")
+    .replace(/\s+\((?:ULV|LV|MV|HV|EV|IV|LuV|ZPM|UV|UHV|UEV|UIV|UXV|OpV|MAX)\)$/i, "")
+    .replace(/\s+(?:I|II|III|IV|V|VI|VII|VIII|IX|X)$/i, "")
+    .trim();
+  return MACHINE_HANDLER_FAMILY_ALIASES.get(normalizeMachineLabel(familyLabel)) ?? familyLabel;
+}
+
+const MACHINE_HANDLER_FAMILY_ALIASES = new Map([["liquefying sucker", "Fluid Extractor"]]);
+
 function slug(value: string): string {
   return normalizeRecipeMapName(value).replace(/[^a-z0-9]+/g, "-");
+}
+
+function normalizeMachineLabel(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 function normalizeRecipeMapName(recipeMap: string): string {

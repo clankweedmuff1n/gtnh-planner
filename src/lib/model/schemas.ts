@@ -198,7 +198,7 @@ export const factoryNodeSchema = z.object({
   recipeId: z.string().min(1),
   colorTag: factoryNodeColorTagSchema.optional(),
   machineCount: z.number().min(0),
-  parallel: z.number().positive(),
+  parallel: z.number().positive().transform((value) => Math.max(1, Math.round(value))),
   overclockTier: z.string().min(1),
   machineHandlerId: z.string().min(1).optional(),
   coilTier: z.string().min(1).optional(),

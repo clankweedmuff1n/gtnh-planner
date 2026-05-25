@@ -32,6 +32,32 @@ describe("factory JSON import/export", () => {
     ).toThrow(/Invalid factory project/);
   });
 
+  it("normalizes hidden fractional recipe parallelism to one operation", () => {
+    const project = parseFactoryProjectJson(
+      JSON.stringify({
+        schemaVersion: 1,
+        id: "fractional-parallel",
+        name: "Fractional parallel",
+        recipes: [],
+        nodes: [
+          {
+            id: "node-1",
+            recipeId: "recipe-1",
+            machineCount: 1,
+            parallel: 0.01,
+            overclockTier: "HV",
+            enabled: true,
+            position: { x: 0, y: 0 },
+          },
+        ],
+        edges: [],
+        fuelProfiles: [],
+      }),
+    );
+
+    expect(project.nodes[0]?.parallel).toBe(1);
+  });
+
   it("validates normalized recipe datasets", () => {
     const dataset = parseRecipeDatasetJson(
       JSON.stringify({

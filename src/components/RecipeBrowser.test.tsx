@@ -142,6 +142,8 @@ vi.mock("@/lib/datasets/browser-loader", () => ({
 
 describe("RecipeBrowser", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+
     class TestResizeObserver {
       observe() {}
       unobserve() {}
@@ -180,8 +182,6 @@ describe("RecipeBrowser", () => {
     render(<RecipeBrowser />);
 
     await screen.findByText("Coke Oven");
-    fireEvent.click(await screen.findByLabelText("Add recipe node"));
-
     await waitFor(() => {
       expect(queryRecipeDatasetRecipes).toHaveBeenCalledWith(
         expect.any(String),
@@ -189,6 +189,8 @@ describe("RecipeBrowser", () => {
         expect.objectContaining({ mode: "uses" }),
       );
     });
+
+    fireEvent.click(await screen.findByLabelText("Add recipe node"));
 
     await waitFor(() => {
       const node = useFactoryStore.getState().project.nodes[0];

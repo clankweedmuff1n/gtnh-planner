@@ -1523,10 +1523,13 @@ function isFactoryEdgeStillValid(project: FactoryProject, edge: FactoryEdge): bo
   }
 
   if (sourceStorage && targetRecipe) {
+    const effectiveTargetRecipe = targetNode
+      ? applyRecipeInputOverrides(targetRecipe, targetNode)
+      : targetRecipe;
     return (
       edge.resourceKind === sourceStorage.kind &&
       edge.resourceId === sourceStorage.resourceId &&
-      targetRecipe.inputs.some(
+      effectiveTargetRecipe.inputs.some(
         (input) =>
           isRecipeInputConsumed(input) &&
           resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, input),
@@ -1535,24 +1538,34 @@ function isFactoryEdgeStillValid(project: FactoryProject, edge: FactoryEdge): bo
   }
 
   if (sourceRecipe && targetStorage) {
+    const effectiveSourceRecipe = sourceNode
+      ? applyRecipeInputOverrides(sourceRecipe, sourceNode)
+      : sourceRecipe;
     return (
       edge.resourceKind === targetStorage.kind &&
       edge.resourceId === targetStorage.resourceId &&
-      sourceRecipe.outputs.some(
-        (output) => output.kind === edge.resourceKind && output.id === edge.resourceId,
+      effectiveSourceRecipe.outputs.some(
+        (output) =>
+          output.kind === edge.resourceKind &&
+          resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, output),
       )
     );
   }
 
-  if (!sourceRecipe || !targetRecipe) {
+  if (!sourceNode || !targetNode || !sourceRecipe || !targetRecipe) {
     return false;
   }
 
+  const effectiveSourceRecipe = applyRecipeInputOverrides(sourceRecipe, sourceNode);
+  const effectiveTargetRecipe = applyRecipeInputOverrides(targetRecipe, targetNode);
+
   return (
-    sourceRecipe.outputs.some(
-      (output) => output.kind === edge.resourceKind && output.id === edge.resourceId,
+    effectiveSourceRecipe.outputs.some(
+      (output) =>
+        output.kind === edge.resourceKind &&
+        resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, output),
     ) &&
-    targetRecipe.inputs.some(
+    effectiveTargetRecipe.inputs.some(
       (input) =>
         isRecipeInputConsumed(input) &&
         resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, input),

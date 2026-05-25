@@ -240,6 +240,19 @@ describe("factory resource links", () => {
         targetHandle: "input:item:minecraft%3Alog%401:0",
       }),
     );
+
+    useFactoryStore.getState().updateNode("tgs-node", {
+      machineConfigTiers: { tgsToolSlot1: "saw" },
+    });
+
+    expect(useFactoryStore.getState().project.edges[0]).toEqual(
+      expect.objectContaining({
+        source: "tgs-node",
+        target: "coke-node",
+        resourceKind: "item",
+        resourceId: "minecraft:log@1",
+      }),
+    );
   });
 
   it("connects tool outputs to matching ore dictionary tool inputs", () => {

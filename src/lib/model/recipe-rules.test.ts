@@ -83,6 +83,52 @@ describe("multiblock machine config controls", () => {
     });
   });
 
+  it("uses machine config controls imported from the dataset", () => {
+    const recipe: Recipe = {
+      ...testRecipe("Imported Machine"),
+      machineConfigControls: [
+        {
+          id: "pipeCasing",
+          label: "Pipe Casing",
+          minimumKey: "steel",
+          defaultKey: "steel",
+          tiers: [
+            {
+              key: "steel",
+              label: "Steel",
+              resource: {
+                kind: "item",
+                id: "gregtech:gt.blockcasings2@13",
+                amount: 1,
+                displayName: "Steel Pipe Casing",
+              },
+            },
+            {
+              key: "tungstensteel",
+              label: "Tungstensteel",
+              resource: {
+                kind: "item",
+                id: "gregtech:gt.blockcasings2@15",
+                amount: 1,
+                displayName: "Tungstensteel Pipe Casing",
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const [control] = getRecipeMachineConfigTierControls(recipe, {
+      machineConfigTiers: { pipeCasing: "tungstensteel" },
+    });
+
+    expect(control).toMatchObject({
+      id: "pipeCasing",
+      current: { key: "tungstensteel" },
+      resource: { id: "gregtech:gt.blockcasings2@15" },
+    });
+  });
+
   it("does not add pipe casing controls to unrelated machines", () => {
     expect(getRecipeMachineConfigTierControls(testRecipe("Macerator"), {})).toEqual([]);
   });

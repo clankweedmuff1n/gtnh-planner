@@ -129,13 +129,24 @@ export async function getDatasetCatalog(versionId: string) {
 }
 
 function getMachineConfigResources(catalog: LoadedRecipeIndex): DatasetResourceIndexEntry[] {
-  return catalog.resourceIndex.filter(
-    (resource) =>
-      resource.kind === "item" &&
-      (/^gregtech:gt\.blockcasings5(?:@\d+)?$/.test(resource.id) ||
-        /^gregtech:gt\.blockcasings2@(?:12|13|14|15)$/.test(resource.id) ||
-        /^gregtech:gt\.blockcasings8@1$/.test(resource.id) ||
-        /^gregtech:gt\.blockcasings9$/.test(resource.id)),
+  const resources = [...catalog.resourceIndex, ...catalog.resources].filter(
+    isMachineConfigResource,
+  );
+  return [
+    ...new Map(resources.map((resource) => [`${resource.kind}:${resource.id}`, resource])).values(),
+  ].map((resource) => ({
+    ...resource,
+    recipeCount: "recipeCount" in resource ? resource.recipeCount : 0,
+  }));
+}
+
+function isMachineConfigResource(resource: DatasetResource | DatasetResourceIndexEntry) {
+  return (
+    resource.kind === "item" &&
+    (/^gregtech:gt\.blockcasings5(?:@\d+)?$/.test(resource.id) ||
+      /^gregtech:gt\.blockcasings2@(?:12|13|14|15)$/.test(resource.id) ||
+      /^gregtech:gt\.blockcasings8@1$/.test(resource.id) ||
+      /^gregtech:gt\.blockcasings9$/.test(resource.id))
   );
 }
 
@@ -768,6 +779,7 @@ function toRecipeSummary(
     eut: recipe.eut,
     programmedCircuit: recipe.programmedCircuit,
     machineHandlers: recipe.machineHandlers,
+    machineConfigControls: recipe.machineConfigControls,
     inputs: recipe.inputs.map((resource) => hydrateResource(resource, resourcesByKey)),
     outputs: recipe.outputs.map((resource) => hydrateResource(resource, resourcesByKey)),
     source: recipe.source?.recipeMap ? { recipeMap: recipe.source.recipeMap } : undefined,

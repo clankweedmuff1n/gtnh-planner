@@ -24,6 +24,47 @@ const recipes = [];
 const recipeSignatures = new Set();
 const oreDictionary = {};
 
+const heatingCoilTiers = [
+  { heat: 1801, key: "cupronickel", label: "Cupronickel", blockId: "gregtech:gt.blockcasings5" },
+  { heat: 2701, key: "kanthal", label: "Kanthal", blockId: "gregtech:gt.blockcasings5@1" },
+  { heat: 3601, key: "nichrome", label: "Nichrome", blockId: "gregtech:gt.blockcasings5@2" },
+  { heat: 4501, key: "tpv", label: "TPV-Alloy", blockId: "gregtech:gt.blockcasings5@3" },
+  { heat: 5401, key: "hss_g", label: "HSS-G", blockId: "gregtech:gt.blockcasings5@4" },
+  { heat: 6301, key: "hss_s", label: "HSS-S", blockId: "gregtech:gt.blockcasings5@9" },
+  { heat: 7201, key: "naquadah", label: "Naquadah", blockId: "gregtech:gt.blockcasings5@5" },
+  {
+    heat: 8101,
+    key: "naquadah_alloy",
+    label: "Naquadah Alloy",
+    blockId: "gregtech:gt.blockcasings5@6",
+  },
+  { heat: 9001, key: "trinium", label: "Trinium", blockId: "gregtech:gt.blockcasings5@10" },
+  {
+    heat: 9901,
+    key: "electrum_flux",
+    label: "Electrum Flux",
+    blockId: "gregtech:gt.blockcasings5@7",
+  },
+  {
+    heat: 10801,
+    key: "awakened_draconium",
+    label: "Awakened Draconium",
+    blockId: "gregtech:gt.blockcasings5@8",
+  },
+  { heat: 11701, key: "infinity", label: "Infinity", blockId: "gregtech:gt.blockcasings5@11" },
+  { heat: 12601, key: "hypogen", label: "Hypogen", blockId: "gregtech:gt.blockcasings5@12" },
+  { heat: 13501, key: "eternal", label: "Eternal", blockId: "gregtech:gt.blockcasings5@13" },
+];
+
+const pipeCasingTiers = [
+  { key: "bronze", label: "Bronze", blockId: "gregtech:gt.blockcasings2@12" },
+  { key: "steel", label: "Steel", blockId: "gregtech:gt.blockcasings2@13" },
+  { key: "titanium", label: "Titanium", blockId: "gregtech:gt.blockcasings2@14" },
+  { key: "tungstensteel", label: "Tungstensteel", blockId: "gregtech:gt.blockcasings2@15" },
+  { key: "ptfe", label: "PTFE", blockId: "gregtech:gt.blockcasings8@1" },
+  { key: "pbi", label: "PBI", blockId: "gregtech:gt.blockcasings9" },
+];
+
 const sources = Array.isArray(raw.sources) ? raw.sources : [];
 const gregtechSource = sources.find((source) => source.type === "gregtech");
 
@@ -142,6 +183,7 @@ function normalizeGregtechRecipes(source) {
         machineType,
         minimumTier: "UNKNOWN",
         machineHandlers: machineHandlers.length > 0 ? machineHandlers : undefined,
+        machineConfigControls: machineConfigControlsForRecipe(machineType, rawRecipe.sp),
         durationTicks: rawRecipe.dur,
         eut: rawRecipe.eut ?? 0,
         inputs,
@@ -259,10 +301,108 @@ function addRecipe(recipe) {
   }
   recipeSignatures.add(signature);
 
-  for (const resource of [...recipe.inputs, ...recipe.outputs]) {
+  for (const resource of [
+    ...recipe.inputs,
+    ...recipe.outputs,
+    ...machineConfigResources(recipe.machineConfigControls),
+  ]) {
     addResource(resource);
   }
   recipes.push(recipe);
+}
+
+function machineConfigControlsForRecipe(machineType, specialValue) {
+  const controls = [];
+  const normalized = normalizeLabel(machineType);
+
+  if (isBlastFurnaceRecipeMap(normalized) && Number.isFinite(specialValue) && specialValue > 0) {
+    const minimum = coilTierForHeat(specialValue);
+    if (minimum) {
+      controls.push({
+        id: "heatingCoil",
+        label: "Heating Coil",
+        minimumKey: minimum.key,
+        defaultKey: minimum.key,
+        tiers: heatingCoilTiers.map((tier) => ({
+          key: tier.key,
+          label: tier.label,
+          heat: tier.heat,
+          resource: machineConfigResource(tier.blockId, `${tier.label} Coil Block`, [
+            "Heating coil tier",
+            `Heat capacity: ${tier.heat} K`,
+          ]),
+        })),
+      });
+    }
+  }
+
+  if (isChemicalPlantRecipeMap(normalized)) {
+    controls.push({
+      id: "heatingCoil",
+      label: "Heating Coil",
+      minimumKey: heatingCoilTiers[0].key,
+      defaultKey: heatingCoilTiers[0].key,
+      tiers: heatingCoilTiers.map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        heat: tier.heat,
+        resource: machineConfigResource(tier.blockId, `${tier.label} Coil Block`, [
+          "Heating coil tier",
+          `Heat capacity: ${tier.heat} K`,
+        ]),
+      })),
+    });
+    controls.push({
+      id: "pipeCasing",
+      label: "Pipe Casing",
+      minimumKey: pipeCasingTiers[0].key,
+      defaultKey: pipeCasingTiers[0].key,
+      tiers: pipeCasingTiers.map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        resource: machineConfigResource(tier.blockId, `${tier.label} Pipe Casing`, [
+          "Pipe casing tier",
+          `${tier.label} pipe casing`,
+        ]),
+      })),
+    });
+  }
+
+  return controls.length > 0 ? controls : undefined;
+}
+
+function machineConfigResources(controls) {
+  return (controls ?? []).flatMap((control) =>
+    (control.tiers ?? []).map((tier) => tier.resource).filter(Boolean),
+  );
+}
+
+function machineConfigResource(id, displayName, tooltip) {
+  return {
+    kind: "item",
+    id,
+    amount: 1,
+    displayName,
+    tooltip,
+    consumed: false,
+  };
+}
+
+function coilTierForHeat(heat) {
+  return heatingCoilTiers.find((tier) => tier.heat >= heat) ?? heatingCoilTiers.at(-1);
+}
+
+function isBlastFurnaceRecipeMap(normalizedMachineType) {
+  return (
+    normalizedMachineType === "blast furnace" || normalizedMachineType === "electric blast furnace"
+  );
+}
+
+function isChemicalPlantRecipeMap(normalizedMachineType) {
+  return (
+    normalizedMachineType === "chemical plant" ||
+    normalizedMachineType === "exxonmobil chemical plant"
+  );
 }
 
 function machineHandlersFromCatalysts(catalysts, { baseMachineType, fallbackMinimumTier }) {
@@ -366,10 +506,7 @@ function inferCatalystKind(label, fallbackMinimumTier) {
 }
 
 function normalizeLabel(value) {
-  return text(value, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
+  return text(value, "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function escapeRegExp(value) {
@@ -383,6 +520,7 @@ function recipeSignature(recipe) {
     durationTicks: recipe.durationTicks,
     eut: recipe.eut,
     programmedCircuit: recipe.programmedCircuit,
+    machineConfigControls: recipe.machineConfigControls,
     inputs: recipe.inputs?.map(resourceSignature) ?? [],
     outputs: recipe.outputs?.map(resourceSignature) ?? [],
   });
@@ -673,7 +811,13 @@ function normalizeNeiSlotFrames(slots) {
     .map((slot) => {
       const side = slot?.s === "output" ? "output" : slot?.s === "input" ? "input" : undefined;
       const kind = slot?.k === "fluid" ? "fluid" : slot?.k === "item" ? "item" : undefined;
-      if (!side || !kind || !Number.isInteger(slot?.i) || !Number.isInteger(slot?.x) || !Number.isInteger(slot?.y)) {
+      if (
+        !side ||
+        !kind ||
+        !Number.isInteger(slot?.i) ||
+        !Number.isInteger(slot?.x) ||
+        !Number.isInteger(slot?.y)
+      ) {
         return undefined;
       }
       return {

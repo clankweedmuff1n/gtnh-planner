@@ -8,7 +8,17 @@ import type { FactoryNode, MachineTier, Recipe } from "@/lib/model/types";
 
 type VoltageTier = Exclude<MachineTier, "DEMO">;
 type OverclockRecipeInput = Pick<Recipe, "durationTicks" | "eut" | "minimumTier"> &
-  Partial<Pick<Recipe, "machineType" | "source" | "nei" | "machineHandlers" | "machineProfile">>;
+  Partial<
+    Pick<
+      Recipe,
+      | "machineType"
+      | "source"
+      | "nei"
+      | "machineHandlers"
+      | "machineProfile"
+      | "machineConfigControls"
+    >
+  >;
 
 export interface OverclockedRecipeStats {
   tier: VoltageTier;
@@ -57,11 +67,16 @@ function getHeatOverclockStats(
   const specialValue = getRecipeSpecialValue(recipe);
   const coilControl = recipe.machineType
     ? getRecipeCoilTierControl(
-        { machineType: recipe.machineType, source: recipe.source, nei: recipe.nei },
+        {
+          machineType: recipe.machineType,
+          source: recipe.source,
+          nei: recipe.nei,
+          machineConfigControls: recipe.machineConfigControls,
+        },
         node,
       )
     : undefined;
-  if (specialValue === undefined || !coilControl) {
+  if (specialValue === undefined || !coilControl || !coilControl.current.heat) {
     return {
       heatOverclockSteps: 0,
       regularOverclockSteps: overclockSteps,

@@ -94,6 +94,23 @@ export const machineHandlerSchema = machineProfileSchema.extend({
   kind: z.enum(["single", "multiblock", "crafting", "automation"]).optional(),
 });
 
+export const machineConfigControlSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  minimumKey: z.string().min(1),
+  defaultKey: z.string().min(1).optional(),
+  tiers: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        label: z.string().min(1),
+        heat: z.number().int().positive().optional(),
+        resource: resourceAmountSchema,
+      }),
+    )
+    .min(1),
+});
+
 export const recipeSchema = z.object({
   id: z.string().min(1, "Recipe id is required"),
   name: z.string().min(1, "Recipe name is required"),
@@ -107,6 +124,7 @@ export const recipeSchema = z.object({
   notes: z.string().optional(),
   machineProfile: machineProfileSchema.optional(),
   machineHandlers: z.array(machineHandlerSchema).optional(),
+  machineConfigControls: z.array(machineConfigControlSchema).optional(),
   isDemo: z.boolean().optional(),
   source: z
     .object({

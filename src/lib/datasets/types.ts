@@ -83,6 +83,7 @@ export interface RecipeSummary {
   eut: number;
   programmedCircuit?: string;
   machineHandlers?: Recipe["machineHandlers"];
+  machineConfigControls?: Recipe["machineConfigControls"];
   inputs: RecipeInput[];
   outputs: RecipeOutput[];
   source?: Recipe["source"];

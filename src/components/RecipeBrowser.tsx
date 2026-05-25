@@ -1260,6 +1260,7 @@ function summaryToPreviewRecipe(summary: RecipeSummary): Recipe {
     inputs: summary.inputs,
     outputs: summary.outputs,
     programmedCircuit: summary.programmedCircuit,
+    machineConfigControls: summary.machineConfigControls,
     source: summary.source,
     nei: summary.nei,
   };

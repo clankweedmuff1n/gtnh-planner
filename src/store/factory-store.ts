@@ -1228,6 +1228,7 @@ function mergeRecipe(existing: Recipe, incoming: Recipe): Recipe {
     outputs: incoming.outputs.length > 0 ? incoming.outputs : existing.outputs,
     nei: incoming.nei ?? existing.nei,
     machineHandlers: incoming.machineHandlers ?? existing.machineHandlers,
+    machineConfigControls: incoming.machineConfigControls ?? existing.machineConfigControls,
   };
 }
 

@@ -23,7 +23,6 @@ import {
   getRecipePowerTier,
   getSelectedMachineHandler,
   getVoltageTierIndex,
-  heatingCoilTierResource,
   isRecipeInputConsumed,
   isVoltageTierAbove,
   makeResourceKey,
@@ -80,7 +79,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const tierControl = getNodeTierControl(effectiveRecipe, projectNode);
   const coilControl = getRecipeCoilTierControl(effectiveRecipe, projectNode);
   const coilResource = coilControl
-    ? resolveDatasetMachineConfigResource(heatingCoilTierResource(coilControl.current), dataset)
+    ? resolveDatasetMachineConfigResource(coilControl.resource, dataset)
     : undefined;
   const machineConfigControls = getRecipeMachineConfigTierControls(
     effectiveRecipe,

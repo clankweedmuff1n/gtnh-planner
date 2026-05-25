@@ -1,4 +1,11 @@
-import type { FactoryNode, MachineHandler, Recipe, RecipeInput } from "./types";
+import type {
+  FactoryNode,
+  MachineConfigControl,
+  MachineConfigTierOption,
+  MachineHandler,
+  Recipe,
+  RecipeInput,
+} from "./types";
 
 const EBF_COIL_REQUIREMENTS = [
   {
@@ -99,11 +106,6 @@ export interface MachineConfigTierControl {
   resource: RecipeInput;
 }
 
-export interface MachineConfigTierOption {
-  key: string;
-  label: string;
-}
-
 export function expandMachineRecipeVariants(recipes: Recipe[]): Recipe[] {
   return recipes;
 }
@@ -174,17 +176,26 @@ export function isRecipeTierAdjustable(
 }
 
 export function getRecipeCoilTierControl(
-  recipe: Pick<Recipe, "machineType" | "source" | "nei">,
+  recipe: Pick<Recipe, "machineType" | "source" | "nei" | "machineConfigControls">,
   node: { coilTier?: string },
 ) {
+  const importedControl = findMachineConfigControl(recipe, "heatingCoil");
+  if (importedControl) {
+    return resolveMachineConfigTierControl(importedControl, node.coilTier);
+  }
+
   const specialValue = getRecipeSpecialValue(recipe);
   if (isChemicalPlantRecipeMap(recipeMapName(recipe))) {
-    const requestedIndex = EBF_COIL_REQUIREMENTS.findIndex((entry) => entry.key === node.coilTier);
-    const current = EBF_COIL_REQUIREMENTS[Math.max(0, requestedIndex)] ?? EBF_COIL_REQUIREMENTS[0];
+    const tiers = EBF_COIL_REQUIREMENTS.map(coilTierOption);
+    const requestedIndex = tiers.findIndex((entry) => entry.key === node.coilTier);
+    const current = tiers[Math.max(0, requestedIndex)] ?? tiers[0];
     return {
-      minimum: EBF_COIL_REQUIREMENTS[0],
+      id: "heatingCoil",
+      label: "Heating Coil",
+      minimum: tiers[0],
       current,
-      tiers: EBF_COIL_REQUIREMENTS,
+      tiers,
+      resource: current.resource,
     };
   }
 
@@ -203,38 +214,51 @@ export function getRecipeCoilTierControl(
 
   const requestedIndex = EBF_COIL_REQUIREMENTS.findIndex((entry) => entry.key === node.coilTier);
   const currentIndex = Math.max(minimumIndex, requestedIndex);
-  const minimum = EBF_COIL_REQUIREMENTS[minimumIndex];
-  const current = EBF_COIL_REQUIREMENTS[currentIndex] ?? minimum;
+  const tiers = EBF_COIL_REQUIREMENTS.map(coilTierOption);
+  const minimum = tiers[minimumIndex];
+  const current = tiers[currentIndex] ?? minimum;
 
   return {
+    id: "heatingCoil",
+    label: "Heating Coil",
     minimum,
     current,
-    tiers: EBF_COIL_REQUIREMENTS.slice(minimumIndex),
+    tiers: tiers.slice(minimumIndex),
+    resource: current.resource,
   };
 }
 
 export function getRecipeMachineConfigTierControls(
-  recipe: Pick<Recipe, "machineType" | "source" | "nei">,
+  recipe: Pick<Recipe, "machineType" | "source" | "nei" | "machineConfigControls">,
   node: Pick<FactoryNode, "machineConfigTiers">,
 ): MachineConfigTierControl[] {
+  const importedControls = recipe.machineConfigControls
+    ?.filter((control) => control.id !== "heatingCoil")
+    .map((control) =>
+      resolveMachineConfigTierControl(control, node.machineConfigTiers?.[control.id]),
+    )
+    .filter((control): control is MachineConfigTierControl => Boolean(control));
+  if (importedControls?.length) {
+    return importedControls;
+  }
+
   const recipeMap = recipeMapName(recipe);
   if (!isChemicalPlantRecipeMap(recipeMap)) {
     return [];
   }
 
   const currentKey = node.machineConfigTiers?.pipeCasing;
-  const current =
-    PIPE_CASING_REQUIREMENTS.find((entry) => entry.key === currentKey) ??
-    PIPE_CASING_REQUIREMENTS[0];
+  const tiers = PIPE_CASING_REQUIREMENTS.map(pipeCasingTierOption);
+  const current = tiers.find((entry) => entry.key === currentKey) ?? tiers[0];
 
   return [
     {
       id: "pipeCasing",
       label: "Pipe Casing",
-      minimum: PIPE_CASING_REQUIREMENTS[0],
+      minimum: tiers[0],
       current,
-      tiers: [...PIPE_CASING_REQUIREMENTS],
-      resource: pipeCasingTierResource(current),
+      tiers,
+      resource: current.resource,
     },
   ];
 }
@@ -319,6 +343,57 @@ function pipeCasingTierResource(casing: (typeof PIPE_CASING_REQUIREMENTS)[number
     iconPath: machineConfigTextureDataUri(casing.colors[0], casing.colors[1]),
     consumed: false,
     tooltip: ["Pipe casing tier", `${casing.label} pipe casing`],
+  };
+}
+
+function coilTierOption(coil: (typeof EBF_COIL_REQUIREMENTS)[number]): MachineConfigTierOption {
+  return {
+    key: coil.key,
+    label: coil.label,
+    heat: coil.heat,
+    resource: makeCoilRequirementInput(coil),
+  };
+}
+
+function pipeCasingTierOption(
+  casing: (typeof PIPE_CASING_REQUIREMENTS)[number],
+): MachineConfigTierOption {
+  return {
+    key: casing.key,
+    label: casing.label,
+    resource: pipeCasingTierResource(casing),
+  };
+}
+
+function findMachineConfigControl(
+  recipe: Pick<Recipe, "machineConfigControls">,
+  id: string,
+): MachineConfigControl | undefined {
+  return recipe.machineConfigControls?.find((control) => control.id === id);
+}
+
+function resolveMachineConfigTierControl(
+  control: MachineConfigControl,
+  selectedKey: string | undefined,
+): MachineConfigTierControl | undefined {
+  const minimum = control.tiers.find((tier) => tier.key === control.minimumKey) ?? control.tiers[0];
+  if (!minimum) {
+    return undefined;
+  }
+
+  const minimumIndex = control.tiers.findIndex((tier) => tier.key === minimum.key);
+  const tiers = control.tiers.slice(Math.max(0, minimumIndex));
+  const selected = tiers.find((tier) => tier.key === selectedKey);
+  const defaultTier = tiers.find((tier) => tier.key === control.defaultKey);
+  const current = selected ?? defaultTier ?? minimum;
+
+  return {
+    id: control.id,
+    label: control.label,
+    minimum,
+    current,
+    tiers,
+    resource: current.resource,
   };
 }
 

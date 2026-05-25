@@ -100,6 +100,21 @@ export interface MachineHandler extends MachineProfile {
   kind?: "single" | "multiblock" | "crafting" | "automation";
 }
 
+export interface MachineConfigTierOption {
+  key: string;
+  label: string;
+  heat?: number;
+  resource: ResourceAmount;
+}
+
+export interface MachineConfigControl {
+  id: string;
+  label: string;
+  minimumKey: string;
+  defaultKey?: string;
+  tiers: MachineConfigTierOption[];
+}
+
 export interface Recipe {
   id: string;
   name: string;
@@ -113,6 +128,7 @@ export interface Recipe {
   notes?: string;
   machineProfile?: MachineProfile;
   machineHandlers?: MachineHandler[];
+  machineConfigControls?: MachineConfigControl[];
   isDemo?: boolean;
   source?: {
     datasetVersionId?: string;

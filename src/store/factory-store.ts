@@ -970,7 +970,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
               node,
               untargetedCyclicMachineCounts.get(node.id),
             )
-          : getOptimizedMachineCount(nodeResult.theoreticalMachinesRequired, node.machineCount);
+          : getOptimizableMachineCount(project, node, nodeResult, result);
 
         if (machineCount === node.machineCount) {
           break;
@@ -1028,7 +1028,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
                 node,
                 untargetedCyclicMachineCounts.get(node.id),
               )
-            : getOptimizedMachineCount(nodeResult.theoreticalMachinesRequired, node.machineCount);
+            : getOptimizableMachineCount(project, node, nodeResult, result);
           if (machineCount === node.machineCount) {
             return node;
           }
@@ -1706,6 +1706,105 @@ function getOptimizedMachineCount(theoreticalMachinesRequired: number, current: 
   }
 
   return Math.max(1, Math.ceil(theoreticalMachinesRequired));
+}
+
+function getOptimizableMachineCount(
+  project: FactoryProject,
+  node: FactoryNode,
+  nodeResult: ThroughputResult["nodes"][string],
+  result: ThroughputResult,
+): number {
+  const requiredByResource = getOptimizableRequiredRates(project, node, result);
+  if (node.targetOutput) {
+    const targetKey = `${node.targetOutput.kind}:${node.targetOutput.resourceId}`;
+    requiredByResource.set(
+      targetKey,
+      Math.max(requiredByResource.get(targetKey) ?? 0, node.targetOutput.amountPerSecond),
+    );
+  }
+
+  let theoreticalMachinesRequired = 0;
+  const currentMachineCount = Math.max(1, node.machineCount);
+  for (const [resourceKey, requiredRate] of requiredByResource) {
+    const output = nodeResult.outputs[resourceKey as keyof typeof nodeResult.outputs];
+    if (!output || requiredRate <= 0 || output.amountPerSecond <= 0) {
+      continue;
+    }
+
+    theoreticalMachinesRequired = Math.max(
+      theoreticalMachinesRequired,
+      requiredRate / (output.amountPerSecond / currentMachineCount),
+    );
+  }
+
+  return getOptimizedMachineCount(theoreticalMachinesRequired, node.machineCount);
+}
+
+function getOptimizableRequiredRates(
+  project: FactoryProject,
+  node: FactoryNode,
+  result: ThroughputResult,
+): Map<string, number> {
+  const requiredByResource = new Map<string, number>();
+  const storagesById = new Map((project.storages ?? []).map((storage) => [storage.id, storage]));
+  const storageOutgoingDemand = getStorageOutgoingDemandByResource(project, result);
+  const storageIncomingCounts = countIncomingStorageEdgesByResource(project, storagesById);
+
+  for (const edge of project.edges) {
+    if (edge.source !== node.id) {
+      continue;
+    }
+
+    const key = `${edge.resourceKind}:${edge.resourceId}`;
+    const targetStorage = storagesById.get(edge.target);
+    const requiredRate = targetStorage
+      ? (storageOutgoingDemand.get(key) ?? 0) / (storageIncomingCounts.get(key) ?? 1)
+      : (result.edges[edge.id]?.demandPerSecond ?? 0);
+
+    if (requiredRate > 0) {
+      requiredByResource.set(key, (requiredByResource.get(key) ?? 0) + requiredRate);
+    }
+  }
+
+  return requiredByResource;
+}
+
+function getStorageOutgoingDemandByResource(
+  project: FactoryProject,
+  result: ThroughputResult,
+): Map<string, number> {
+  const storageIds = new Set((project.storages ?? []).map((storage) => storage.id));
+  const demand = new Map<string, number>();
+
+  for (const edge of project.edges) {
+    if (!storageIds.has(edge.source) || storageIds.has(edge.target)) {
+      continue;
+    }
+
+    const key = `${edge.resourceKind}:${edge.resourceId}`;
+    demand.set(key, (demand.get(key) ?? 0) + (result.edges[edge.id]?.demandPerSecond ?? 0));
+  }
+
+  return demand;
+}
+
+function countIncomingStorageEdgesByResource(
+  project: FactoryProject,
+  storagesById: Map<string, FactoryStorage>,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const edge of project.edges) {
+    const storage = storagesById.get(edge.target);
+    if (!storage) {
+      continue;
+    }
+
+    const key = `${storage.kind}:${storage.resourceId}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return counts;
 }
 
 function resetRecipeMachineCounts(project: FactoryProject): FactoryProject {

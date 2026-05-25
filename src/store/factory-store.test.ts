@@ -675,6 +675,31 @@ describe("factory machine count optimization", () => {
     );
   });
 
+  it("does not let surplus storage sinks pin single-node optimization to the current count", () => {
+    const project = createRecipeChainWithStorageSinkProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) =>
+        node.id === "sink-source"
+          ? { ...node, machineCount: 3 }
+          : {
+              ...node,
+              targetOutput: {
+                kind: "item",
+                resourceId: "plate",
+                amountPerSecond: 1,
+              },
+            },
+      ),
+    });
+
+    useFactoryStore.getState().optimizeMachineCount("sink-source");
+
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "sink-source", machineCount: 1 })]),
+    );
+  });
+
   it("keeps single-node optimization idempotent across repeated clicks", () => {
     useFactoryStore.getState().setProject(createStorageBusCycleProject());
 

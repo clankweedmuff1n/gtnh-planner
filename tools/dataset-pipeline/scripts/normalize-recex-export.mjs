@@ -27,6 +27,7 @@ const recipeMaps = [];
 const recipes = [];
 const recipeSignatures = new Set();
 const oreDictionary = {};
+const MACHINE_HANDLER_FAMILY_ALIASES = new Map([["liquefying sucker", "Fluid Extractor"]]);
 
 const heatingCoilTiers = [
   { heat: 1801, key: "cupronickel", label: "Cupronickel", blockId: "gregtech:gt.blockcasings5" },
@@ -754,8 +755,6 @@ function machineHandlerFamilyLabel(label) {
     .trim();
   return MACHINE_HANDLER_FAMILY_ALIASES.get(normalizeLabel(familyLabel)) ?? familyLabel;
 }
-
-const MACHINE_HANDLER_FAMILY_ALIASES = new Map([["liquefying sucker", "Fluid Extractor"]]);
 
 function lowerKnownTier(left, right) {
   if (left === "UNKNOWN") {

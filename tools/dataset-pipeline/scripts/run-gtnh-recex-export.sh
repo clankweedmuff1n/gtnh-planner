@@ -66,6 +66,14 @@ git clone --depth 1 https://github.com/GTNewHorizons/RecEx.git "$recex_work"
 node tools/dataset-pipeline/scripts/patch-recex-autorun.mjs "$recex_work"
 
 chmod +x "$recex_work/gradlew"
+gradle_java_paths=()
+while IFS= read -r java_bin; do
+  gradle_java_paths+=("$(dirname "$(dirname "$java_bin")")")
+done < <(find /opt/java/jvm17 /opt/java/openjdk /opt/java/jdk-25 -path '*/bin/java' -type f 2>/dev/null | sort)
+if (( ${#gradle_java_paths[@]} > 0 )); then
+  gradle_java_paths_csv="$(IFS=,; echo "${gradle_java_paths[*]}")"
+  export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.java.installations.paths=$gradle_java_paths_csv -Dorg.gradle.java.installations.auto-download=false"
+fi
 if [[ -x /opt/java/jdk-25/bin/java ]]; then
   (cd "$recex_work" && JAVA_HOME=/opt/java/jdk-25 PATH="/opt/java/jdk-25/bin:$PATH" ./gradlew --no-daemon build -x spotlessJavaCheck)
 else

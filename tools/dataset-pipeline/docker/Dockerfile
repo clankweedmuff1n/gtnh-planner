@@ -1,3 +1,4 @@
+FROM azul/zulu-openjdk:17-jdk AS jdk17
 FROM eclipse-temurin:25-jdk-jammy AS jdk25
 
 FROM eclipse-temurin:21-jdk-jammy
@@ -33,5 +34,6 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
+COPY --from=jdk17 /usr/lib/jvm /opt/java/jvm17
 COPY --from=jdk25 /opt/java/openjdk /opt/java/jdk-25
 CMD ["bash"]

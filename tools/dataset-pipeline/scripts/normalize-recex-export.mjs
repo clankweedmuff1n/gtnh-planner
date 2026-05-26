@@ -231,6 +231,7 @@ normalizeCraftingSource(findSource("shapedOreDict"), {
   sourceType: "shapedOreDict",
 });
 normalizeSmeltingSource(findSource("smelting"));
+normalizePassiveNeiSource(findSource("neiPassive"));
 applyOreDictionaryMemberships();
 
 const dataset = {
@@ -452,6 +453,74 @@ function normalizeSmeltingSource(source) {
         itemOutputGrid: { width: 1, height: 1 },
       },
     });
+  }
+}
+
+function normalizePassiveNeiSource(source) {
+  const handlers = passiveNeiHandlers(source);
+  if (handlers.length === 0) {
+    return;
+  }
+
+  console.log(`Normalizing ${handlers.length} passive NEI recipe handler(s).`);
+
+  for (const handler of handlers) {
+    const machineType = passiveNeiMachineType(handler);
+    if (!machineType) {
+      continue;
+    }
+
+    recipeMaps.push(machineType);
+
+    for (const [index, rawRecipe] of passiveNeiRecipes(handler).entries()) {
+      const inputs = passiveNeiItems(rawRecipe, ["iI", "inputs", "ingredients"])
+        .map((item, itemIndex) =>
+          itemAmount(item, {
+            consumed: false,
+            defaultAmount: 1,
+            neiSlot: passiveNeiSlot(rawRecipe, "input", item, itemIndex),
+          }),
+        )
+        .filter(Boolean);
+      const outputs = passiveNeiItems(rawRecipe, ["iO", "outputs", "results"])
+        .map((item, itemIndex) =>
+          itemAmount(item, {
+            chance: outputChance(item),
+            neiSlot: passiveNeiSlot(rawRecipe, "output", item, itemIndex),
+          }),
+        )
+        .filter(Boolean);
+
+      if (outputs.length === 0) {
+        continue;
+      }
+
+      const primaryOutput = outputs[0];
+      addRecipe({
+        id: `recex:${datasetVersionId}:${slug(machineType)}:${hashRecipe("neiPassive", index, {
+          handler: passiveNeiHandlerName(handler),
+          rawRecipe,
+        })}`,
+        name: `${machineType}: ${primaryOutput.displayName ?? primaryOutput.id}`,
+        machineType,
+        minimumTier: machineType === "Bee Production" ? "NONE" : "LV",
+        durationTicks: passiveNeiDurationTicks(rawRecipe, machineType),
+        eut: machineType === "Bee Production" ? 0 : 8,
+        inputs,
+        outputs,
+        notes: "Generated from a GTNH RecEx NEI passive-production export.",
+        source: {
+          datasetVersionId,
+          recipeMap: machineType,
+          exporter: "recex",
+          rawRecipeId: `neiPassive:${passiveNeiHandlerName(handler)}:${index}`,
+        },
+        nei: {
+          slots: passiveNeiSlots(rawRecipe),
+          slotCapacity: passiveNeiSlotCapacity(rawRecipe, inputs.length, outputs.length),
+        },
+      });
+    }
   }
 }
 
@@ -1511,6 +1580,133 @@ function expandOreDictionaryItemId(itemId) {
 
 function findSource(type) {
   return sources.find((source) => source.type === type);
+}
+
+function passiveNeiHandlers(source) {
+  if (!source) {
+    return [];
+  }
+
+  if (Array.isArray(source.handlers)) {
+    return source.handlers;
+  }
+
+  if (Array.isArray(source.recipeHandlers)) {
+    return source.recipeHandlers;
+  }
+
+  return [];
+}
+
+function passiveNeiRecipes(handler) {
+  if (Array.isArray(handler?.recipes)) {
+    return handler.recipes;
+  }
+
+  if (Array.isArray(handler?.recs)) {
+    return handler.recs;
+  }
+
+  return [];
+}
+
+function passiveNeiItems(rawRecipe, keys) {
+  for (const key of keys) {
+    const value = rawRecipe?.[key];
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (value && typeof value === "object") {
+      return [value];
+    }
+  }
+
+  return [];
+}
+
+function passiveNeiHandlerName(handler) {
+  return text(handler?.n, text(handler?.name, text(handler?.recipeMap, "NEI Passive")));
+}
+
+function passiveNeiMachineType(handler) {
+  const label = normalizeLabel(passiveNeiHandlerName(handler));
+  if (!isPassiveNeiHandlerLabel(label)) {
+    return undefined;
+  }
+
+  if (label.includes("bee") || label.includes("apiary") || label.includes("alveary")) {
+    return "Bee Production";
+  }
+
+  if (label.includes("cropnh")) {
+    return "CropNH";
+  }
+
+  return "IC2 Crop";
+}
+
+function isPassiveNeiHandlerLabel(label) {
+  return (
+    label.includes("ic2 crop") ||
+    label.includes("cropnh") ||
+    label.includes("crop production") ||
+    label.includes("bee product") ||
+    label.includes("bee production") ||
+    label.includes("apiary") ||
+    label.includes("alveary")
+  );
+}
+
+function passiveNeiDurationTicks(rawRecipe, machineType) {
+  const duration = Number(rawRecipe?.dur ?? rawRecipe?.durationTicks ?? rawRecipe?.duration);
+  if (Number.isFinite(duration) && duration > 0) {
+    return duration;
+  }
+
+  return machineType === "Bee Production" ? 550 : 1200;
+}
+
+function passiveNeiSlots(rawRecipe) {
+  const slots = Array.isArray(rawRecipe?.sl) ? rawRecipe.sl : [];
+  return slots
+    .map((slot) => {
+      const side = slot?.s ?? slot?.side;
+      const kind = slot?.k ?? slot?.kind ?? "item";
+      const slotIndex = Number(slot?.i ?? slot?.slotIndex ?? slot?.slot ?? 0);
+      const x = Number(slot?.x);
+      const y = Number(slot?.y);
+      if (
+        (side !== "input" && side !== "output") ||
+        kind !== "item" ||
+        !Number.isFinite(slotIndex) ||
+        !Number.isFinite(x) ||
+        !Number.isFinite(y)
+      ) {
+        return undefined;
+      }
+
+      return { side, kind, slotIndex, x, y };
+    })
+    .filter(Boolean);
+}
+
+function passiveNeiSlot(rawRecipe, side, item, fallbackIndex) {
+  const slotIndex = Number.isFinite(item?.sl) ? item.sl : fallbackIndex;
+  return passiveNeiSlots(rawRecipe).find(
+    (slot) => slot.side === side && slot.kind === "item" && slot.slotIndex === slotIndex,
+  );
+}
+
+function passiveNeiSlotCapacity(rawRecipe, inputCount, outputCount) {
+  const slots = passiveNeiSlots(rawRecipe);
+  if (slots.length > 0) {
+    return slotCapacityFromFrames(slots);
+  }
+
+  return {
+    maxItemInputs: Math.max(1, inputCount),
+    maxItemOutputs: Math.max(1, outputCount),
+  };
 }
 
 function itemAmount(item, options = {}) {

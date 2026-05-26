@@ -15,6 +15,7 @@ const shardSize = positiveIntEnv("GTNH_RECIPE_SHARD_SIZE", 5000);
 const dataset = await readDataset(datasetPath);
 const versionId = dataset.datasetVersionId;
 const shardDir = path.join(datasetOutDir, "recipes-shards");
+const resourcesByKey = buildResourcesByKey(dataset);
 
 if (!versionId) {
   throw new Error("Dataset must include datasetVersionId.");
@@ -50,14 +51,15 @@ const recipeIndex = {
   datasetVersionId: versionId,
   gtnhVersion: dataset.gtnhVersion,
   sourceInfo: dataset.sourceInfo,
-  resources: dataset.resources ?? [],
-  resourceIndex: dataset.resourceIndex ?? [],
   recipeMaps: dataset.recipeMaps ?? [],
   generatedAt: dataset.generatedAt,
   recipeCount: dataset.recipes.length,
   shardSize,
   shards,
   recipes: dataset.recipes.map(toRecipeSummary),
+  searchText: dataset.recipes.map((recipe) => buildRecipeSearchText(recipe, resourcesByKey)),
+  tierIndexes: dataset.recipes.map(tierIndex),
+  iconScores: dataset.recipes.map((recipe) => recipeIconScore(recipe, resourcesByKey)),
 };
 
 const recipeLookupIndex = buildRecipeLookupIndex(dataset.recipes, recipeIndex);
@@ -94,6 +96,7 @@ function buildRecipeLookupIndex(recipes, recipeIndex) {
   const recipeIds = [];
   const tierIndexes = [];
   const iconScores = [];
+  const searchText = [];
   const entries = new Map();
 
   recipes.forEach((recipe, index) => {
@@ -104,8 +107,9 @@ function buildRecipeLookupIndex(recipes, recipeIndex) {
     }
 
     recipeIds[index] = recipe.id;
-    tierIndexes[index] = tierIndex(summary ?? recipe);
-    iconScores[index] = recipeIconScore(summary ?? recipe);
+    tierIndexes[index] = recipeIndex.tierIndexes[index] ?? tierIndex(summary ?? recipe);
+    iconScores[index] = recipeIndex.iconScores[index] ?? recipeIconScore(summary ?? recipe);
+    searchText[index] = recipeIndex.searchText[index] ?? buildRecipeSearchText(recipe);
 
     for (const output of recipe.outputs ?? []) {
       addLookupRecipe(entries, output, "recipes", recipeMapId, index);
@@ -132,6 +136,8 @@ function buildRecipeLookupIndex(recipes, recipeIndex) {
     recipeMaps,
     recipeIds,
     tierIndexes,
+    iconScores,
+    searchText,
     entries: [...entries.entries()].map(([key, recipesByMap]) => [
       key,
       [...recipesByMap.entries()],
@@ -156,11 +162,60 @@ function addLookupRecipe(entries, resource, mode, recipeMapId, recipeIndex) {
   recipeIndexes.push(recipeIndex);
 }
 
-function recipeIconScore(recipe) {
+function buildResourcesByKey(dataset) {
+  return new Map(
+    [...(dataset.resourceIndex ?? []), ...(dataset.resources ?? [])].map((resource) => [
+      `${resource.kind}:${resource.id}`,
+      resource,
+    ]),
+  );
+}
+
+function buildRecipeSearchText(recipe, resourcesByKey = new Map()) {
+  return normalizeText(
+    [
+      recipe.name,
+      recipe.machineType,
+      recipe.source?.recipeMap ?? recipe.recipeMap,
+      ...(recipe.inputs ?? []).flatMap((resource) => resourceSearchTerms(resource, resourcesByKey)),
+      ...(recipe.outputs ?? []).flatMap((resource) =>
+        resourceSearchTerms(resource, resourcesByKey),
+      ),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+}
+
+function resourceSearchTerms(resource, resourcesByKey) {
+  const indexed = resourcesByKey.get(`${resource.kind}:${resource.id}`);
+  return [
+    resource.displayName,
+    indexed?.displayName,
+    resource.id,
+    resource.kind,
+    ...(resource.alternatives ?? []).flatMap((alternative) =>
+      resourceSearchTerms(alternative, resourcesByKey),
+    ),
+  ].filter(Boolean);
+}
+
+function recipeIconScore(recipe, resourcesByKey = new Map()) {
   return [...(recipe.inputs ?? []), ...(recipe.outputs ?? [])].reduce(
-    (score, resource) => score + (resource.iconPath || resource.iconAtlas ? 1 : 0),
+    (score, resource) => score + (resourceHasIcon(resource, resourcesByKey) ? 1 : 0),
     0,
   );
+}
+
+function resourceHasIcon(resource, resourcesByKey) {
+  const indexed = resourcesByKey.get(`${resource.kind}:${resource.id}`);
+  return Boolean(
+    resource.iconPath || resource.iconAtlas || indexed?.iconPath || indexed?.iconAtlas,
+  );
+}
+
+function normalizeText(value) {
+  return value.trim().toLowerCase();
 }
 
 function tierIndex(recipe) {

@@ -425,6 +425,83 @@ describe("factory resource links", () => {
     expect(useFactoryStore.getState().project.edges).toHaveLength(2);
   });
 
+  it("connects a new drawer to an overridden concrete recipe input", () => {
+    useFactoryStore.getState().setProject({
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "overridden-input-storage-link",
+      name: "Overridden input storage link",
+      fuelProfiles: [],
+      recipes: [
+        {
+          id: "pyro",
+          name: "Pyrolyse Oven: Charcoal",
+          machineType: "Pyrolyse Oven",
+          minimumTier: "MV",
+          durationTicks: 320,
+          eut: 96,
+          inputs: [
+            {
+              kind: "item",
+              id: "minecraft:log@32767",
+              amount: 16,
+              displayName: "Oak Log",
+            },
+          ],
+          outputs: [{ kind: "item", id: "minecraft:coal@1", amount: 20 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "pyro-node",
+          recipeId: "pyro",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "MV",
+          recipeInputOverrides: {
+            "0": {
+              kind: "item",
+              id: "minecraft:log@1",
+              amount: 16,
+              displayName: "Spruce Log",
+            },
+          },
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+      ],
+      storages: [],
+      edges: [],
+    });
+
+    useFactoryStore.getState().addStorageForConnection(
+      { kind: "item", id: "minecraft:log@1", displayName: "Spruce Log" },
+      "pyro-node",
+      "input",
+      { x: 220, y: 0 },
+      makeResourceHandleId("input", { kind: "item", id: "minecraft:log@1" }, 0),
+    );
+
+    const project = useFactoryStore.getState().project;
+    expect(project.storages).toEqual([
+      expect.objectContaining({
+        kind: "item",
+        resourceId: "minecraft:log@1",
+        displayName: "Spruce Log",
+      }),
+    ]);
+    expect(project.edges).toEqual([
+      expect.objectContaining({
+        source: project.storages?.[0]?.id,
+        target: "pyro-node",
+        sourceHandle: "output:item:minecraft%3Alog%401",
+        targetHandle: "input:item:minecraft%3Alog%401:0",
+        resourceKind: "item",
+        resourceId: "minecraft:log@1",
+        label: "Spruce Log",
+      }),
+    ]);
+  });
+
   it("does not connect storage to non-consumed recipe inputs", () => {
     useFactoryStore.getState().connectNodes("mold-drawer", "nc-target", {
       kind: "item",

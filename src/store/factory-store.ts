@@ -1522,7 +1522,10 @@ function buildEdgeBetweenNodes(
   }
 
   if (sourceStorage && targetRecipe && selectedResource) {
-    const matchedInput = targetRecipe.inputs.find(
+    const effectiveTargetRecipe = targetNode
+      ? applyRecipeInputOverrides(targetRecipe, targetNode)
+      : targetRecipe;
+    const matchedInput = effectiveTargetRecipe.inputs.find(
       (input) =>
         input.kind === sourceStorage.kind &&
         input.kind === selectedResource.kind &&
@@ -1548,7 +1551,10 @@ function buildEdgeBetweenNodes(
   }
 
   if (sourceRecipe && targetStorage && selectedResource) {
-    const matchedOutput = sourceRecipe.outputs.find(
+    const effectiveSourceRecipe = sourceNode
+      ? applyRecipeInputOverrides(sourceRecipe, sourceNode)
+      : sourceRecipe;
+    const matchedOutput = effectiveSourceRecipe.outputs.find(
       (output) =>
         output.kind === targetStorage.kind &&
         output.id === targetStorage.resourceId &&
@@ -1708,8 +1714,9 @@ function buildCompatibleEdgesForStorage(
     if (!recipe) {
       continue;
     }
+    const effectiveRecipe = applyRecipeInputOverrides(recipe, node);
 
-    recipe.outputs.forEach((output, outputIndex) => {
+    effectiveRecipe.outputs.forEach((output, outputIndex) => {
       if (output.kind !== storage.kind || output.id !== storage.resourceId) {
         return;
       }
@@ -1726,7 +1733,7 @@ function buildCompatibleEdgesForStorage(
       });
     });
 
-    recipe.inputs.forEach((input, inputIndex) => {
+    effectiveRecipe.inputs.forEach((input, inputIndex) => {
       if (
         input.consumed === false ||
         input.kind !== storage.kind ||

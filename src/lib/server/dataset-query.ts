@@ -937,7 +937,7 @@ function getHydratedRecipeSummary(
   }
 
   const compactSummary = catalog.recipes?.[recipeIndex];
-  if (!compactSummary) {
+  if (!compactSummary?.inputs || !compactSummary.outputs) {
     return undefined;
   }
 
@@ -1202,36 +1202,37 @@ function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
   const resourcesByKey = getCatalogResourcesByKey(catalog);
 
   catalog.recipes?.forEach((recipe, recipeIndex) => {
+    const recipeMap = recipe.recipeMap;
+    if (!recipeMap) {
+      return;
+    }
+
     allRecipeIndexes.push(recipeIndex);
-    recipeMaps[recipeIndex] = recipe.recipeMap;
-    recipeMapSet.add(recipe.recipeMap);
+    recipeMaps[recipeIndex] = recipeMap;
+    recipeMapSet.add(recipeMap);
     tierIndexes[recipeIndex] =
       catalog.recipeTierIndexes?.[recipeIndex] ?? getTierIndex(getRecipeTier(recipe));
     searchText[recipeIndex] =
       catalog.recipeSearchText?.[recipeIndex] ?? buildRecipeSearchText(recipe, resourcesByKey);
     iconScores[recipeIndex] =
       catalog.recipeIconScores?.[recipeIndex] ?? recipeIconScore(recipe, resourcesByKey);
-    for (const output of recipe.outputs) {
+    for (const output of recipe.outputs ?? []) {
       addRecipeIndex(recipeIndexesByResource, getResourceModeKey(output, "recipes"), recipeIndex);
       addRecipeIndex(
         recipeIndexesByResourceAndMap,
-        getResourceModeMapKey(output, "recipes", recipe.recipeMap),
+        getResourceModeMapKey(output, "recipes", recipeMap),
         recipeIndex,
       );
-      addRecipeMap(
-        recipeMapSetsByResource,
-        getResourceModeKey(output, "recipes"),
-        recipe.recipeMap,
-      );
+      addRecipeMap(recipeMapSetsByResource, getResourceModeKey(output, "recipes"), recipeMap);
     }
-    for (const input of recipe.inputs) {
+    for (const input of recipe.inputs ?? []) {
       addRecipeIndex(recipeIndexesByResource, getResourceModeKey(input, "uses"), recipeIndex);
       addRecipeIndex(
         recipeIndexesByResourceAndMap,
-        getResourceModeMapKey(input, "uses", recipe.recipeMap),
+        getResourceModeMapKey(input, "uses", recipeMap),
         recipeIndex,
       );
-      addRecipeMap(recipeMapSetsByResource, getResourceModeKey(input, "uses"), recipe.recipeMap);
+      addRecipeMap(recipeMapSetsByResource, getResourceModeKey(input, "uses"), recipeMap);
       for (const alternative of input.alternatives ?? []) {
         addRecipeIndex(
           recipeIndexesByResource,
@@ -1240,14 +1241,10 @@ function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
         );
         addRecipeIndex(
           recipeIndexesByResourceAndMap,
-          getResourceModeMapKey(alternative, "uses", recipe.recipeMap),
+          getResourceModeMapKey(alternative, "uses", recipeMap),
           recipeIndex,
         );
-        addRecipeMap(
-          recipeMapSetsByResource,
-          getResourceModeKey(alternative, "uses"),
-          recipe.recipeMap,
-        );
+        addRecipeMap(recipeMapSetsByResource, getResourceModeKey(alternative, "uses"), recipeMap);
       }
     }
   });
@@ -1368,8 +1365,8 @@ function buildRecipeSearchText(
       recipe.name,
       recipe.machineType,
       recipe.recipeMap,
-      ...recipe.inputs.flatMap((input) => resourceSearchTerms(input, resourcesByKey)),
-      ...recipe.outputs.flatMap((output) => resourceSearchTerms(output, resourcesByKey)),
+      ...(recipe.inputs ?? []).flatMap((input) => resourceSearchTerms(input, resourcesByKey)),
+      ...(recipe.outputs ?? []).flatMap((output) => resourceSearchTerms(output, resourcesByKey)),
     ]
       .filter(Boolean)
       .join(" "),
@@ -1612,7 +1609,7 @@ function recipeIconScore(
   recipe: RecipeSummary,
   resourcesByKey?: Map<string, DatasetResource | DatasetResourceIndexEntry>,
 ): number {
-  return [...recipe.inputs, ...recipe.outputs].reduce(
+  return [...(recipe.inputs ?? []), ...(recipe.outputs ?? [])].reduce(
     (score, resource) => score + (resourceHasIcon(resource, resourcesByKey) ? 1 : 0),
     0,
   );

@@ -272,6 +272,7 @@ function normalizeGregtechRecipes(source) {
       baseMachineCatalysts(machine.cat, machineType),
       {
         scope: "recipe",
+        baseMachineType: machineType,
       },
     );
     recipeMaps.push(machineType);
@@ -505,7 +506,9 @@ function machineConfigControlsForRecipe(machineType, specialValue, machineConfig
 }
 
 function machineConfigControlsForMachineHandler(label, rawItem) {
-  return mergeMachineConfigControls(machineConfigControlsFromRawItems([rawItem], { scope: "handler" }));
+  return mergeMachineConfigControls(
+    machineConfigControlsFromRawItems([rawItem], { scope: "handler", baseMachineType: label }),
+  );
 }
 
 function baseMachineCatalysts(catalysts, baseMachineType) {
@@ -516,12 +519,15 @@ function baseMachineCatalysts(catalysts, baseMachineType) {
   });
 }
 
-function machineConfigControlsFromRawItems(items, { scope }) {
-  const maxParallel = (items ?? []).reduce((maximum, item) => {
+function machineConfigControlsFromRawItems(items, { scope, baseMachineType }) {
+  const multiblockItems = (items ?? []).filter((item) =>
+    isMultiblockMachineConfigItem(item, baseMachineType),
+  );
+  const maxParallel = multiblockItems.reduce((maximum, item) => {
     const value = Number.isFinite(item?.mp) ? item.mp : 0;
     return value > maximum ? value : maximum;
   }, 0);
-  const lines = (items ?? [])
+  const lines = multiblockItems
     .flatMap((item) => (Array.isArray(item?.tt) ? item.tt : []))
     .map((line) => text(line, "").replace(/\s+/g, " ").trim())
     .filter(Boolean);
@@ -579,6 +585,45 @@ function machineConfigControlsFromRawItems(items, { scope }) {
   }
 
   return controls;
+}
+
+function isMultiblockMachineConfigItem(item, fallbackLabel) {
+  if (!item) {
+    return false;
+  }
+  if (item.mb === true) {
+    return true;
+  }
+  if (typeof item.mb === "string" && item.mb.toLowerCase() === "true") {
+    return true;
+  }
+
+  const label = text(item.lN, fallbackLabel ?? item.id ?? "");
+  if (inferCatalystKind(label, "UNKNOWN") === "multiblock") {
+    return true;
+  }
+
+  return hasMultiblockStructureTooltip(item);
+}
+
+function hasMultiblockStructureTooltip(item) {
+  const lines = Array.isArray(item?.tt) ? item.tt.map((line) => normalizeLabel(line)) : [];
+  if (lines.length === 0) {
+    return false;
+  }
+  return lines.some(
+    (line) =>
+      line.includes("multiblock") ||
+      line.includes("multi-block") ||
+      line.includes("structure") ||
+      line.includes("controller") ||
+      line.includes("maintenance hatch") ||
+      line.includes("energy hatch") ||
+      line.includes("input hatch") ||
+      line.includes("output hatch") ||
+      line.includes("input bus") ||
+      line.includes("output bus"),
+  );
 }
 
 function controlHasParallelMultiplier(control) {

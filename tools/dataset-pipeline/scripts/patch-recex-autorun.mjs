@@ -776,6 +776,7 @@ exporterSource = exporterSource.replace(
     "        if (maxParallels != null && maxParallels > 1) {",
     "            item.mp = maxParallels;",
     "        }",
+    "        item.mb = Boolean.valueOf(isMultiblockMetaTileEntity(mte));",
     "",
     "        List<String> tooltip = getMetaTileEntityTooltipLines(mte);",
     "        if (tooltip.isEmpty()) {",
@@ -1352,6 +1353,9 @@ if (!itemSource.includes("public Integer ch;")) {
       "    /** max parallel recipes reported by the machine controller */",
       "    public Integer mp;",
       "",
+      "    /** true when this stack is a multiblock controller */",
+      "    public Boolean mb;",
+      "",
     ].join("\n"),
   );
 }
@@ -1382,6 +1386,9 @@ if (!itemSource.includes("public Integer ch;")) {
       "",
       "/** max parallel recipes reported by the machine controller */",
       "public Integer mp;",
+      "",
+      "/** true when this stack is a multiblock controller */",
+      "public Boolean mb;",
       "",
     ].join("\n"),
     "RecEx item metadata fields",
@@ -1427,8 +1434,25 @@ if (!itemSource.includes("public Integer mp;")) {
       "/** max parallel recipes reported by the machine controller */",
       "public Integer mp;",
       "",
+      "/** true when this stack is a multiblock controller */",
+      "public Boolean mb;",
+      "",
     ].join("\n"),
     "RecEx item max parallel field",
+  );
+}
+if (!itemSource.includes("public Boolean mb;")) {
+  itemSource = replaceRequired(
+    itemSource,
+    /public Integer mp;\s*/,
+    [
+      "public Integer mp;",
+      "",
+      "/** true when this stack is a multiblock controller */",
+      "public Boolean mb;",
+      "",
+    ].join("\n"),
+    "RecEx item multiblock marker field",
   );
 }
 await fs.writeFile(itemPath, itemSource);

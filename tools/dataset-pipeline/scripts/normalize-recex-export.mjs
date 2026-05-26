@@ -539,6 +539,24 @@ function machineConfigControlsFromRawItems(items, { scope, baseMachineType }) {
   const directParallelTiers = new Map();
 
   for (const line of lines) {
+    const multiplicativePerTier =
+      /(?:^|\b)(\d+(?:[.,]\d+)?)x\s+Parallels?\s+per\s+(.+?)\s+Tier\b/i.exec(line);
+    if (multiplicativePerTier) {
+      const factor = parseTooltipNumber(multiplicativePerTier[1]);
+      const tierSubject = multiplicativePerTier[2];
+      const tierControl = tieredEffectControlFromSubject(tierSubject, line, {
+        effectLabel: "Parallels",
+        effect: (tier, index) => ({
+          parallelMultiplier: Math.pow(factor, tierOrdinal(tier, index)),
+        }),
+        keep: (effect) => effect.parallelMultiplier > 1,
+      });
+      if (tierControl) {
+        controls.push(tierControl);
+      }
+      continue;
+    }
+
     const perTier = /(?:^|\b)(\d+)\s+Parallels?\s+per\s+(.+?)\s+Tier\b/i.exec(line);
     if (perTier) {
       const factor = Number.parseInt(perTier[1], 10);
@@ -557,6 +575,69 @@ function machineConfigControlsFromRawItems(items, { scope, baseMachineType }) {
     if (baseAndSlice) {
       const parallels = Number.parseInt(baseAndSlice[1], 10);
       addDirectParallelTier(directParallelTiers, baseAndSlice[3], parallels, line, scope);
+      continue;
+    }
+
+    const absoluteSpeed = /(?:^|\b)Speed\s+is\s+(\d+(?:[.,]\d+)?%?)\s+times\s+(.+?)\s+Tier\b/i.exec(
+      line,
+    );
+    if (absoluteSpeed) {
+      const factor = parseTooltipFactor(absoluteSpeed[1]);
+      const tierSubject = absoluteSpeed[2];
+      const tierControl = tieredEffectControlFromSubject(tierSubject, line, {
+        effectLabel: "Speed",
+        effect: (tier, index) => ({
+          durationMultiplier: reciprocal(factor * tierOrdinal(tier, index)),
+        }),
+        keep: (effect) => effect.durationMultiplier > 0,
+      });
+      if (tierControl) {
+        controls.push(tierControl);
+      }
+      continue;
+    }
+
+    const speedPerTier = /(?:^|\b)\+?(\d+(?:[.,]\d+)?%)\s+Speed\s+per\s+(.+?)\s+Tier\b/i.exec(line);
+    if (speedPerTier) {
+      const factor = parseTooltipFactor(speedPerTier[1]);
+      const tierSubject = speedPerTier[2];
+      const tierControl = tieredEffectControlFromSubject(tierSubject, line, {
+        effectLabel: "Speed",
+        effect: (tier, index) => ({
+          durationMultiplier: reciprocal(1 + factor * tierOrdinal(tier, index)),
+        }),
+        keep: (effect) => effect.durationMultiplier > 0 && effect.durationMultiplier < 1,
+      });
+      if (tierControl) {
+        controls.push(tierControl);
+      }
+      continue;
+    }
+
+    const euUsagePerTier =
+      /(?:^|\b)([+-]?\d+(?:[.,]\d+)?%)\s+EU\s+Usage\s+per\s+(.+?)\s+Tier\b/i.exec(line);
+    if (euUsagePerTier) {
+      const factor = parseTooltipFactor(euUsagePerTier[1]);
+      const tierSubject = euUsagePerTier[2];
+      const tierControl = tieredEffectControlFromSubject(tierSubject, line, {
+        effectLabel: "EU usage",
+        effect: (tier, index) => ({
+          eutMultiplier: Math.max(0.01, 1 + factor * tierOrdinal(tier, index)),
+        }),
+        keep: (effect) => effect.eutMultiplier > 0 && effect.eutMultiplier !== 1,
+      });
+      if (tierControl) {
+        controls.push(tierControl);
+      }
+      continue;
+    }
+
+    const staticParallel = /(?:^|\b)(\d+)\s+Parallels?\s*$/i.exec(line);
+    if (staticParallel) {
+      const parallels = Number.parseInt(staticParallel[1], 10);
+      if (parallels > 1) {
+        controls.push(fixedParallelControl(parallels, scope, line));
+      }
       continue;
     }
 
@@ -630,7 +711,7 @@ function controlHasParallelMultiplier(control) {
   return (control?.tiers ?? []).some((tier) => Number.isFinite(tier.parallelMultiplier));
 }
 
-function fixedParallelControl(parallels, scope) {
+function fixedParallelControl(parallels, scope, sourceLine) {
   const key = `fixed-${parallels}`;
   const label = `${parallels} Parallels`;
   return {
@@ -646,8 +727,8 @@ function fixedParallelControl(parallels, scope) {
         resource: {
           ...virtualMachineConfigResource(key, label),
           tooltip: [
-            "Imported from machine controller",
-            "Source: getMaxParallelRecipes()",
+            sourceLine ? "Imported from machine tooltip" : "Imported from machine controller",
+            sourceLine ?? "Source: getMaxParallelRecipes()",
             `Parallels: ${parallels}`,
           ],
         },
@@ -685,48 +766,93 @@ function tieredParallelControlFromSubject(subject, factor, line) {
     return undefined;
   }
 
+  return tieredEffectControlFromSubject(subject, line, {
+    effectLabel: "Parallels",
+    effect: (tier, index) => ({ parallelMultiplier: factor * tierOrdinal(tier, index) }),
+    keep: (effect) => effect.parallelMultiplier > 1,
+  });
+}
+
+function tieredEffectControlFromSubject(subject, line, { effectLabel, effect, keep }) {
+  const definition = machineConfigTierDefinitionForSubject(subject);
+  if (!definition) {
+    return undefined;
+  }
+
+  return buildTieredEffectControl({
+    ...definition,
+    line,
+    effectLabel,
+    effect,
+    keep,
+  });
+}
+
+function machineConfigTierDefinitionForSubject(subject) {
   const normalized = normalizeLabel(subject);
+  if (normalized.includes("coil")) {
+    return {
+      id: "heatingCoil",
+      label: "Heating Coil",
+      tiers: tierResources(heatingCoilTiers, "Coil Block", (tier) => [
+        "Heating coil tier",
+        `Heat capacity: ${tier.heat} K`,
+      ]),
+      tooltipPrefix: "Heating coil tier",
+    };
+  }
+
   if (normalized.includes("pipe casing")) {
-    return buildTieredParallelControl({
+    return {
       id: "pipeCasing",
       label: "Pipe Casing",
       tiers: tierResources(pipeCasingTiers, "Pipe Casing"),
-      factor: (tier, index) => factor * (index + 1),
-      line,
       tooltipPrefix: "Pipe casing tier",
-    });
+    };
   }
 
   if (normalized.includes("solenoid")) {
-    return buildTieredParallelControl({
+    return {
       id: "solenoidCoil",
       label: "Solenoid",
       tiers: tierResources(solenoidTiers, "Solenoid Superconductor Coil"),
-      factor: (tier) => factor * tier.voltageTier,
-      line,
       tooltipPrefix: "Solenoid tier",
-    });
+    };
   }
 
   return undefined;
 }
 
-function buildTieredParallelControl({ id, label, tiers, factor, line, tooltipPrefix }) {
+function buildTieredEffectControl({
+  id,
+  label,
+  tiers,
+  line,
+  tooltipPrefix,
+  effectLabel,
+  effect,
+  keep,
+}) {
   const options = tiers
     .map((tier, index) => {
-      const parallelMultiplier = factor(tier, index);
-      if (!Number.isFinite(parallelMultiplier) || parallelMultiplier <= 1) {
+      const effectFields = effect(tier, index);
+      if (!isValidMachineConfigEffect(effectFields) || (keep && !keep(effectFields))) {
         return undefined;
       }
       const resource = tier.resource ?? virtualMachineConfigResource(tier.key, tier.displayName);
       return {
         key: tier.key,
         label: tier.label,
-        parallelMultiplier,
+        ...effectFields,
         resource: {
           ...resource,
           displayName: resource.displayName ?? tier.displayName,
-          tooltip: [tooltipPrefix, line, `Parallels: ${parallelMultiplier}`],
+          tooltip: uniqueStrings([
+            tooltipPrefix,
+            line,
+            ...effectTooltipLines(effectLabel, effectFields),
+            ...(resource.tooltip ?? []),
+          ]),
         },
       };
     })
@@ -745,13 +871,71 @@ function buildTieredParallelControl({ id, label, tiers, factor, line, tooltipPre
   };
 }
 
-function tierResources(knownTiers, suffix) {
+function isValidMachineConfigEffect(effect) {
+  return (
+    Number.isFinite(effect?.parallelMultiplier) ||
+    Number.isFinite(effect?.durationMultiplier) ||
+    Number.isFinite(effect?.eutMultiplier) ||
+    Number.isFinite(effect?.outputMultiplier) ||
+    Number.isFinite(effect?.heat)
+  );
+}
+
+function effectTooltipLines(effectLabel, effect) {
+  const lines = [];
+  if (Number.isFinite(effect.parallelMultiplier)) {
+    lines.push(`${effectLabel}: ${formatTooltipMultiplier(effect.parallelMultiplier)}x`);
+  }
+  if (Number.isFinite(effect.durationMultiplier)) {
+    lines.push(
+      `${effectLabel}: ${formatTooltipMultiplier(reciprocal(effect.durationMultiplier))}x`,
+    );
+  }
+  if (Number.isFinite(effect.eutMultiplier)) {
+    lines.push(`${effectLabel}: ${formatTooltipPercent(effect.eutMultiplier)}`);
+  }
+  if (Number.isFinite(effect.outputMultiplier)) {
+    lines.push(`${effectLabel}: ${formatTooltipMultiplier(effect.outputMultiplier)}x`);
+  }
+  return lines;
+}
+
+function parseTooltipFactor(value) {
+  const number = parseTooltipNumber(value);
+  return String(value).trim().endsWith("%") ? number / 100 : number;
+}
+
+function parseTooltipNumber(value) {
+  return Number.parseFloat(String(value).replace(",", ".").replace("%", ""));
+}
+
+function reciprocal(value) {
+  return Number.isFinite(value) && value !== 0 ? 1 / value : Number.NaN;
+}
+
+function tierOrdinal(tier, index) {
+  return Number.isFinite(tier.voltageTier) ? tier.voltageTier : index + 1;
+}
+
+function formatTooltipMultiplier(value) {
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function formatTooltipPercent(value) {
+  return `${formatTooltipMultiplier(value * 100)}%`;
+}
+
+function tierResources(knownTiers, suffix, tooltip = () => []) {
   return knownTiers.map((tier) => {
     const displayName = `${tier.label} ${suffix}`;
     return {
       ...tier,
       displayName,
-      resource: findRawItemResourceByLabel(displayName) ?? machineConfigResource(tier.blockId, displayName),
+      resource:
+        findRawItemResourceByLabel(displayName) ??
+        machineConfigResource(tier.blockId, displayName, tooltip(tier)),
     };
   });
 }
@@ -765,7 +949,9 @@ function directParallelControlSubject(subject) {
 }
 
 function directParallelControlLabel(tiers) {
-  return tiers.every((tier) => normalizeLabel(tier.label).includes("casing")) ? "Casing" : "Parallel";
+  return tiers.every((tier) => normalizeLabel(tier.label).includes("casing"))
+    ? "Casing"
+    : "Parallel";
 }
 
 function directParallelTierLabel(subject) {
@@ -810,15 +996,47 @@ function mergeMachineConfigControls(controls) {
     }
     const tiersByKey = new Map(existing.tiers.map((tier) => [tier.key, tier]));
     for (const tier of control.tiers) {
-      tiersByKey.set(tier.key, tiersByKey.get(tier.key) ?? tier);
+      const current = tiersByKey.get(tier.key);
+      tiersByKey.set(tier.key, current ? mergeMachineConfigTierOption(current, tier) : tier);
     }
     byId.set(control.id, {
       ...existing,
+      minimumKey: existing.minimumKey ?? control.minimumKey,
+      defaultKey: existing.defaultKey ?? control.defaultKey,
       tiers: [...tiersByKey.values()],
     });
   }
   const merged = [...byId.values()];
   return merged.length > 0 ? merged : undefined;
+}
+
+function mergeMachineConfigTierOption(existing, incoming) {
+  return {
+    ...existing,
+    ...incoming,
+    label: existing.label ?? incoming.label,
+    resource: mergeMachineConfigTierResource(existing.resource, incoming.resource),
+  };
+}
+
+function mergeMachineConfigTierResource(existing, incoming) {
+  if (!existing) {
+    return incoming;
+  }
+  if (!incoming) {
+    return existing;
+  }
+  return {
+    ...existing,
+    ...incoming,
+    id: existing.id ?? incoming.id,
+    displayName: existing.displayName ?? incoming.displayName,
+    tooltip: uniqueStrings([...(existing.tooltip ?? []), ...(incoming.tooltip ?? [])]),
+  };
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.filter(Boolean))];
 }
 
 function treeGrowthSimulatorToolSlotControl(slot) {

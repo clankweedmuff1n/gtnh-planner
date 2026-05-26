@@ -542,6 +542,32 @@ function countIncomingEdgesToStorageResource(
   return counts;
 }
 
+function calculateStorageIncomingSupply(
+  project: FactoryProject,
+  storages: FactoryStorage[],
+  edgeResults: Record<string, EdgeThroughput>,
+): Map<string, number> {
+  const storageIds = new Set(storages.map((storage) => storage.id));
+  const storagesById = new Map(storages.map((storage) => [storage.id, storage]));
+  const supply = new Map<string, number>();
+
+  for (const edge of project.edges) {
+    if (storageIds.has(edge.source) || !storageIds.has(edge.target)) {
+      continue;
+    }
+
+    const storage = storagesById.get(edge.target);
+    if (!storage) {
+      continue;
+    }
+
+    const key = makeResourceKey(storage.kind, storage.resourceId);
+    supply.set(key, (supply.get(key) ?? 0) + (edgeResults[edge.id]?.transferredPerSecond ?? 0));
+  }
+
+  return supply;
+}
+
 function refreshEdgeResultsFromNodeUtilization(
   project: FactoryProject,
   recipesById: Map<string, Recipe>,
@@ -557,6 +583,11 @@ function refreshEdgeResultsFromNodeUtilization(
     project,
     nodes,
     projectStorages,
+  );
+  const storageIncomingSupply = calculateStorageIncomingSupply(
+    project,
+    projectStorages,
+    edgeResults,
   );
   const directDemandBySourceResource = calculateDirectConsumerDemandBySourceResource(
     project,
@@ -580,8 +611,24 @@ function refreshEdgeResultsFromNodeUtilization(
       sourceStorage || !sourceResult
         ? Number.POSITIVE_INFINITY
         : (sourceResult.outputs[key]?.amountPerSecond ?? 0);
-    const sourceEffectiveCapacity =
-      sourceStorage || !sourceResult
+    const targetCount = targetStorage
+      ? (storageIncomingCounts.get(key) ?? 1)
+      : (incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1);
+    const storageHasIncomingSupply = sourceStorage && (storageIncomingCounts.get(key) ?? 0) > 0;
+    const storageTotalDemand = sourceStorage ? (storageOutgoingDemand.get(key) ?? 0) : 0;
+    const storageAvailableSupply = sourceStorage ? (storageIncomingSupply.get(key) ?? 0) : 0;
+    const storageEdgeDemand =
+      sourceStorage && targetResult
+        ? getEffectiveFlowRate(targetResult.inputs[targetDemandKey], targetResult.utilization) /
+          targetCount
+        : 0;
+    const sourceEffectiveCapacity = sourceStorage
+      ? storageHasIncomingSupply
+        ? storageTotalDemand > EPSILON
+          ? storageAvailableSupply * (storageEdgeDemand / storageTotalDemand)
+          : storageAvailableSupply
+        : Number.POSITIVE_INFINITY
+      : !sourceResult
         ? Number.POSITIVE_INFINITY
         : getEffectiveFlowRate(sourceResult.outputs[key], sourceResult.utilization);
     const sourceStorageCapacityBase =
@@ -595,9 +642,6 @@ function refreshEdgeResultsFromNodeUtilization(
             (directDemandBySourceResource.get(`${edge.source}|${key}`) ?? 0),
         ) / (storageSinkCounts.get(`${edge.source}|${key}`) ?? 1)
       : sourceEffectiveCapacity;
-    const targetCount = targetStorage
-      ? (storageIncomingCounts.get(key) ?? 1)
-      : (incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1);
     const storageSurplusDemand = targetStorage
       ? Math.max(
           0,
@@ -729,6 +773,50 @@ function refreshStorageResultsFromEdges(
   }
 }
 
+function calculateConnectedInputSupply(
+  project: FactoryProject,
+  edgeResults: Record<string, EdgeThroughput>,
+  storagesById: Map<string, FactoryStorage>,
+): Map<string, Map<ResourceKey, number>> {
+  const supplyByNodeAndResource = new Map<string, Map<ResourceKey, number>>();
+
+  for (const edge of project.edges) {
+    if (storagesById.has(edge.target)) {
+      continue;
+    }
+
+    const targetDemandKey =
+      getEdgeTargetDemandKey(project, edge) ?? makeResourceKey(edge.resourceKind, edge.resourceId);
+    addRequiredRate(
+      supplyByNodeAndResource,
+      edge.target,
+      targetDemandKey,
+      edgeResults[edge.id]?.transferredPerSecond ?? 0,
+    );
+  }
+
+  return supplyByNodeAndResource;
+}
+
+function selectConnectedInputSupplyLimit(
+  nodeResult: NodeThroughputResult,
+  supplyByResource: Map<ResourceKey, number> | undefined,
+): number | undefined {
+  let limit: number | undefined;
+
+  for (const [resourceKey, suppliedPerSecond] of supplyByResource ?? []) {
+    const inputFlow = nodeResult.inputs[resourceKey];
+    if (!inputFlow || inputFlow.amountPerSecond <= EPSILON) {
+      continue;
+    }
+
+    const inputLimit = suppliedPerSecond / inputFlow.amountPerSecond;
+    limit = limit === undefined ? inputLimit : Math.min(limit, inputLimit);
+  }
+
+  return limit;
+}
+
 function refreshNodeUtilizationFromEdgeResults(
   project: FactoryProject,
   recipesById: Map<string, Recipe>,
@@ -737,6 +825,11 @@ function refreshNodeUtilizationFromEdgeResults(
   storagesById: Map<string, FactoryStorage>,
 ): boolean {
   const requiredByNodeAndResource = new Map<string, Map<ResourceKey, number>>();
+  const inputSupplyByNodeAndResource = calculateConnectedInputSupply(
+    project,
+    edgeResults,
+    storagesById,
+  );
   const projectStorages = project.storages ?? [];
   const storageOutgoingDemand = calculateEffectiveStorageOutgoingDemand(
     project,
@@ -808,6 +901,22 @@ function refreshNodeUtilizationFromEdgeResults(
       nodeResult,
       requiredByResource,
     );
+    const inputSupplyLimit = selectConnectedInputSupplyLimit(
+      nodeResult,
+      inputSupplyByNodeAndResource.get(node.id),
+    );
+    if (inputSupplyLimit !== undefined && inputSupplyLimit < utilizationReport.utilization) {
+      utilizationReport.utilization = inputSupplyLimit;
+      utilizationReport.requiredRatePerSecond =
+        utilizationReport.maxRatePerSecond * inputSupplyLimit;
+      utilizationReport.theoreticalMachinesRequired = node.machineCount * inputSupplyLimit;
+      if (utilizationReport.limitingResource) {
+        utilizationReport.limitingResource = {
+          ...utilizationReport.limitingResource,
+          amountPerSecond: utilizationReport.requiredRatePerSecond,
+        };
+      }
+    }
 
     if (
       Math.abs(nodeResult.utilization - utilizationReport.utilization) > EPSILON ||

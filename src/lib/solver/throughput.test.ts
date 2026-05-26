@@ -766,6 +766,90 @@ describe("calculateThroughput", () => {
     expect(result.edges["extractor-to-tank"].isLimited).toBe(false);
   });
 
+  it("limits parallel storage consumers to available incoming storage supply", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "parallel-storage-consumer-project",
+      name: "Parallel storage consumer test",
+      recipes: [
+        {
+          id: "woodtar-source-recipe",
+          name: "Wood Tar Source",
+          machineType: "Large Fluid Extractor",
+          minimumTier: "EV",
+          durationTicks: 20,
+          eut: 739,
+          inputs: [{ kind: "item", id: "charcoal", amount: 1 }],
+          outputs: [{ kind: "fluid", id: "woodtar", amount: 15_000 }],
+        },
+        {
+          id: "mega-distillation-recipe",
+          name: "Mega Distillation Tower",
+          machineType: "Mega Distillation Tower",
+          minimumTier: "EV",
+          durationTicks: 20,
+          eut: 1024,
+          inputs: [{ kind: "fluid", id: "woodtar", amount: 1_000 }],
+          outputs: [{ kind: "fluid", id: "benzene", amount: 400 }],
+        },
+      ],
+      nodes: [
+        {
+          id: "woodtar-source",
+          recipeId: "woodtar-source-recipe",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "EV",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "mega-distillation",
+          recipeId: "mega-distillation-recipe",
+          machineCount: 1,
+          parallel: 256,
+          overclockTier: "EV",
+          enabled: true,
+          position: { x: 320, y: 0 },
+        },
+      ],
+      storages: [
+        {
+          id: "woodtar-tank",
+          kind: "fluid",
+          resourceId: "woodtar",
+          position: { x: 160, y: 0 },
+        },
+      ],
+      edges: [
+        {
+          id: "source-to-tank",
+          source: "woodtar-source",
+          target: "woodtar-tank",
+          resourceKind: "fluid",
+          resourceId: "woodtar",
+        },
+        {
+          id: "tank-to-mega-distillation",
+          source: "woodtar-tank",
+          target: "mega-distillation",
+          resourceKind: "fluid",
+          resourceId: "woodtar",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.nodes["mega-distillation"].utilization).toBeCloseTo(15_000 / 256_000);
+    expect(result.edges["tank-to-mega-distillation"].demandPerSecond).toBeCloseTo(15_000);
+    expect(result.edges["tank-to-mega-distillation"].transferredPerSecond).toBeCloseTo(15_000);
+    expect(result.storages["woodtar-tank"].producedPerSecond).toBeCloseTo(15_000);
+    expect(result.storages["woodtar-tank"].consumedPerSecond).toBeCloseTo(15_000);
+    expect(result.storages["woodtar-tank"].netPerSecond).toBeCloseTo(0);
+  });
+
   it("fills storage from surplus when producer inputs are not consumed", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,

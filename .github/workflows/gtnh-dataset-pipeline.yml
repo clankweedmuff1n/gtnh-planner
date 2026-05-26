@@ -310,7 +310,16 @@ jobs:
 
           if [ -f "$dataset_root/datasets.manifest.json" ]; then
             manifest_url="http://127.0.0.1:8580/datasets/gtnh/datasets.manifest.json"
-            manifest="$(curl -fsS --retry 20 --retry-delay 1 --retry-connrefused "$manifest_url")"
+            manifest=""
+            for _ in $(seq 1 60); do
+              if manifest="$(curl -fsS "$manifest_url" 2>/dev/null)"; then
+                break
+              fi
+              sleep 1
+            done
+            if [ -z "$manifest" ]; then
+              manifest="$(curl -fsS "$manifest_url")"
+            fi
             stable_version="$(printf '%s' "$manifest" | grep -o '"latestStableVersion"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"latestStableVersion"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || true)"
             daily_version="$(printf '%s' "$manifest" | grep -o '"latestDailyVersion"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"latestDailyVersion"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' || true)"
             prewarmed_versions=""

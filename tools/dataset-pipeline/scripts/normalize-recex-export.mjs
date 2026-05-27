@@ -811,7 +811,10 @@ function cropNhCropOutputAmount(resource) {
 }
 
 function synthesizeBeeProductionRecipes() {
-  if (beeSpeciesCatalog.length === 0 && hasRecipeMap("Bee Production")) {
+  if (
+    beeSpeciesCatalog.length === 0 &&
+    (hasRecipeMap("Bee Produce") || hasRecipeMap("Bee Production"))
+  ) {
     return [];
   }
 
@@ -822,11 +825,11 @@ function synthesizeBeeProductionRecipes() {
   if (beeSpeciesCatalog.length > 0) {
     return beeSpeciesCatalog.map((speciesEntry, index) =>
       addSyntheticPassiveRecipe({
-        machineType: "Bee Production",
+        machineType: "Bee Produce",
         input: beeSpeciesInput(speciesEntry, beeVisual),
         inputs: beeProductionInputs(speciesEntry, beeVisual),
         outputs: beeProductionOutputs(speciesEntry),
-        recipeName: `Bee Production: ${speciesEntry.displayName}`,
+        recipeName: `Bee Produce: ${speciesEntry.displayName}`,
         index,
         durationTicks: BEE_CYCLE_TICKS,
         eut: 0,
@@ -844,7 +847,7 @@ function synthesizeBeeProductionRecipes() {
 
   return outputs.map((output, index) =>
     addSyntheticPassiveRecipe({
-      machineType: "Bee Production",
+      machineType: "Bee Produce",
       input: bee,
       output: passiveOutputAmount(output),
       index,
@@ -872,19 +875,7 @@ function beeSpeciesInput(speciesEntry, visual) {
 }
 
 function beeProductionInputs(speciesEntry, visual) {
-  return [
-    { ...beeSpeciesInput(speciesEntry, visual), neiSlot: { x: 34, y: 52 } },
-    ...[0, 1, 2].map((index) => ({
-      kind: "item",
-      id: `factoryflow:bee_frame_slot_${index + 1}`,
-      amount: 1,
-      displayName: `Bee Frame Slot ${index + 1}`,
-      tooltip: ["Optional bee frame"],
-      consumed: false,
-      optional: true,
-      neiSlot: { x: 66, y: 23 + index * 29 },
-    })),
-  ];
+  return [{ ...beeSpeciesInput(speciesEntry, visual), neiSlot: { x: 34, y: 52 } }];
 }
 
 function beeProductionOutputs(speciesEntry) {
@@ -908,10 +899,23 @@ function beeProductionOutputs(speciesEntry) {
       tooltip: [
         ...(resource.tooltip ?? []),
         `${product.role === "specialty" ? "Specialty" : "Product"} chance: ${formatPercent(product.chance)}`,
+        ...(product.role === "specialty" ? beeSpecialtyRequirementTooltip(speciesEntry) : []),
       ],
     });
   }
-  return [...outputsByKey.values()];
+  const rowCounts = new Map();
+  return [...outputsByKey.values()].map((output) => {
+    const row = output.tooltip?.some((line) => line.startsWith("Specialty chance:")) ? 1 : 0;
+    const column = rowCounts.get(row) ?? 0;
+    rowCounts.set(row, column + 1);
+    return {
+      ...output,
+      neiSlot: {
+        x: 106 + (column % 3) * 18,
+        y: 26 + row * 29 + Math.floor(column / 3) * 18,
+      },
+    };
+  });
 }
 
 function beeCatalogOutputResource(product) {
@@ -948,6 +952,17 @@ function beeExpectedCycleAmount(chance) {
   );
 }
 
+function beeSpecialtyRequirementTooltip(speciesEntry) {
+  const requirement = speciesEntry.jubilance?.description ?? "Needs preferred climate";
+  const temperature = speciesEntry.climate?.temperature;
+  const humidity = speciesEntry.climate?.humidity;
+  const climate =
+    temperature || humidity
+      ? `Preferred climate: ${temperature ?? "Normal"} / ${humidity ?? "Normal"}`
+      : undefined;
+  return [requirement, climate].filter(Boolean);
+}
+
 function formatPercent(value) {
   return `${Math.round(value * 10000) / 100}%`;
 }
@@ -976,6 +991,7 @@ function addSyntheticPassiveRecipe({
     neiSlot: entry.neiSlot ?? { x: 34, y: 35 + slotIndex * 18 },
   })) ?? [{ ...input, amount: 1, consumed: false, neiSlot: { x: 34, y: 35 } }];
   const recipeOutputs = outputs ?? [output];
+  const outputFrameCount = syntheticPassiveOutputFrameCount(machineType, recipeOutputs.length);
   const outputSignature = recipeOutputs.map((entry) => `${entry.kind}:${entry.id}`).join("|");
   const inputSignature = recipeInputs.map((entry) => `${entry.kind}:${entry.id}`).join("|");
   const itemInputCount = recipeInputs.filter((entry) => entry.kind === "item").length;
@@ -990,7 +1006,7 @@ function addSyntheticPassiveRecipe({
     slotCapacity.maxFluidInputs = fluidInputCount;
   }
   if (itemOutputCount > 0) {
-    slotCapacity.maxItemOutputs = itemOutputCount;
+    slotCapacity.maxItemOutputs = outputFrameCount;
   }
   if (fluidOutputCount > 0) {
     slotCapacity.maxFluidOutputs = fluidOutputCount;
@@ -1013,7 +1029,8 @@ function addSyntheticPassiveRecipe({
     inputs: recipeInputs,
     outputs: recipeOutputs.map((entry, slotIndex) => ({
       ...entry,
-      neiSlot: syntheticPassiveOutputPosition(slotIndex, recipeOutputs.length),
+      neiSlot:
+        entry.neiSlot ?? syntheticPassiveOutputPosition(slotIndex, outputFrameCount, machineType),
     })),
     notes: note,
     source: {
@@ -1030,11 +1047,12 @@ function addSyntheticPassiveRecipe({
           slotIndex,
           ...(entry.neiSlot ?? { x: 34, y: 35 + slotIndex * 18 }),
         })),
-        ...recipeOutputs.map((entry, slotIndex) => ({
+        ...Array.from({ length: outputFrameCount }, (_unused, slotIndex) => ({
           side: "output",
-          kind: entry.kind,
+          kind: recipeOutputs[slotIndex]?.kind ?? "item",
           slotIndex,
-          ...syntheticPassiveOutputPosition(slotIndex, recipeOutputs.length),
+          ...(recipeOutputs[slotIndex]?.neiSlot ??
+            syntheticPassiveOutputPosition(slotIndex, outputFrameCount, machineType)),
         })),
       ],
       slotCapacity,
@@ -1044,7 +1062,21 @@ function addSyntheticPassiveRecipe({
   return recipe;
 }
 
-function syntheticPassiveOutputPosition(index, count) {
+function syntheticPassiveOutputFrameCount(machineType, count) {
+  if (machineType === "Bee Produce" || machineType === "Bee Production") {
+    return Math.max(count, 6);
+  }
+  return count;
+}
+
+function syntheticPassiveOutputPosition(index, count, machineType) {
+  if (machineType === "Bee Produce" || machineType === "Bee Production") {
+    return {
+      x: 106 + (index % 3) * 18,
+      y: 26 + Math.floor(index / 3) * 29,
+    };
+  }
+
   if (count === 1) {
     return { x: 124, y: 35 };
   }
@@ -2529,7 +2561,7 @@ function passiveNeiMachineType(handler) {
   }
 
   if (label.includes("bee") || label.includes("apiary") || label.includes("alveary")) {
-    return "Bee Production";
+    return "Bee Produce";
   }
 
   if (label.includes("cropnh")) {
@@ -2544,6 +2576,7 @@ function isPassiveNeiHandlerLabel(label) {
     label.includes("ic2 crop") ||
     label.includes("cropnh") ||
     label.includes("crop production") ||
+    label.includes("bee produce") ||
     label.includes("bee product") ||
     label.includes("bee production") ||
     label.includes("apiary") ||
@@ -2557,7 +2590,7 @@ function passiveNeiDurationTicks(rawRecipe, machineType) {
     return duration;
   }
 
-  return machineType === "Bee Production" ? 550 : 1200;
+  return machineType === "Bee Produce" || machineType === "Bee Production" ? 550 : 1200;
 }
 
 function passiveNeiSlots(rawRecipe) {

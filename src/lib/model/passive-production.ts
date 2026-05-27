@@ -15,8 +15,19 @@ export const CROP_AIR_QUALITY_CONTROL_ID = "cropAirQuality";
 
 export const BEE_FRAME_SLOT_CONTROL_PREFIX = "beeFrameSlot";
 export const BEE_ENVIRONMENT_CONTROL_ID = "beeEnvironment";
-export const BEE_PRODUCTIVITY_CONTROL_ID = "beeProductivity";
+export const BEE_MAGIC_AURA_CONTROL_ID = "beeMagicAura";
+export const BEE_ALVEARY_FRAME_HOUSING_CONTROL_ID = "beeAlvearyFrameHousing";
+export const BEE_ALVEARY_STIMULATOR_CONTROL_ID = "beeAlvearyStimulator";
+export const BEE_ALVEARY_SUPPORT_CONTROL_ID = "beeAlvearySupport";
+export const BEE_INDUSTRIAL_SETUP_CONTROL_ID = "beeIndustrialSetup";
+export const BEE_MEGA_VOLTAGE_CONTROL_ID = "beeMegaVoltage";
+export const BEE_MEGA_ROYAL_JELLY_CONTROL_ID = "beeMegaRoyalJelly";
 export const BEE_APIARY_BASE_PRODUCTION_TERM = 0.1;
+const BEE_MAGIC_APIARY_BASE_PRODUCTION_TERM = 0.9;
+const BEE_ALVEARY_BASE_PRODUCTION_TERM = 1;
+const BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM = 10;
+const BEE_MEGA_APIARY_BASE_PRODUCTION_TERM = 17.19926784 + 6;
+const MEGA_APIARY_BATCH_CYCLES = 6400 / 550;
 
 const CROP_CONTROL_IDS = new Set([
   CROP_STATS_CONTROL_ID,
@@ -27,7 +38,16 @@ const CROP_CONTROL_IDS = new Set([
   CROP_AIR_QUALITY_CONTROL_ID,
 ]);
 
-const BEE_CONTROL_IDS = new Set([BEE_ENVIRONMENT_CONTROL_ID, BEE_PRODUCTIVITY_CONTROL_ID]);
+const BEE_CONTROL_IDS = new Set([
+  BEE_ENVIRONMENT_CONTROL_ID,
+  BEE_MAGIC_AURA_CONTROL_ID,
+  BEE_ALVEARY_FRAME_HOUSING_CONTROL_ID,
+  BEE_ALVEARY_STIMULATOR_CONTROL_ID,
+  BEE_ALVEARY_SUPPORT_CONTROL_ID,
+  BEE_INDUSTRIAL_SETUP_CONTROL_ID,
+  BEE_MEGA_VOLTAGE_CONTROL_ID,
+  BEE_MEGA_ROYAL_JELLY_CONTROL_ID,
+]);
 
 export interface CropStatsPreset {
   growth: number;
@@ -97,6 +117,7 @@ export function isCropNhRecipe(recipe: PassiveProductionRecipeLabel) {
 export function isBeeProductionRecipe(recipe: PassiveProductionRecipeLabel) {
   const label = passiveProductionLabel(recipe);
   return (
+    /\bbee produce\b/.test(label) ||
     /\bbee production\b/.test(label) ||
     /\bbee products?\b/.test(label) ||
     /\bapiary\b/.test(label) ||
@@ -146,13 +167,40 @@ export function getBeeFrameProductionModifier(key: string) {
 
 export function getBeeBaseProductionTerm(machineType: string) {
   const label = normalizeLabel(machineType);
-  if (label.includes("industrial apiary") || label.includes("mega apiary")) {
-    return 3;
+  if (label.includes("mega apiary")) {
+    return BEE_MEGA_APIARY_BASE_PRODUCTION_TERM;
+  }
+  if (label.includes("industrial apiary")) {
+    return BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
+  }
+  if (label.includes("magic apiary")) {
+    return BEE_MAGIC_APIARY_BASE_PRODUCTION_TERM;
   }
   if (label.includes("alveary")) {
-    return 1;
+    return BEE_ALVEARY_BASE_PRODUCTION_TERM;
   }
   return BEE_APIARY_BASE_PRODUCTION_TERM;
+}
+
+export function getBeeProductionTermModifier(controlId: string, key: string) {
+  if (isBeeFrameSlotControlId(controlId)) {
+    return getBeeFrameProductionModifier(key);
+  }
+
+  switch (controlId) {
+    case BEE_MAGIC_AURA_CONTROL_ID:
+      return key === "production-aura" ? 0.9 : 0;
+    case BEE_ALVEARY_FRAME_HOUSING_CONTROL_ID:
+      return getAlvearyFrameHousingProductionModifier(key);
+    case BEE_ALVEARY_STIMULATOR_CONTROL_ID:
+      return getAlvearyStimulatorProductionModifier(key);
+    case BEE_INDUSTRIAL_SETUP_CONTROL_ID:
+      return getIndustrialApiarySetupProductionModifier(key);
+    case BEE_MEGA_VOLTAGE_CONTROL_ID:
+      return getMegaApiaryVoltageProductionModifier(key);
+    default:
+      return 0;
+  }
 }
 
 export function getCropStatsPreset(value: string | undefined): CropStatsPreset | undefined {
@@ -188,7 +236,7 @@ function enrichCropProductionRecipe(recipe: Recipe): Recipe {
 }
 
 function enrichBeeProductionRecipe(recipe: Recipe): Recipe {
-  const controls = beeProductionControls();
+  const controls = apiaryProductionControls();
 
   return {
     ...recipe,
@@ -199,7 +247,7 @@ function enrichBeeProductionRecipe(recipe: Recipe): Recipe {
     machineConfigControls: mergeMachineConfigControls(recipe.machineConfigControls, controls),
     notes: withPassiveProductionNote(
       recipe.notes,
-      "Bee production controls are best-effort averages.",
+      "Bee production controls are best-effort averages based on Forestry production chance modifiers.",
     ),
   };
 }
@@ -308,54 +356,179 @@ function cropStatsControl(recipe: PassiveProductionRecipeLabel): MachineConfigCo
   };
 }
 
-function beeProductionControls(): MachineConfigControl[] {
+function apiaryProductionControls(): MachineConfigControl[] {
+  return [
+    beeFrameSlotControl(1),
+    beeFrameSlotControl(2),
+    beeFrameSlotControl(3),
+    beeEnvironmentControl(),
+  ];
+}
+
+function magicApiaryProductionControls(): MachineConfigControl[] {
   return [
     beeFrameSlotControl(1),
     beeFrameSlotControl(2),
     beeFrameSlotControl(3),
     selectControl({
-      id: BEE_ENVIRONMENT_CONTROL_ID,
-      label: "Environment",
-      defaultKey: "matched",
+      id: BEE_MAGIC_AURA_CONTROL_ID,
+      label: "Aura",
+      defaultKey: "none",
       tiers: [
-        option("mismatched", "Mismatched", "bee_environment_mismatched", "Mismatched Climate", {
-          durationMultiplier: 1.5,
-          outputMultiplier: 0.5,
+        option("none", "No Aura", "bee_magic_aura_none", "No Production Aura"),
+        option(
+          "production-aura",
+          "Production Aura",
+          "MagicBees:visAuraProvider",
+          "Production Aura Provider",
+        ),
+      ],
+    }),
+    beeEnvironmentControl(),
+  ];
+}
+
+function alvearyProductionControls(): MachineConfigControl[] {
+  return [
+    selectControl({
+      id: BEE_ALVEARY_FRAME_HOUSING_CONTROL_ID,
+      label: "Frame Housing",
+      defaultKey: "none",
+      tiers: [
+        option("none", "None", "bee_alveary_frame_none", "No Frame Housing"),
+        option("proven", "Proven Frame", "ExtraBees:alveary@1", "Frame Housing"),
+        option("magic", "Magic Frame", "ExtraBees:alveary@1", "Frame Housing"),
+        option("four-proven", "4x Proven", "ExtraBees:alveary@1", "Frame Housings"),
+      ],
+    }),
+    selectControl({
+      id: BEE_ALVEARY_STIMULATOR_CONTROL_ID,
+      label: "Stimulator",
+      defaultKey: "none",
+      tiers: [
+        option("none", "None", "bee_alveary_stimulator_none", "No Stimulator"),
+        option("low-voltage", "Low Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
+        option("high-voltage", "High Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
+        option("four-high-voltage", "4x High Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
+      ],
+    }),
+    selectControl({
+      id: BEE_ALVEARY_SUPPORT_CONTROL_ID,
+      label: "Support Blocks",
+      defaultKey: "plain",
+      tiers: [
+        option("plain", "Plain", "Forestry:alveary", "Plain Alveary"),
+        option("climate", "Climate", "Forestry:alveary@5", "Hygroregulator"),
+        option("lighting-rain", "Light/Rain", "ExtraBees:alveary@2", "Rain Shield / Lighting"),
+        option("sieve", "Sieve", "Forestry:alveary@7", "Alveary Sieve"),
+      ],
+    }),
+    beeEnvironmentControl(),
+  ];
+}
+
+function industrialApiaryControls(): MachineConfigControl[] {
+  return [
+    selectControl({
+      id: BEE_INDUSTRIAL_SETUP_CONTROL_ID,
+      label: "Upgrades",
+      defaultKey: "none",
+      tiers: [
+        option("none", "No Upgrades", "bee_industrial_upgrades_none", "No Upgrades"),
+        option(
+          "production-1",
+          "1 Production",
+          "gregtech:gt.metaitem.03@32209",
+          "Production Upgrade",
+        ),
+        option(
+          "production-4",
+          "4 Production",
+          "gregtech:gt.metaitem.03@32209",
+          "Production Upgrades",
+        ),
+        option(
+          "production-8",
+          "8 Production",
+          "gregtech:gt.metaitem.03@32209",
+          "Production Upgrades",
+        ),
+        option("speed-4", "Speed 4", "gregtech:gt.metaitem.03@32203", "Speed Upgrade 4", {
+          durationMultiplier: 1 / 16,
         }),
-        option("matched", "Matched", "bee_environment_matched", "Matched Climate"),
-        option("controlled", "Controlled", "bee_environment_controlled", "Controlled Climate", {
-          durationMultiplier: 0.9,
+        option("speed-8", "Speed 8", "gregtech:gt.metaitem.03@32207", "Speed Upgrade 8", {
+          durationMultiplier: 1 / 256,
+        }),
+        option(
+          "speed-8-upgraded",
+          "Speed 8+",
+          "gregtech:gt.metaitem.03@32208",
+          "Upgraded Speed 8",
+          {
+            durationMultiplier: 1 / 256,
+          },
+        ),
+      ],
+    }),
+    beeEnvironmentControl(),
+  ];
+}
+
+function megaApiaryControls(): MachineConfigControl[] {
+  return [
+    selectControl({
+      id: BEE_MEGA_VOLTAGE_CONTROL_ID,
+      label: "Voltage",
+      defaultKey: "luv",
+      tiers: [
+        option("luv", "LuV", "bee_mega_voltage_luv", "LuV Energy Hatches", {
+          outputMultiplier: MEGA_APIARY_BATCH_CYCLES,
+        }),
+        option("zpm", "ZPM", "bee_mega_voltage_zpm", "ZPM Energy Hatches", {
+          outputMultiplier: MEGA_APIARY_BATCH_CYCLES * 4,
+          eutMultiplier: 4,
+        }),
+        option("uv", "UV", "bee_mega_voltage_uv", "UV Energy Hatches", {
+          outputMultiplier: MEGA_APIARY_BATCH_CYCLES * 16,
+          eutMultiplier: 16,
+        }),
+        option("uhv", "UHV", "bee_mega_voltage_uhv", "UHV Energy Hatches", {
+          outputMultiplier: MEGA_APIARY_BATCH_CYCLES * 64,
+          eutMultiplier: 64,
         }),
       ],
     }),
     selectControl({
-      id: BEE_PRODUCTIVITY_CONTROL_ID,
-      label: "Productivity",
-      defaultKey: "species",
+      id: BEE_MEGA_ROYAL_JELLY_CONTROL_ID,
+      label: "Royal Jelly",
+      defaultKey: "none",
       tiers: [
-        option("species", "Species Default", "bee_productivity_species", "Species Default"),
-        option(
-          "optimized",
-          "Production Optimized",
-          "bee_productivity_optimized",
-          "Production Optimized",
-          {
-            outputMultiplier: 1.5,
-          },
-        ),
-        option(
-          "industrial",
-          "Industrial Boost",
-          "bee_productivity_industrial",
-          "Industrial Boost",
-          {
-            outputMultiplier: 2.5,
-            durationMultiplier: 0.8,
-          },
-        ),
+        option("none", "None", "bee_mega_jelly_none", "No Royal Jelly"),
+        option("partial", "Partial", "Forestry:royalJelly", "Royal Jelly", {
+          outputMultiplier: 2,
+        }),
+        option("full", "Full", "Forestry:royalJelly", "Royal Jelly", {
+          outputMultiplier: 3,
+        }),
       ],
     }),
   ];
+}
+
+function beeEnvironmentControl(): MachineConfigControl {
+  return selectControl({
+    id: BEE_ENVIRONMENT_CONTROL_ID,
+    label: "Climate",
+    defaultKey: "preferred",
+    tiers: [
+      option("wrong", "Wrong", "bee_environment_wrong", "Wrong Climate", {
+        outputMultiplier: 0,
+      }),
+      option("tolerated", "Tolerated", "bee_environment_tolerated", "Tolerated Climate"),
+      option("preferred", "Preferred", "bee_environment_preferred", "Preferred Climate"),
+      option("controlled", "Controlled", "bee_environment_controlled", "Controlled Climate"),
+    ],
+  });
 }
 
 function beeFrameSlotControl(slotIndex: number): MachineConfigControl {
@@ -391,30 +564,96 @@ function beeFrameSlotControl(slotIndex: number): MachineConfigControl {
 function beeMachineHandlers(): MachineHandler[] {
   return [
     {
+      id: "magic-apiary",
+      label: "Magic Apiary",
+      machineType: "Magic Apiary",
+      minimumTier: "NONE",
+      eut: 0,
+      kind: "single",
+      machineConfigControls: magicApiaryProductionControls(),
+    },
+    {
       id: "alveary",
       label: "Alveary",
       machineType: "Alveary",
       minimumTier: "NONE",
       eut: 0,
       kind: "multiblock",
+      machineConfigControls: alvearyProductionControls(),
     },
     {
       id: "industrial-apiary",
       label: "Industrial Apiary",
       machineType: "Industrial Apiary",
       minimumTier: "MV",
-      eut: 32,
+      eut: 37,
       kind: "automation",
+      machineConfigControls: industrialApiaryControls(),
     },
     {
       id: "mega-apiary",
       label: "Mega Apiary",
       machineType: "Mega Apiary",
-      minimumTier: "HV",
-      eut: 120,
+      minimumTier: "LuV",
+      durationTicks: 100,
+      eut: 8110,
       kind: "multiblock",
+      machineConfigControls: megaApiaryControls(),
     },
   ];
+}
+
+function getAlvearyFrameHousingProductionModifier(key: string) {
+  switch (key) {
+    case "proven":
+      return getBeeFrameProductionModifier("forestry:proven");
+    case "magic":
+      return getBeeFrameProductionModifier("magicbees:magic");
+    case "four-proven":
+      return 4 * getBeeFrameProductionModifier("forestry:proven");
+    default:
+      return 0;
+  }
+}
+
+function getAlvearyStimulatorProductionModifier(key: string) {
+  switch (key) {
+    case "low-voltage":
+      return 0.5;
+    case "high-voltage":
+      return 1.5;
+    case "four-high-voltage":
+      return 6;
+    default:
+      return 0;
+  }
+}
+
+function getIndustrialApiarySetupProductionModifier(key: string) {
+  switch (key) {
+    case "production-1":
+      return 4 * 1.2 + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
+    case "production-4":
+      return 4 * 1.2 ** 4 + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
+    case "production-8":
+    case "speed-8-upgraded":
+      return 4 * 1.2 ** 8 + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
+    default:
+      return 0;
+  }
+}
+
+function getMegaApiaryVoltageProductionModifier(key: string) {
+  switch (key) {
+    case "zpm":
+      return 1;
+    case "uv":
+      return 2;
+    case "uhv":
+      return 3;
+    default:
+      return 0;
+  }
 }
 
 function cropStatsOption(
@@ -734,6 +973,7 @@ function isPassiveBaseMachine(machineType: string) {
     label === "ic2 crops" ||
     label === "cropnh" ||
     label === "crop production" ||
+    label === "bee produce" ||
     label === "bee production" ||
     label === "bee products"
   );

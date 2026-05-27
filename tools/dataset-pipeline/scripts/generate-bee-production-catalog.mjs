@@ -325,6 +325,8 @@ async function collectJavaEnumBeeSpecies({ file, enumName, source, idPrefix, dis
       displayName,
       source,
       aliases: speciesAliases(entry, displayName),
+      climate: speciesClimate(entry),
+      jubilance: speciesJubilance(entry),
       products,
     });
   }
@@ -342,6 +344,15 @@ async function collectMagicBeeSpecies() {
       const displayName = magicBeesLang.get(`magicbees.species${key}`) ?? titleWords(key).join(" ");
       return [entry.name, `${displayName} Bee`];
     }),
+  );
+  const traitsByEnum = new Map(
+    entries.map((entry) => [
+      entry.name,
+      {
+        climate: speciesClimate(entry),
+        jubilance: speciesJubilance(entry),
+      },
+    ]),
   );
   const productsBySpecies = new Map();
 
@@ -368,6 +379,7 @@ async function collectMagicBeeSpecies() {
       displayName,
       source: "MagicBees",
       aliases: [enumName, displayName.replace(/\s+Bee$/i, "")],
+      ...traitsByEnum.get(enumName),
       products,
     });
   }
@@ -384,6 +396,15 @@ async function collectAvaritiaBeeSpecies() {
       const displayName = avaritiaLang.get(`avaritia.bee.${key}`) ?? titleWords(key).join(" ");
       return [entry.name, `${displayName} Bee`];
     }),
+  );
+  const traitsByEnum = new Map(
+    entries.map((entry) => [
+      entry.name,
+      {
+        climate: speciesClimate(entry),
+        jubilance: speciesJubilance(entry),
+      },
+    ]),
   );
   const productsBySpecies = new Map();
   for (const statement of javaStatements(file)) {
@@ -409,6 +430,7 @@ async function collectAvaritiaBeeSpecies() {
       displayName,
       source: "Avaritia",
       aliases: [enumName, displayName.replace(/\s+Bee$/i, "")],
+      ...traitsByEnum.get(enumName),
       products,
     });
   }
@@ -806,9 +828,56 @@ function mergeSpecies(entries) {
       continue;
     }
     current.aliases = unique([...(current.aliases ?? []), ...(entry.aliases ?? [])]);
+    current.climate ??= entry.climate;
+    current.jubilance ??= entry.jubilance;
     current.products = uniqueProducts([...current.products, ...entry.products]);
   }
   return [...byId.values()];
+}
+
+function speciesClimate(entry) {
+  const temperature =
+    enumReference(entry.text, /setTemperature\s*\(\s*EnumTemperature\.([A-Z0-9_]+)/) ??
+    enumReference(entry.args, /EnumTemperature\.([A-Z0-9_]+)/) ??
+    "NORMAL";
+  const humidity =
+    enumReference(entry.text, /setHumidity\s*\(\s*EnumHumidity\.([A-Z0-9_]+)/) ??
+    enumReference(entry.args, /EnumHumidity\.([A-Z0-9_]+)/) ??
+    "NORMAL";
+
+  return {
+    temperature: titleWords(temperature).join(" "),
+    humidity: titleWords(humidity).join(" "),
+  };
+}
+
+function speciesJubilance(entry) {
+  if (/JubilanceMegaApiary/i.test(entry.text)) {
+    return {
+      type: "megaApiary",
+      description: "Will only be produced in Mega Apiary",
+    };
+  }
+  if (/JubilanceProviderHermit/i.test(entry.text)) {
+    return {
+      type: "hermit",
+      description: "Will not produce if other living creatures are nearby",
+    };
+  }
+  if (/JubilanceRequiresResource|getRequiresResource/i.test(entry.text)) {
+    return {
+      type: "resource",
+      description: "Requires specific foundation block",
+    };
+  }
+  return {
+    type: "preferredClimate",
+    description: "Needs preferred climate",
+  };
+}
+
+function enumReference(value, pattern) {
+  return pattern.exec(value ?? "")?.[1];
 }
 
 function uniqueProducts(products) {

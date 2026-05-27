@@ -94,9 +94,9 @@ describe("NEI layout", () => {
     );
 
     expect(layout.id).toBe("shaped-crafting");
-    expect(layout.frames.filter((frame) => frame.side === "input" && frame.kind === "item")).toHaveLength(
-      9,
-    );
+    expect(
+      layout.frames.filter((frame) => frame.side === "input" && frame.kind === "item"),
+    ).toHaveLength(9);
     expect(layout.slots.map((slot) => [slot.kind, slot.side, slot.x, slot.y])).toEqual([
       ["item", "input", 25, 8],
       ["item", "input", 43, 8],
@@ -127,9 +127,9 @@ describe("NEI layout", () => {
     );
 
     expect(layout.id).toBe("shaped-crafting");
-    expect(layout.frames.filter((frame) => frame.side === "input" && frame.kind === "item")).toHaveLength(
-      9,
-    );
+    expect(
+      layout.frames.filter((frame) => frame.side === "input" && frame.kind === "item"),
+    ).toHaveLength(9);
   });
 
   it("uses the LargeNEIFrontend positions for the Large Chemical Reactor", () => {
@@ -182,6 +182,29 @@ describe("NEI layout", () => {
       [142, 62],
       [106, 44],
     ]);
+  });
+
+  it("uses the Bee Produce recipe surface", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Bee Produce",
+        sourceRecipeMap: "Bee Produce",
+        inputs: [{ kind: "item", id: "factoryflow:bee_species:hydra", amount: 1 }],
+        outputs: [
+          { kind: "item", id: "GTPlusPlus:hydraComb", amount: 0.06 },
+          { kind: "item", id: "MagicBees:comb@1", amount: 0.1 },
+        ],
+      }),
+    );
+
+    expect(layout.id).toBe("bee-produce");
+    expect(layout.slots.map((slot) => [slot.kind, slot.side, slot.x, slot.y])).toEqual([
+      ["item", "input", 34, 52],
+      ["item", "output", 106, 26],
+      ["item", "output", 124, 26],
+    ]);
+    expect(layout.frames.filter((frame) => frame.side === "output")).toHaveLength(6);
+    expect(layout.progressBars[0]).toMatchObject({ x: 66, y: 52, texture: "arrow" });
   });
 
   it("keeps empty centrifuge output slots when only some outputs are used", () => {

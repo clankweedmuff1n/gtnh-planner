@@ -4,8 +4,9 @@ import {
 } from "@/lib/model/recipe-rules";
 import {
   BEE_APIARY_BASE_PRODUCTION_TERM,
+  BEE_ENVIRONMENT_CONTROL_ID,
   getBeeBaseProductionTerm,
-  getBeeFrameProductionModifier,
+  getBeeProductionTermModifier,
   isBeeFrameSlotControlId,
   isBeeProductionRecipe,
 } from "@/lib/model/passive-production";
@@ -30,7 +31,11 @@ export function getMachineOutputMultiplier(
     .reduce((multiplier, control) => multiplier * (control.current.outputMultiplier ?? 1), 1);
 
   if (isBeeProductionRecipe(recipe)) {
-    return configMultiplier * getBeeFrameOutputMultiplier(recipe, node);
+    return (
+      configMultiplier *
+      getBeeClimateOutputMultiplier(recipe, node, output) *
+      getBeeProductionTermOutputMultiplier(recipe, node)
+    );
   }
 
   if (!isTreeGrowthSimulatorRecipe(recipe)) {
@@ -43,15 +48,50 @@ export function getMachineOutputMultiplier(
   return configMultiplier * tierMultiplier * toolMultiplier;
 }
 
-function getBeeFrameOutputMultiplier(
+function getBeeClimateOutputMultiplier(
+  recipe: Pick<Recipe, "machineType" | "source" | "nei" | "machineConfigControls">,
+  node: Pick<FactoryNode, "machineConfigTiers">,
+  output: RecipeOutput,
+) {
+  if (hasBeeMegaApiaryRequirement(output) && !isMegaApiaryRecipe(recipe)) {
+    return 0;
+  }
+
+  const climateControl = getRecipeMachineConfigTierControls(recipe, node).find(
+    (control) => control.id === BEE_ENVIRONMENT_CONTROL_ID,
+  );
+  const climateKey = climateControl?.current.key;
+  if (climateKey === "wrong") {
+    return 0;
+  }
+  if (climateKey === "tolerated" && hasBeePreferredClimateRequirement(output)) {
+    return 0;
+  }
+  return 1;
+}
+
+function hasBeePreferredClimateRequirement(output: RecipeOutput) {
+  return output.tooltip?.some((line) => /needs preferred climate/i.test(line)) ?? false;
+}
+
+function hasBeeMegaApiaryRequirement(output: RecipeOutput) {
+  return output.tooltip?.some((line) => /only be produced in mega apiary/i.test(line)) ?? false;
+}
+
+function isMegaApiaryRecipe(recipe: Pick<Recipe, "machineType">) {
+  return normalizeRecipeMapName(recipe.machineType).includes("mega apiary");
+}
+
+function getBeeProductionTermOutputMultiplier(
   recipe: Pick<Recipe, "machineType" | "source" | "nei" | "machineConfigControls">,
   node: Pick<FactoryNode, "machineConfigTiers">,
 ) {
   const baseTerm = getBeeBaseProductionTerm(recipe.machineType);
-  const frameModifier = getRecipeMachineConfigTierControls(recipe, node)
-    .filter((control) => isBeeFrameSlotControlId(control.id))
-    .reduce((sum, control) => sum + getBeeFrameProductionModifier(control.current.key), 0);
-  const productionTerm = baseTerm + frameModifier;
+  const configModifier = getRecipeMachineConfigTierControls(recipe, node).reduce(
+    (sum, control) => sum + getBeeProductionTermModifier(control.id, control.current.key),
+    0,
+  );
+  const productionTerm = baseTerm + configModifier;
   if (productionTerm <= 0) {
     return 0;
   }

@@ -108,12 +108,11 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const beeProductionControls = isBeeProductionRecipe(effectiveRecipe)
     ? machineConfigControls.filter((control) => isBeeProductionConfigControl(control.id))
     : [];
+  const isBeeProductionNode = beeProductionControls.length > 0;
   const beeFrameControls = beeProductionControls.filter((control) =>
     isBeeFrameSlotControlId(control.id),
   );
-  const beePanelControls = beeProductionControls.filter(
-    (control) => !isBeeFrameSlotControlId(control.id),
-  );
+  const beePanelControls = beeProductionControls;
   const tgsToolControls = machineConfigControls.filter(isTreeGrowthSimulatorToolControl);
   const statsMachineConfigControls = machineConfigControls.filter(
     (control) =>
@@ -124,10 +123,10 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   );
   const machineParallelMultiplier = getMachineParallelMultiplier(effectiveRecipe, projectNode);
   const overclockedStats = getOverclockedRecipeStats(nodeRecipe, projectNode);
-  const displayRecipe = applyBeeFrameInputs(
-    applyTreeGrowthSimulatorToolInputs(effectiveRecipe, tgsToolControls),
-    beeFrameControls,
-  );
+  const toolAdjustedRecipe = applyTreeGrowthSimulatorToolInputs(effectiveRecipe, tgsToolControls);
+  const displayRecipe = isBeeProductionNode
+    ? stripBeeFrameSlotInputs(toolAdjustedRecipe)
+    : toolAdjustedRecipe;
   const adjustedRecipe = applyMachineOutputMultipliers(
     displayRecipe,
     projectNode,
@@ -729,33 +728,36 @@ function applyTreeGrowthSimulatorToolInputs(
   return { ...recipe, inputs };
 }
 
-function applyBeeFrameInputs(recipe: Recipe, controls: MachineConfigTierControl[]): Recipe {
-  if (controls.length === 0) {
+function stripBeeFrameSlotInputs(recipe: Recipe): Recipe {
+  const inputs = recipe.inputs.filter((input) => !isBeeFrameSlotInput(input));
+  const neiSlots = recipe.nei?.slots?.filter((slot) => !isBeeFrameSlotPosition(slot));
+  const recipeChanged = inputs.length !== recipe.inputs.length;
+  const neiChanged = neiSlots?.length !== recipe.nei?.slots?.length;
+
+  if (!recipeChanged && !neiChanged) {
     return recipe;
   }
 
-  const inputs = recipe.inputs.map((input) => {
-    const matchingControl = controls.find((control) => {
-      const position = BEE_FRAME_SLOTS[control.id];
-      return position?.x === input.neiSlot?.x && position.y === input.neiSlot?.y;
-    });
+  return {
+    ...recipe,
+    inputs,
+    nei: recipe.nei
+      ? {
+          ...recipe.nei,
+          slots: neiSlots,
+        }
+      : recipe.nei,
+  };
+}
 
-    if (!matchingControl) {
-      return input;
-    }
-    const resource = getBeeFrameSlotResource(matchingControl);
+function isBeeFrameSlotInput(input: Recipe["inputs"][number]) {
+  return /^factoryflow:bee_frame_slot_\d+$/.test(input.id);
+}
 
-    return {
-      ...input,
-      ...resource,
-      amount: 1,
-      optional: true,
-      consumed: false,
-      neiSlot: input.neiSlot,
-    };
-  });
-
-  return { ...recipe, inputs };
+function isBeeFrameSlotPosition(slot: NonNullable<NonNullable<Recipe["nei"]>["slots"]>[number]) {
+  return Object.values(BEE_FRAME_SLOTS).some(
+    (position) => position.x === slot.x && position.y === slot.y,
+  );
 }
 
 function isTreeGrowthSimulatorEmptyTool(control: MachineConfigTierControl) {
@@ -768,14 +770,6 @@ function isTreeGrowthSimulatorEmptyTool(control: MachineConfigTierControl) {
 
 function getTreeGrowthSimulatorSlotResource(control: MachineConfigTierControl) {
   if (!isTreeGrowthSimulatorEmptyTool(control)) {
-    return control.resource;
-  }
-
-  return control.tiers.find((tier) => tier.key === "none")?.resource ?? control.resource;
-}
-
-function getBeeFrameSlotResource(control: MachineConfigTierControl) {
-  if (control.current.key !== "none") {
     return control.resource;
   }
 

@@ -9,6 +9,14 @@
       "displayName": "Abandoned Bee",
       "source": "MagicBees",
       "aliases": ["ABANDONED", "Abandoned"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -24,6 +32,14 @@
       "displayName": "Abnormal Bee",
       "source": "ExtraBees",
       "aliases": ["UNUSUAL", "Abnormal"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -39,6 +55,14 @@
       "displayName": "Absolute Bee",
       "source": "ExtraBees",
       "aliases": ["FREEZING", "Absolute"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -61,6 +85,14 @@
       "displayName": "Abyssal Bee",
       "source": "ExtraBees",
       "aliases": ["ABYSS", "Abyssal"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -76,6 +108,14 @@
       "displayName": "Acentauri Bee",
       "source": "GregTech",
       "aliases": ["ACENTAURI", "Acentauri"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -98,6 +138,14 @@
       "displayName": "Acidic Bee",
       "source": "ExtraBees",
       "aliases": ["ACIDIC", "Acidic"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -120,6 +168,14 @@
       "displayName": "Aer Bee",
       "source": "MagicBees",
       "aliases": ["TC_AIR", "Aer"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -142,6 +198,14 @@
       "displayName": "Agrarian Bee",
       "source": "Forestry",
       "aliases": ["AGRARIAN", "Agrarian"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -157,6 +221,14 @@
       "displayName": "Aiolic Bee",
       "source": "MagicBees",
       "aliases": ["AM_AIR", "Aiolic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -182,6 +254,14 @@
       "displayName": "Air Bee",
       "source": "GregTech",
       "aliases": ["AIR", "Air"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -197,6 +277,14 @@
       "displayName": "Alfheim Bee",
       "source": "MagicBees",
       "aliases": ["BOT_ALFHEIM", "Alfheim"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -212,6 +300,14 @@
       "displayName": "Aluminium Bee",
       "source": "GregTech",
       "aliases": ["ALUMINIUM", "Aluminium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -241,6 +337,14 @@
       "displayName": "Aluminum Bee",
       "source": "MagicBees",
       "aliases": ["ALUMINUM", "Aluminum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -264,6 +368,14 @@
       "displayName": "Amber Bee",
       "source": "ExtraBees",
       "aliases": ["ORANGE", "Amber"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -286,6 +398,14 @@
       "displayName": "Amber Bee",
       "source": "GregTech",
       "aliases": ["AMBER", "Amber"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -308,6 +428,14 @@
       "displayName": "Americium Bee",
       "source": "GregTech",
       "aliases": ["AMERICIUM", "Americium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -323,6 +451,14 @@
       "displayName": "Amped Bee",
       "source": "MagicBees",
       "aliases": ["TE_AMPED", "Amped"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -346,6 +482,14 @@
       "displayName": "Ancient Bee",
       "source": "ExtraBees",
       "aliases": ["ANCIENT", "Ancient"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -361,6 +505,14 @@
       "displayName": "Annoying Bee",
       "source": "Avaritia",
       "aliases": ["ANNOYING", "Annoying"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -376,6 +528,14 @@
       "displayName": "Apatine Bee",
       "source": "MagicBees",
       "aliases": ["APATITE", "Apatine"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -398,6 +558,14 @@
       "displayName": "Apatite Bee",
       "source": "GregTech",
       "aliases": ["APATITE", "Apatite"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -420,6 +588,14 @@
       "displayName": "Aqua Bee",
       "source": "MagicBees",
       "aliases": ["TC_WATER", "Aqua"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -442,6 +618,14 @@
       "displayName": "Aqueous Bee",
       "source": "MagicBees",
       "aliases": ["AM_WATER", "Aqueous"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -467,6 +651,14 @@
       "displayName": "Arcane Bee",
       "source": "MagicBees",
       "aliases": ["ARCANE", "Arcane", "AM_ARCANE"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -506,6 +698,14 @@
       "displayName": "Arcaneshards Bee",
       "source": "GregTech",
       "aliases": ["ARCANESHARDS", "Arcaneshards"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -528,6 +728,14 @@
       "displayName": "Ardite Bee",
       "source": "MagicBees",
       "aliases": ["ARDITE", "Ardite"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -553,6 +761,14 @@
       "displayName": "Argentum Bee",
       "source": "MagicBees",
       "aliases": ["SILVER", "Argentum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -578,6 +794,14 @@
       "displayName": "Argon Bee",
       "source": "GregTech",
       "aliases": ["ARGON", "Argon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -593,6 +817,14 @@
       "displayName": "Arid Bee",
       "source": "ExtraBees",
       "aliases": ["ARID", "Arid"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -608,6 +840,14 @@
       "displayName": "Arsenic Bee",
       "source": "GregTech",
       "aliases": ["ARSENIC", "Arsenic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -630,6 +870,14 @@
       "displayName": "Ash Bee",
       "source": "GregTech",
       "aliases": ["ASH", "Ash"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -652,6 +900,14 @@
       "displayName": "Ashen Bee",
       "source": "ExtraBees",
       "aliases": ["LIGHTGRAY", "Ashen"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -674,6 +930,14 @@
       "displayName": "Astralsilver Bee",
       "source": "GregTech",
       "aliases": ["ASTRALSILVER", "Astralsilver"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -696,6 +960,14 @@
       "displayName": "Attuned Bee",
       "source": "MagicBees",
       "aliases": ["ATTUNED", "Attuned"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -711,6 +983,14 @@
       "displayName": "Auric Bee",
       "source": "MagicBees",
       "aliases": ["GOLD", "Auric"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -733,6 +1013,14 @@
       "displayName": "Austere Bee",
       "source": "Forestry",
       "aliases": ["AUSTERE", "Austere"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -755,6 +1043,14 @@
       "displayName": "Avenging Bee",
       "source": "Forestry",
       "aliases": ["AVENGING", "Avenging"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -770,6 +1066,14 @@
       "displayName": "Aware Bee",
       "source": "MagicBees",
       "aliases": ["AWARE", "Aware"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -785,6 +1089,14 @@
       "displayName": "Azure Bee",
       "source": "ExtraBees",
       "aliases": ["LIGHTBLUE", "Azure"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -807,6 +1119,14 @@
       "displayName": "Barnarda Bee",
       "source": "GregTech",
       "aliases": ["BARNARDA", "Barnarda"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -838,6 +1158,14 @@
       "displayName": "Barnardac Bee",
       "source": "GregTech",
       "aliases": ["BARNARDAC", "Barnardac"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -853,6 +1181,14 @@
       "displayName": "Barnardae Bee",
       "source": "GregTech",
       "aliases": ["BARNARDAE", "Barnardae"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -876,6 +1212,14 @@
       "displayName": "Barnardaf Bee",
       "source": "GregTech",
       "aliases": ["BARNARDAF", "Barnardaf"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -899,6 +1243,14 @@
       "displayName": "Barren Bee",
       "source": "ExtraBees",
       "aliases": ["BARREN", "Barren"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -914,6 +1266,14 @@
       "displayName": "Batty Bee",
       "source": "MagicBees",
       "aliases": ["BATTY", "Batty"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -943,6 +1303,14 @@
       "displayName": "Bedrockium Bee",
       "source": "GregTech",
       "aliases": ["BEDROCKIUM", "Bedrockium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -965,6 +1333,14 @@
       "displayName": "Beefy Bee",
       "source": "MagicBees",
       "aliases": ["BEEF", "Beefy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -995,6 +1371,14 @@
       "displayName": "Big Bad Bee",
       "source": "MagicBees",
       "aliases": ["BIGBAD", "Big Bad"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1031,6 +1415,14 @@
       "displayName": "Biomass Bee",
       "source": "GT++",
       "aliases": ["BIOMASS", "Biomass"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1053,6 +1445,14 @@
       "displayName": "Blackplutonium Bee",
       "source": "GregTech",
       "aliases": ["BLACKPLUTONIUM", "Blackplutonium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1075,6 +1475,14 @@
       "displayName": "Bleached Bee",
       "source": "ExtraBees",
       "aliases": ["WHITE", "Bleached"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1097,6 +1505,14 @@
       "displayName": "Blizzy Bee",
       "source": "MagicBees",
       "aliases": ["TE_BLIZZY", "Blizzy"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1120,6 +1536,14 @@
       "displayName": "Blooming Bee",
       "source": "ExtraBees",
       "aliases": ["BLOOMING", "Blooming"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1135,6 +1559,14 @@
       "displayName": "Blossom Bee",
       "source": "MagicBees",
       "aliases": ["BOT_BLOSSOM", "Blossom"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1165,6 +1597,14 @@
       "displayName": "Blutonium Bee",
       "source": "ExtraBees",
       "aliases": ["BLUTONIUM", "Blutonium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1187,6 +1627,14 @@
       "displayName": "Boggy Bee",
       "source": "Forestry",
       "aliases": ["BOGGY", "Boggy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1209,6 +1657,14 @@
       "displayName": "Botanic Bee",
       "source": "MagicBees",
       "aliases": ["BOT_BOTANIC", "Botanic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1239,6 +1695,14 @@
       "displayName": "Bovine Bee",
       "source": "ExtraBees",
       "aliases": ["MILK", "Bovine"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1261,6 +1725,14 @@
       "displayName": "Brainy Bee",
       "source": "MagicBees",
       "aliases": ["BRAINY", "Brainy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1291,6 +1763,14 @@
       "displayName": "Bronzed Bee",
       "source": "MagicBees",
       "aliases": ["TE_BRONZE", "Bronzed"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1316,6 +1796,14 @@
       "displayName": "Caelestis Bee",
       "source": "GregTech",
       "aliases": ["CAELESTIS", "Caelestis"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1345,6 +1833,14 @@
       "displayName": "Caffeinated Bee",
       "source": "ExtraBees",
       "aliases": ["COFFEE", "Caffeinated"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1367,6 +1863,14 @@
       "displayName": "Callisto Bee",
       "source": "GregTech",
       "aliases": ["CALLISTO", "Callisto"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1398,6 +1902,14 @@
       "displayName": "Callistoice Bee",
       "source": "GregTech",
       "aliases": ["CALLISTOICE", "Callistoice"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1420,6 +1932,14 @@
       "displayName": "Carbon Bee",
       "source": "MagicBees",
       "aliases": ["TE_COAL", "Carbon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1449,6 +1969,14 @@
       "displayName": "Catty Bee",
       "source": "MagicBees",
       "aliases": ["CATTY", "Catty"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1471,6 +1999,14 @@
       "displayName": "Caustic Bee",
       "source": "ExtraBees",
       "aliases": ["CAUSTIC", "Caustic"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1493,6 +2029,14 @@
       "displayName": "Centauri Bee",
       "source": "GregTech",
       "aliases": ["CENTAURI", "Centauri"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1515,6 +2059,14 @@
       "displayName": "Ceres Bee",
       "source": "GregTech",
       "aliases": ["CERES", "Ceres"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1538,6 +2090,14 @@
       "displayName": "Certus Bee",
       "source": "MagicBees",
       "aliases": ["CERTUS", "Certus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1561,6 +2121,14 @@
       "displayName": "Certus Bee",
       "source": "GregTech",
       "aliases": ["CERTUS", "Certus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1583,6 +2151,14 @@
       "displayName": "Chad Bee",
       "source": "ExtraBees",
       "aliases": ["CHAD", "Chad"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1612,6 +2188,14 @@
       "displayName": "Chaos Bee",
       "source": "GregTech",
       "aliases": ["CHAOS", "Chaos"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1627,6 +2211,14 @@
       "displayName": "Chaotic Bee",
       "source": "MagicBees",
       "aliases": ["TC_CHAOS", "Chaotic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1649,6 +2241,14 @@
       "displayName": "Charmed Bee",
       "source": "MagicBees",
       "aliases": ["CHARMED", "Charmed"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1664,6 +2264,14 @@
       "displayName": "Chrome Bee",
       "source": "GregTech",
       "aliases": ["CHROME", "Chrome"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1693,6 +2301,14 @@
       "displayName": "Clay Bee",
       "source": "GregTech",
       "aliases": ["CLAY", "Clay"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1722,6 +2338,14 @@
       "displayName": "Coal Bee",
       "source": "GregTech",
       "aliases": ["COAL", "Coal"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1744,6 +2368,14 @@
       "displayName": "Cobalt Bee",
       "source": "MagicBees",
       "aliases": ["COBALT", "Cobalt"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1769,6 +2401,14 @@
       "displayName": "Common Bee",
       "source": "Forestry",
       "aliases": ["COMMON", "Common"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1784,6 +2424,14 @@
       "displayName": "Conductiveiron Bee",
       "source": "GregTech",
       "aliases": ["CONDUCTIVEIRON", "Conductiveiron"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1806,6 +2454,14 @@
       "displayName": "Coolant Bee",
       "source": "GregTech",
       "aliases": ["COOLANT", "Coolant"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1828,6 +2484,14 @@
       "displayName": "Copper Bee",
       "source": "GregTech",
       "aliases": ["COPPER", "Copper"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1857,6 +2521,14 @@
       "displayName": "Corroded Bee",
       "source": "ExtraBees",
       "aliases": ["COPPER", "Corroded"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1879,6 +2551,14 @@
       "displayName": "Corrosive Bee",
       "source": "ExtraBees",
       "aliases": ["CORROSIVE", "Corrosive"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1894,6 +2574,14 @@
       "displayName": "Cosmic Bee",
       "source": "Avaritia",
       "aliases": ["COSMIC", "Cosmic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1916,6 +2604,14 @@
       "displayName": "Cosmicneutronium Bee",
       "source": "GregTech",
       "aliases": ["COSMICNEUTRONIUM", "Cosmicneutronium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -1931,6 +2627,14 @@
       "displayName": "Creepy Bee",
       "source": "ExtraBees",
       "aliases": ["CREEPER", "Creepy"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1953,6 +2657,14 @@
       "displayName": "Crumbling Bee",
       "source": "MagicBees",
       "aliases": ["CRUMBLING", "Crumbling"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -1989,6 +2701,14 @@
       "displayName": "Cryolite Bee",
       "source": "GregTech",
       "aliases": ["CRYOLITE", "Cryolite"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2018,6 +2738,14 @@
       "displayName": "Cryotheum Bee",
       "source": "GregTech",
       "aliases": ["CRYOTHEUM", "Cryotheum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2040,6 +2768,14 @@
       "displayName": "Cultivated Bee",
       "source": "Forestry",
       "aliases": ["CULTIVATED", "Cultivated"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2055,6 +2791,14 @@
       "displayName": "Cuprum Bee",
       "source": "MagicBees",
       "aliases": ["COPPER", "Cuprum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2077,6 +2821,14 @@
       "displayName": "Cyanite Bee",
       "source": "ExtraBees",
       "aliases": ["CYANITE", "Cyanite"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2099,6 +2851,14 @@
       "displayName": "Damp Bee",
       "source": "ExtraBees",
       "aliases": ["SWAMP", "Damp"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2114,6 +2874,14 @@
       "displayName": "Dante Bee",
       "source": "MagicBees",
       "aliases": ["TE_DANTE", "Dante"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2151,6 +2919,14 @@
       "displayName": "Darkened Bee",
       "source": "ExtraBees",
       "aliases": ["DARKENED", "Darkened"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2166,6 +2942,14 @@
       "displayName": "Darksteel Bee",
       "source": "GregTech",
       "aliases": ["DARKSTEEL", "Darksteel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2188,6 +2972,14 @@
       "displayName": "Decaying Bee",
       "source": "ExtraBees",
       "aliases": ["ROTTEN", "Decaying"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2210,6 +3002,14 @@
       "displayName": "Decomposing Bee",
       "source": "ExtraBees",
       "aliases": ["DECOMPOSING", "Decomposing"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2232,6 +3032,14 @@
       "displayName": "Deimos Bee",
       "source": "GregTech",
       "aliases": ["DEIMOS", "Deimos"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2255,6 +3063,14 @@
       "displayName": "Demonic Bee",
       "source": "Forestry",
       "aliases": ["DEMONIC", "Demonic"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2277,6 +3093,14 @@
       "displayName": "Desh Bee",
       "source": "GregTech",
       "aliases": ["DESH", "Desh"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2299,6 +3123,14 @@
       "displayName": "Desolate Bee",
       "source": "ExtraBees",
       "aliases": ["DESOLATE", "Desolate"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2314,6 +3146,14 @@
       "displayName": "Destabilized Bee",
       "source": "MagicBees",
       "aliases": ["TE_DESTABILIZED", "Destabilized"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2343,6 +3183,14 @@
       "displayName": "Diamandi Bee",
       "source": "MagicBees",
       "aliases": ["DIAMOND", "Diamandi"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2365,6 +3213,14 @@
       "displayName": "Diamond Bee",
       "source": "ExtraBees",
       "aliases": ["DIAMOND", "Diamond"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2387,6 +3243,14 @@
       "displayName": "Diamond Bee",
       "source": "GregTech",
       "aliases": ["DIAMOND", "Diamond"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2409,6 +3273,14 @@
       "displayName": "Diligent Bee",
       "source": "Forestry",
       "aliases": ["DILIGENT", "Diligent"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2424,6 +3296,14 @@
       "displayName": "Distilled Bee",
       "source": "ExtraBees",
       "aliases": ["DISTILLED", "Distilled"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2439,6 +3319,14 @@
       "displayName": "Divided Bee",
       "source": "GregTech",
       "aliases": ["DIVIDED", "Divided"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2461,6 +3349,14 @@
       "displayName": "Dob Bee",
       "source": "GregTech",
       "aliases": ["DOB", "Dob"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2476,6 +3372,14 @@
       "displayName": "Doctoral Bee",
       "source": "MagicBees",
       "aliases": ["DOCTORAL", "Doctoral"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2498,6 +3402,14 @@
       "displayName": "Draconic Bee",
       "source": "MagicBees",
       "aliases": ["DRACONIC", "Draconic"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2513,6 +3425,14 @@
       "displayName": "Dragon Blood Bee",
       "source": "GT++",
       "aliases": ["DRAGONBLOOD", "Dragon Blood"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2535,6 +3455,14 @@
       "displayName": "Dragonessence Bee",
       "source": "GregTech",
       "aliases": ["DRAGONESSENCE", "Dragonessence"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2557,6 +3485,14 @@
       "displayName": "Drake Bee",
       "source": "GregTech",
       "aliases": ["DRAKE", "Drake"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -2579,6 +3515,14 @@
       "displayName": "Dreaming Bee",
       "source": "MagicBees",
       "aliases": ["BOT_DREAMING", "Dreaming"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2601,6 +3545,14 @@
       "displayName": "Earth Bee",
       "source": "GregTech",
       "aliases": ["EARTH", "Earth"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2616,6 +3568,14 @@
       "displayName": "Earthen Bee",
       "source": "MagicBees",
       "aliases": ["EARTHY", "Earthen"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2631,6 +3591,14 @@
       "displayName": "Ebony Bee",
       "source": "ExtraBees",
       "aliases": ["BLACK", "Ebony"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2653,6 +3621,14 @@
       "displayName": "Ecstatic Bee",
       "source": "ExtraBees",
       "aliases": ["ECSTATIC", "Ecstatic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2675,6 +3651,14 @@
       "displayName": "Ectoplasma Bee",
       "source": "GregTech",
       "aliases": ["ECTOPLASMA", "Ectoplasma"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2697,6 +3681,14 @@
       "displayName": "Edenic Bee",
       "source": "Forestry",
       "aliases": ["EDENIC", "Edenic"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2712,6 +3704,14 @@
       "displayName": "Elastic Bee",
       "source": "ExtraBees",
       "aliases": ["LATEX", "Elastic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2734,6 +3734,14 @@
       "displayName": "Eldritch Bee",
       "source": "MagicBees",
       "aliases": ["ELDRITCH", "Eldritch"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2749,6 +3757,14 @@
       "displayName": "Electricalsteel Bee",
       "source": "GregTech",
       "aliases": ["ELECTRICALSTEEL", "Electricalsteel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2771,6 +3787,14 @@
       "displayName": "Electrotine Bee",
       "source": "GregTech",
       "aliases": ["ELECTROTINE", "Electrotine"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2800,6 +3824,14 @@
       "displayName": "Electrum Bee",
       "source": "MagicBees",
       "aliases": ["TE_ELECTRUM", "Electrum"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2825,6 +3857,14 @@
       "displayName": "Elven Bee",
       "source": "GregTech",
       "aliases": ["ELVEN", "Elven"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2840,6 +3880,14 @@
       "displayName": "Embittered Bee",
       "source": "ExtraBees",
       "aliases": ["BASALT", "Embittered"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2855,6 +3903,14 @@
       "displayName": "Emerald Bee",
       "source": "ExtraBees",
       "aliases": ["EMERALD", "Emerald"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2877,6 +3933,14 @@
       "displayName": "Emerald Bee",
       "source": "GregTech",
       "aliases": ["EMERALD", "Emerald"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2906,6 +3970,14 @@
       "displayName": "Empowering Bee",
       "source": "MagicBees",
       "aliases": ["TC_EMPOWERING", "Empowering"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2931,6 +4003,14 @@
       "displayName": "Enceladus Bee",
       "source": "GregTech",
       "aliases": ["ENCELADUS", "Enceladus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2962,6 +4042,14 @@
       "displayName": "Enchanted Bee",
       "source": "MagicBees",
       "aliases": ["ENCHANTED", "Enchanted"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2977,6 +4065,14 @@
       "displayName": "Enddust Bee",
       "source": "GregTech",
       "aliases": ["ENDDUST", "Enddust"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -2999,6 +4095,14 @@
       "displayName": "Endearing Bee",
       "source": "MagicBees",
       "aliases": ["TE_ENDEARING", "Endearing"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3029,6 +4133,14 @@
       "displayName": "Ender Bee",
       "source": "Forestry",
       "aliases": ["ENDED", "Ender"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3044,6 +4156,14 @@
       "displayName": "Enderium Bee",
       "source": "GregTech",
       "aliases": ["ENDERIUM", "Enderium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3073,6 +4193,14 @@
       "displayName": "Endermanhead Bee",
       "source": "GregTech",
       "aliases": ["ENDERMANHEAD", "Endermanhead"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3095,6 +4223,14 @@
       "displayName": "Endium Bee",
       "source": "GregTech",
       "aliases": ["ENDIUM", "Endium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3131,6 +4267,14 @@
       "displayName": "Endshard Bee",
       "source": "GregTech",
       "aliases": ["ENDSHARD", "Endshard"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3146,6 +4290,14 @@
       "displayName": "Energetic Bee",
       "source": "ExtraBees",
       "aliases": ["ENERGETIC", "Energetic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3161,6 +4313,14 @@
       "displayName": "Energeticalloy Bee",
       "source": "GregTech",
       "aliases": ["ENERGETICALLOY", "Energeticalloy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3183,6 +4343,14 @@
       "displayName": "Energy Bee",
       "source": "GregTech",
       "aliases": ["ENERGY", "Energy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3205,6 +4373,14 @@
       "displayName": "Esmeraldi Bee",
       "source": "MagicBees",
       "aliases": ["EMERALD", "Esmeraldi"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3227,6 +4403,14 @@
       "displayName": "Esoteric Bee",
       "source": "MagicBees",
       "aliases": ["ESOTERIC", "Esoteric"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3242,6 +4426,14 @@
       "displayName": "Essence Bee",
       "source": "MagicBees",
       "aliases": ["AM_ESSENCE", "Essence"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3257,6 +4449,14 @@
       "displayName": "Ethanol Bee",
       "source": "GT++",
       "aliases": ["ETHANOL", "Ethanol"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3279,6 +4479,14 @@
       "displayName": "Ethereal Bee",
       "source": "MagicBees",
       "aliases": ["ETHEREAL", "Ethereal"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3301,6 +4509,14 @@
       "displayName": "Europa Bee",
       "source": "GregTech",
       "aliases": ["EUROPA", "Europa"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3332,6 +4548,14 @@
       "displayName": "Europium Bee",
       "source": "GregTech",
       "aliases": ["EUROPIUM", "Europium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -3357,6 +4581,14 @@
       "displayName": "Excited Bee",
       "source": "ExtraBees",
       "aliases": ["EXCITED", "Excited"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3372,6 +4604,14 @@
       "displayName": "Exotic Bee",
       "source": "Forestry",
       "aliases": ["EXOTIC", "Exotic"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3387,6 +4627,14 @@
       "displayName": "Explosive Bee",
       "source": "GregTech",
       "aliases": ["Explosive"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3402,6 +4650,14 @@
       "displayName": "Farmed Bee",
       "source": "ExtraBees",
       "aliases": ["FARM", "Farmed"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3424,6 +4680,14 @@
       "displayName": "Farmerly Bee",
       "source": "Forestry",
       "aliases": ["FARMERLY", "Farmerly"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3439,6 +4703,14 @@
       "displayName": "Fermented Bee",
       "source": "ExtraBees",
       "aliases": ["ALCOHOL", "Fermented"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3461,6 +4733,14 @@
       "displayName": "Ferrous Bee",
       "source": "MagicBees",
       "aliases": ["IRON", "Ferrous"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3483,6 +4763,14 @@
       "displayName": "Fertilizer Bee",
       "source": "GregTech",
       "aliases": ["FERTILIZER", "Fertilizer"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3532,6 +4820,14 @@
       "displayName": "Fiendish Bee",
       "source": "Forestry",
       "aliases": ["FIENDISH", "Fiendish"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3554,6 +4850,14 @@
       "displayName": "Fire Bee",
       "source": "GregTech",
       "aliases": ["FIRE", "Fire"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3569,6 +4873,14 @@
       "displayName": "Fireessence Bee",
       "source": "GregTech",
       "aliases": ["FIREESSENCE", "Fireessence"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3591,6 +4903,14 @@
       "displayName": "Firestone Bee",
       "source": "GregTech",
       "aliases": ["FIRESTONE", "Firestone"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3613,6 +4933,14 @@
       "displayName": "Firey Bee",
       "source": "MagicBees",
       "aliases": ["FIREY", "Firey"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3628,6 +4956,14 @@
       "displayName": "Floral Bee",
       "source": "MagicBees",
       "aliases": ["BOT_FLORAL", "Floral"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3658,6 +4994,14 @@
       "displayName": "Fluix Bee",
       "source": "MagicBees",
       "aliases": ["FLUIX", "Fluix"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3681,6 +5025,14 @@
       "displayName": "Fluix Bee",
       "source": "GregTech",
       "aliases": ["FLUIX", "Fluix"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3703,6 +5055,14 @@
       "displayName": "Fluorine Bee",
       "source": "GregTech",
       "aliases": ["FLUORINE", "Fluorine"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3725,6 +5085,14 @@
       "displayName": "Fluorine Bee",
       "source": "GT++",
       "aliases": ["FLUORINE", "Fluorine"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3747,6 +5115,14 @@
       "displayName": "Flux Bee",
       "source": "MagicBees",
       "aliases": ["TC_TAINT", "Flux"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3772,6 +5148,14 @@
       "displayName": "Fluxed Bee",
       "source": "MagicBees",
       "aliases": ["RSA_FLUXED", "Fluxed"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3795,6 +5179,14 @@
       "displayName": "Force Bee",
       "source": "GT++",
       "aliases": ["FORCE", "Force"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3845,6 +5237,14 @@
       "displayName": "Forest Bee",
       "source": "Forestry",
       "aliases": ["FOREST", "Forest"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3860,6 +5260,14 @@
       "displayName": "Forlorn Bee",
       "source": "MagicBees",
       "aliases": ["FORLORN", "Forlorn"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3875,6 +5283,14 @@
       "displayName": "Fossilised Bee",
       "source": "ExtraBees",
       "aliases": ["COAL", "Fossilised"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3897,6 +5313,14 @@
       "displayName": "Frigid Bee",
       "source": "ExtraBees",
       "aliases": ["ARTIC", "Frigid"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3912,6 +5336,14 @@
       "displayName": "Frugal Bee",
       "source": "Forestry",
       "aliases": ["FRUGAL", "Frugal"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3927,6 +5359,14 @@
       "displayName": "Fruity Bee",
       "source": "ExtraBees",
       "aliases": ["FRUIT", "Fruity"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3956,6 +5396,14 @@
       "displayName": "Fruticic Bee",
       "source": "MagicBees",
       "aliases": ["AM_PLANT", "Fruticic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -3981,6 +5429,14 @@
       "displayName": "Fuchsia Bee",
       "source": "ExtraBees",
       "aliases": ["MAGENTA", "Fuchsia"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4003,6 +5459,14 @@
       "displayName": "Fulguric Bee",
       "source": "MagicBees",
       "aliases": ["AM_LIGHTNING", "Fulguric"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4028,6 +5492,14 @@
       "displayName": "Fungal Bee",
       "source": "ExtraBees",
       "aliases": ["FUNGAL", "Fungal"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4050,6 +5522,14 @@
       "displayName": "Furious Bee",
       "source": "ExtraBees",
       "aliases": ["TEMPERED", "Furious"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4065,6 +5545,14 @@
       "displayName": "Gaiaspirit Bee",
       "source": "GregTech",
       "aliases": ["GAIASPIRIT", "Gaiaspirit"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4080,6 +5568,14 @@
       "displayName": "Galvanized Bee",
       "source": "ExtraBees",
       "aliases": ["ZINC", "Galvanized"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4102,6 +5598,14 @@
       "displayName": "Ganymede Bee",
       "source": "GregTech",
       "aliases": ["GANYMEDE", "Ganymede"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4125,6 +5629,14 @@
       "displayName": "Gelid Bee",
       "source": "MagicBees",
       "aliases": ["TE_GELID", "Gelid"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4148,6 +5660,14 @@
       "displayName": "Ghastly Bee",
       "source": "MagicBees",
       "aliases": ["GHASTLY", "Ghastly"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4170,6 +5690,14 @@
       "displayName": "Glacial Bee",
       "source": "Forestry",
       "aliases": ["GLACIAL", "Glacial"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4193,6 +5721,14 @@
       "displayName": "Glacic Bee",
       "source": "MagicBees",
       "aliases": ["AM_ICE", "Glacic"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4218,6 +5754,14 @@
       "displayName": "Glittering Bee",
       "source": "ExtraBees",
       "aliases": ["GOLD", "Glittering"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4240,6 +5784,14 @@
       "displayName": "Glowering Bee",
       "source": "ExtraBees",
       "aliases": ["GLOWSTONE", "Glowering"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4255,6 +5807,14 @@
       "displayName": "Glowstone Bee",
       "source": "GregTech",
       "aliases": ["GLOWSTONE", "Glowstone"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4271,6 +5831,14 @@
       "displayName": "Glutinous Bee",
       "source": "ExtraBees",
       "aliases": ["GLUTINOUS", "Glutinous"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4286,6 +5854,14 @@
       "displayName": "Gnawing Bee",
       "source": "ExtraBees",
       "aliases": ["GNAWING", "Gnawing"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4308,6 +5884,14 @@
       "displayName": "Gold Bee",
       "source": "GregTech",
       "aliases": ["GOLD", "Gold"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4337,6 +5921,14 @@
       "displayName": "Grounded Bee",
       "source": "MagicBees",
       "aliases": ["TE_GROUNDED", "Grounded"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4360,6 +5952,14 @@
       "displayName": "Growing Bee",
       "source": "ExtraBees",
       "aliases": ["GROWING", "Growing"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4375,6 +5975,14 @@
       "displayName": "Hateful Bee",
       "source": "MagicBees",
       "aliases": ["HATEFUL", "Hateful"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4390,6 +5998,14 @@
       "displayName": "Haumea Bee",
       "source": "GregTech",
       "aliases": ["HAUMEA", "Haumea"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4413,6 +6029,14 @@
       "displayName": "Hazardous Bee",
       "source": "ExtraBees",
       "aliases": ["HAZARDOUS", "Hazardous"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4428,6 +6052,14 @@
       "displayName": "Helium Bee",
       "source": "GregTech",
       "aliases": ["HELIUM", "Helium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4443,6 +6075,14 @@
       "displayName": "Hermitic Bee",
       "source": "Forestry",
       "aliases": ["HERMITIC", "Hermitic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "hermit",
+        "description": "Will not produce if other living creatures are nearby"
+      },
       "products": [
         {
           "kind": "item",
@@ -4458,6 +6098,14 @@
       "displayName": "Heroic Bee",
       "source": "Forestry",
       "aliases": ["HEROIC", "Heroic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4473,6 +6121,14 @@
       "displayName": "Hydra Bee",
       "source": "GregTech",
       "aliases": ["HYDRA", "Hydra"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4495,6 +6151,14 @@
       "displayName": "Hydrogen Bee",
       "source": "GregTech",
       "aliases": ["HYDROGEN", "Hydrogen"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4517,6 +6181,14 @@
       "displayName": "Icy Bee",
       "source": "Forestry",
       "aliases": ["ICY", "Icy"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4540,6 +6212,14 @@
       "displayName": "Igneous Bee",
       "source": "MagicBees",
       "aliases": ["AM_FIRE", "Igneous"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4565,6 +6245,14 @@
       "displayName": "Ignis Bee",
       "source": "MagicBees",
       "aliases": ["TC_FIRE", "Ignis"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4587,6 +6275,14 @@
       "displayName": "Imperial Bee",
       "source": "Forestry",
       "aliases": ["IMPERIAL", "Imperial"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4609,6 +6305,14 @@
       "displayName": "Impregnable Bee",
       "source": "ExtraBees",
       "aliases": ["TITANIUM", "Impregnable"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4631,6 +6335,14 @@
       "displayName": "Indigo Bee",
       "source": "ExtraBees",
       "aliases": ["PURPLE", "Indigo"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4653,6 +6365,14 @@
       "displayName": "Indium Bee",
       "source": "GregTech",
       "aliases": ["INDIUM", "Indium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4668,6 +6388,14 @@
       "displayName": "Industrious Bee",
       "source": "Forestry",
       "aliases": ["INDUSTRIOUS", "Industrious"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4690,6 +6418,14 @@
       "displayName": "Infectious Bee",
       "source": "ExtraBees",
       "aliases": ["INFECTIOUS", "Infectious"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4705,6 +6441,14 @@
       "displayName": "Infernal Bee",
       "source": "MagicBees",
       "aliases": ["INFERNAL", "Infernal"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4720,6 +6464,14 @@
       "displayName": "Infinite Bee",
       "source": "Avaritia",
       "aliases": ["INFINITE", "Infinite"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4735,6 +6487,14 @@
       "displayName": "Infinity Bee",
       "source": "GregTech",
       "aliases": ["INFINITY", "Infinity"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -4750,6 +6510,14 @@
       "displayName": "Infinitycatalyst Bee",
       "source": "GregTech",
       "aliases": ["INFINITYCATALYST", "Infinitycatalyst"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -4765,6 +6533,14 @@
       "displayName": "Infusedgold Bee",
       "source": "GregTech",
       "aliases": ["INFUSEDGOLD", "Infusedgold"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4787,6 +6563,14 @@
       "displayName": "Insufferable Bee",
       "source": "Avaritia",
       "aliases": ["INSUFFERABLE", "Insufferable"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4802,6 +6586,14 @@
       "displayName": "Invar Bee",
       "source": "MagicBees",
       "aliases": ["TE_INVAR", "Invar"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4827,6 +6619,14 @@
       "displayName": "Invincible Bee",
       "source": "ExtraBees",
       "aliases": ["TUNGSTATE", "Invincible"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4849,6 +6649,14 @@
       "displayName": "Invisible Bee",
       "source": "MagicBees",
       "aliases": ["INVISIBLE", "Invisible"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4864,6 +6672,14 @@
       "displayName": "Io Bee",
       "source": "GregTech",
       "aliases": ["IO", "Io"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4887,6 +6703,14 @@
       "displayName": "Iridium Bee",
       "source": "GregTech",
       "aliases": ["IRIDIUM", "Iridium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4923,6 +6747,14 @@
       "displayName": "Iron Bee",
       "source": "GregTech",
       "aliases": ["IRON", "Iron"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4952,6 +6784,14 @@
       "displayName": "Jaded Bee",
       "source": "ExtraBees",
       "aliases": ["JADED", "Jaded"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4981,6 +6821,14 @@
       "displayName": "Jaegermeister Bee",
       "source": "GregTech",
       "aliases": ["JAEGERMEISTER", "Jaegermeister"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -4996,6 +6844,14 @@
       "displayName": "Jupiter Bee",
       "source": "GregTech",
       "aliases": ["JUPITER", "Jupiter"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5059,6 +6915,14 @@
       "displayName": "Kevlar Bee",
       "source": "GregTech",
       "aliases": ["KEVLAR", "Kevlar"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -5082,6 +6946,14 @@
       "displayName": "Krypton Bee",
       "source": "GregTech",
       "aliases": ["KRYPTON", "Krypton"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5097,6 +6969,14 @@
       "displayName": "Lapis Bee",
       "source": "ExtraBees",
       "aliases": ["LAPIS", "Lapis"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5119,6 +6999,14 @@
       "displayName": "Lapis Bee",
       "source": "GregTech",
       "aliases": ["LAPIS", "Lapis"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5141,6 +7029,14 @@
       "displayName": "Lapotron Bee",
       "source": "GregTech",
       "aliases": ["LAPOTRON", "Lapotron"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5170,6 +7066,14 @@
       "displayName": "Lavender Bee",
       "source": "ExtraBees",
       "aliases": ["PINK", "Lavender"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5192,6 +7096,14 @@
       "displayName": "Lead Bee",
       "source": "GregTech",
       "aliases": ["LEAD", "Lead"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5221,6 +7133,14 @@
       "displayName": "Leaden Bee",
       "source": "ExtraBees",
       "aliases": ["LEAD", "Leaden"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5243,6 +7163,14 @@
       "displayName": "Ledox Bee",
       "source": "GregTech",
       "aliases": ["LEDOX", "Ledox"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5265,6 +7193,14 @@
       "displayName": "Leporine Bee",
       "source": "Forestry",
       "aliases": ["LEPORINE", "Leporine"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5287,6 +7223,14 @@
       "displayName": "Lich Bee",
       "source": "GregTech",
       "aliases": ["LICH", "Lich"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5309,6 +7253,14 @@
       "displayName": "Lime Bee",
       "source": "ExtraBees",
       "aliases": ["LIMEGREEN", "Lime"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5331,6 +7283,14 @@
       "displayName": "Lithium Bee",
       "source": "GregTech",
       "aliases": ["LITHIUM", "Lithium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5360,6 +7320,14 @@
       "displayName": "Lordly Bee",
       "source": "MagicBees",
       "aliases": ["LORDLY", "Lordly"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5375,6 +7343,14 @@
       "displayName": "Lumius Bee",
       "source": "MagicBees",
       "aliases": ["TE_LUMIUS", "Lumius"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5405,6 +7381,14 @@
       "displayName": "Lustered Bee",
       "source": "ExtraBees",
       "aliases": ["NICKEL", "Lustered"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5427,6 +7411,14 @@
       "displayName": "Lutetium Bee",
       "source": "GregTech",
       "aliases": ["LUTETIUM", "Lutetium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5442,6 +7434,14 @@
       "displayName": "Lux Bee",
       "source": "MagicBees",
       "aliases": ["TE_LUX", "Lux"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5471,6 +7471,14 @@
       "displayName": "Machinist Bee",
       "source": "GregTech",
       "aliases": ["MACHINIST", "Machinist"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5486,6 +7494,14 @@
       "displayName": "Majestic Bee",
       "source": "Forestry",
       "aliases": ["MAJESTIC", "Majestic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5501,6 +7517,14 @@
       "displayName": "Makemake Bee",
       "source": "GregTech",
       "aliases": ["MAKEMAKE", "Makemake"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5524,6 +7548,14 @@
       "displayName": "Malicious Bee",
       "source": "ExtraBees",
       "aliases": ["MALICIOUS", "Malicious"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5539,6 +7571,14 @@
       "displayName": "Manasteel Bee",
       "source": "GregTech",
       "aliases": ["MANASTEEL", "Manasteel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5554,6 +7594,14 @@
       "displayName": "Manganese Bee",
       "source": "GregTech",
       "aliases": ["MANGANESE", "Manganese"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5583,6 +7631,14 @@
       "displayName": "Manyullyn Bee",
       "source": "MagicBees",
       "aliases": ["MANYULLYN", "Manyullyn"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5608,6 +7664,14 @@
       "displayName": "Maroon Bee",
       "source": "ExtraBees",
       "aliases": ["RED", "Maroon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5630,6 +7694,14 @@
       "displayName": "Mars Bee",
       "source": "GregTech",
       "aliases": ["MARS", "Mars"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5653,6 +7725,14 @@
       "displayName": "Marshy Bee",
       "source": "Forestry",
       "aliases": ["MARSHY", "Marshy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5668,6 +7748,14 @@
       "displayName": "Meadows Bee",
       "source": "Forestry",
       "aliases": ["MEADOWS", "Meadows"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5683,6 +7771,14 @@
       "displayName": "Mercury Bee",
       "source": "GregTech",
       "aliases": ["MERCURY", "Mercury"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5698,6 +7794,14 @@
       "displayName": "Merry Bee",
       "source": "Forestry",
       "aliases": ["MERRY", "Merry"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5721,6 +7825,14 @@
       "displayName": "Meteoriciron Bee",
       "source": "GregTech",
       "aliases": ["METEORICIRON", "Meteoriciron"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5743,6 +7855,14 @@
       "displayName": "Mica Bee",
       "source": "GregTech",
       "aliases": ["MICA", "Mica"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5758,6 +7878,14 @@
       "displayName": "Minium Bee",
       "source": "MagicBees",
       "aliases": ["EE_MINIUM", "Minium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5781,6 +7909,14 @@
       "displayName": "Miranda Bee",
       "source": "GregTech",
       "aliases": ["MIRANDA", "Miranda"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5804,6 +7940,14 @@
       "displayName": "Miry Bee",
       "source": "Forestry",
       "aliases": ["MIRY", "Miry"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5819,6 +7963,14 @@
       "displayName": "Mithril Bee",
       "source": "GregTech",
       "aliases": ["MITHRIL", "Mithril"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5841,6 +7993,14 @@
       "displayName": "Mmm Bee",
       "source": "GregTech",
       "aliases": ["MMM", "Mmm"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5856,6 +8016,14 @@
       "displayName": "Modest Bee",
       "source": "Forestry",
       "aliases": ["MODEST", "Modest"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5871,6 +8039,14 @@
       "displayName": "Monastic Bee",
       "source": "Forestry",
       "aliases": ["MONASTIC", "Monastic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "hermit",
+        "description": "Will not produce if other living creatures are nearby"
+      },
       "products": [
         {
           "kind": "item",
@@ -5893,6 +8069,14 @@
       "displayName": "Moon Bee",
       "source": "GregTech",
       "aliases": ["MOON", "Moon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5916,6 +8100,14 @@
       "displayName": "Mutable Bee",
       "source": "MagicBees",
       "aliases": ["MUTABLE", "Mutable"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5938,6 +8130,14 @@
       "displayName": "Mysterious Bee",
       "source": "MagicBees",
       "aliases": ["MYSTERIOUS", "Mysterious"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5953,6 +8153,14 @@
       "displayName": "Mysteriouscrystal Bee",
       "source": "GregTech",
       "aliases": ["MYSTERIOUSCRYSTAL", "Mysteriouscrystal"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5975,6 +8183,14 @@
       "displayName": "Mystical Bee",
       "source": "MagicBees",
       "aliases": ["MYSTICAL", "Mystical"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -5990,6 +8206,14 @@
       "displayName": "Mytryl Bee",
       "source": "GregTech",
       "aliases": ["MYTRYL", "Mytryl"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6012,6 +8236,14 @@
       "displayName": "Naga Bee",
       "source": "GregTech",
       "aliases": ["NAGA", "Naga"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6034,6 +8266,14 @@
       "displayName": "Nameless Bee",
       "source": "MagicBees",
       "aliases": ["NAMELESS", "Nameless"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6049,6 +8289,14 @@
       "displayName": "Naquadah Bee",
       "source": "GregTech",
       "aliases": ["NAQUADAH", "Naquadah"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6071,6 +8319,14 @@
       "displayName": "Naquadria Bee",
       "source": "GregTech",
       "aliases": ["NAQUADRIA", "Naquadria"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6100,6 +8356,14 @@
       "displayName": "Natural Bee",
       "source": "ExtraBees",
       "aliases": ["GREEN", "Natural"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6122,6 +8386,14 @@
       "displayName": "Neighsayer Bee",
       "source": "MagicBees",
       "aliases": ["HORSE", "Neighsayer"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6151,6 +8423,14 @@
       "displayName": "Neodymium Bee",
       "source": "GregTech",
       "aliases": ["NEODYMIUM", "Neodymium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6173,6 +8453,14 @@
       "displayName": "Neon Bee",
       "source": "GregTech",
       "aliases": ["NEON", "Neon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6188,6 +8476,14 @@
       "displayName": "Neptune Bee",
       "source": "GregTech",
       "aliases": ["NEPTUNE", "Neptune"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6219,6 +8515,14 @@
       "displayName": "Netherite Bee",
       "source": "GregTech",
       "aliases": ["Netherite"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6234,6 +8538,14 @@
       "displayName": "Nethershard Bee",
       "source": "GregTech",
       "aliases": ["NETHERSHARD", "Nethershard"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6249,6 +8561,14 @@
       "displayName": "Neutronium Bee",
       "source": "GregTech",
       "aliases": ["NEUTRONIUM", "Neutronium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6264,6 +8584,14 @@
       "displayName": "Neutronium Bee",
       "source": "Avaritia",
       "aliases": ["NEUTRONIUM", "Neutronium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6286,6 +8614,14 @@
       "displayName": "Nexus Bee",
       "source": "MagicBees",
       "aliases": ["TC_NEXUS", "Nexus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6318,6 +8654,14 @@
       "displayName": "Nickel Bee",
       "source": "MagicBees",
       "aliases": ["TE_NICKEL", "Nickel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6343,6 +8687,14 @@
       "displayName": "Nickel Bee",
       "source": "GregTech",
       "aliases": ["NICKEL", "Nickel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6372,6 +8724,14 @@
       "displayName": "Nikolite Bee",
       "source": "GT++",
       "aliases": ["NIKOLITE", "Nikolite"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6394,6 +8754,14 @@
       "displayName": "Nitrogen Bee",
       "source": "GregTech",
       "aliases": ["NITROGEN", "Nitrogen"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6416,6 +8784,14 @@
       "displayName": "Noble Bee",
       "source": "Forestry",
       "aliases": ["NOBLE", "Noble"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6431,6 +8807,14 @@
       "displayName": "Nuclear Bee",
       "source": "ExtraBees",
       "aliases": ["NUCLEAR", "Nuclear"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6446,6 +8830,14 @@
       "displayName": "Oberon Bee",
       "source": "GregTech",
       "aliases": ["OBERON", "Oberon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6469,6 +8861,14 @@
       "displayName": "Oblivion Bee",
       "source": "MagicBees",
       "aliases": ["OBLIVION", "Oblivion"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6484,6 +8884,14 @@
       "displayName": "Ocean Bee",
       "source": "ExtraBees",
       "aliases": ["OCEAN", "Ocean"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6499,6 +8907,14 @@
       "displayName": "Oil Bee",
       "source": "GregTech",
       "aliases": ["OIL", "Oil"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6521,6 +8937,14 @@
       "displayName": "Oily Bee",
       "source": "ExtraBees",
       "aliases": ["OIL", "Oily"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6543,6 +8967,14 @@
       "displayName": "Olivine Bee",
       "source": "GregTech",
       "aliases": ["OLIVINE", "Olivine"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6572,6 +9004,14 @@
       "displayName": "Order Bee",
       "source": "GregTech",
       "aliases": ["ORDER", "Order"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6587,6 +9027,14 @@
       "displayName": "Ordered Bee",
       "source": "MagicBees",
       "aliases": ["TC_ORDER", "Ordered"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6609,6 +9057,14 @@
       "displayName": "Oriharukon Bee",
       "source": "GregTech",
       "aliases": ["ORIHARUKON", "Oriharukon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6631,6 +9087,14 @@
       "displayName": "Osmium Bee",
       "source": "GregTech",
       "aliases": ["OSMIUM", "Osmium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6660,6 +9124,14 @@
       "displayName": "Oxygen Bee",
       "source": "GregTech",
       "aliases": ["OXYGEN", "Oxygen"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6682,6 +9154,14 @@
       "displayName": "Pbs Bee",
       "source": "GT++",
       "aliases": ["PBS", "Pbs"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6704,6 +9184,14 @@
       "displayName": "Peat Bee",
       "source": "GregTech",
       "aliases": ["PEAT", "Peat"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6740,6 +9228,14 @@
       "displayName": "Phantasmal Bee",
       "source": "Forestry",
       "aliases": ["PHANTASMAL", "Phantasmal"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6755,6 +9251,14 @@
       "displayName": "Phobos Bee",
       "source": "GregTech",
       "aliases": ["PHOBOS", "Phobos"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6778,6 +9282,14 @@
       "displayName": "Phosphorus Bee",
       "source": "GregTech",
       "aliases": ["PHOSPHORUS", "Phosphorus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6793,6 +9305,14 @@
       "displayName": "Plastic Bee",
       "source": "GT++",
       "aliases": ["PLASTIC", "Plastic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6815,6 +9335,14 @@
       "displayName": "Platinum Bee",
       "source": "MagicBees",
       "aliases": ["TE_PLATINUM", "Platinum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6840,6 +9368,14 @@
       "displayName": "Platinum Bee",
       "source": "GregTech",
       "aliases": ["PLATINUM", "Platinum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6869,6 +9405,14 @@
       "displayName": "Plumbum Bee",
       "source": "MagicBees",
       "aliases": ["LEAD", "Plumbum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6894,6 +9438,14 @@
       "displayName": "Pluto Bee",
       "source": "GregTech",
       "aliases": ["PLUTO", "Pluto"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6925,6 +9477,14 @@
       "displayName": "Plutonium Bee",
       "source": "GregTech",
       "aliases": ["PLUTONIUM", "Plutonium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6954,6 +9514,14 @@
       "displayName": "Porcine Bee",
       "source": "MagicBees",
       "aliases": ["PORK", "Porcine"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -6984,6 +9552,14 @@
       "displayName": "Poultry Bee",
       "source": "MagicBees",
       "aliases": ["CHICKEN", "Poultry"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7021,6 +9597,14 @@
       "displayName": "Prehistoric Bee",
       "source": "ExtraBees",
       "aliases": ["PREHISTORIC", "Prehistoric"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7036,6 +9620,14 @@
       "displayName": "Primeval Bee",
       "source": "ExtraBees",
       "aliases": ["PRIMEVAL", "Primeval"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7051,6 +9643,14 @@
       "displayName": "Prismatic Bee",
       "source": "GregTech",
       "aliases": ["PRISMATIC", "Prismatic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7066,6 +9666,14 @@
       "displayName": "Proteus Bee",
       "source": "GregTech",
       "aliases": ["PROTEUS", "Proteus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7089,6 +9697,14 @@
       "displayName": "Prussian Bee",
       "source": "ExtraBees",
       "aliases": ["BLUE", "Prussian"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7111,6 +9727,14 @@
       "displayName": "Ptfe Bee",
       "source": "GT++",
       "aliases": ["PTFE", "Ptfe"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7133,6 +9757,14 @@
       "displayName": "Pulsatingiron Bee",
       "source": "GregTech",
       "aliases": ["PULSATINGIRON", "Pulsatingiron"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7155,6 +9787,14 @@
       "displayName": "Pupil Bee",
       "source": "MagicBees",
       "aliases": ["PUPIL", "Pupil"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7170,6 +9810,14 @@
       "displayName": "Pure Bee",
       "source": "MagicBees",
       "aliases": ["TC_PURE", "Pure"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7192,6 +9840,14 @@
       "displayName": "Pyro Bee",
       "source": "MagicBees",
       "aliases": ["TE_PYRO", "Pyro"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7229,6 +9885,14 @@
       "displayName": "Pyrotheum Bee",
       "source": "GregTech",
       "aliases": ["PYROTHEUM", "Pyrotheum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7251,6 +9915,14 @@
       "displayName": "Quantium Bee",
       "source": "GregTech",
       "aliases": ["QUANTIUM", "Quantium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7273,6 +9945,14 @@
       "displayName": "Quantum Bee",
       "source": "ExtraBees",
       "aliases": ["QUANTUM", "Quantum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7302,6 +9982,14 @@
       "displayName": "Quicksilver Bee",
       "source": "GregTech",
       "aliases": ["QUICKSILVER", "Quicksilver"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7324,6 +10012,14 @@
       "displayName": "Quintessential Bee",
       "source": "MagicBees",
       "aliases": ["AM_QUINTESSENCE", "Quintessential"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7349,6 +10045,14 @@
       "displayName": "Radioactive Bee",
       "source": "ExtraBees",
       "aliases": ["RADIOACTIVE", "Radioactive"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7371,6 +10075,14 @@
       "displayName": "Rareearth Bee",
       "source": "GregTech",
       "aliases": ["RAREEARTH", "Rareearth"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -7393,6 +10105,14 @@
       "displayName": "Ravening Bee",
       "source": "MagicBees",
       "aliases": ["TC_HUNGRY", "Ravening"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7415,6 +10135,14 @@
       "displayName": "Reanimus Bee",
       "source": "GregTech",
       "aliases": ["ESSENTIA", "Reanimus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7430,6 +10158,14 @@
       "displayName": "Redalloy Bee",
       "source": "GregTech",
       "aliases": ["REDALLOY", "Redalloy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7452,6 +10188,14 @@
       "displayName": "Redgarnet Bee",
       "source": "GregTech",
       "aliases": ["REDGARNET", "Redgarnet"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7481,6 +10225,14 @@
       "displayName": "Redstone Bee",
       "source": "GregTech",
       "aliases": ["REDSTONE", "Redstone"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7510,6 +10262,14 @@
       "displayName": "Redstonealloy Bee",
       "source": "GregTech",
       "aliases": ["REDSTONEALLOY", "Redstonealloy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7532,6 +10292,14 @@
       "displayName": "Refined Bee",
       "source": "ExtraBees",
       "aliases": ["FUEL", "Refined"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7554,6 +10322,14 @@
       "displayName": "Rejuvenating Bee",
       "source": "MagicBees",
       "aliases": ["TC_REJUVENATING", "Rejuvenating"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7569,6 +10345,14 @@
       "displayName": "Relic Bee",
       "source": "ExtraBees",
       "aliases": ["RELIC", "Relic"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7584,6 +10368,14 @@
       "displayName": "Resilient Bee",
       "source": "ExtraBees",
       "aliases": ["MINERAL", "Resilient"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7599,6 +10391,14 @@
       "displayName": "Resinous Bee",
       "source": "ExtraBees",
       "aliases": ["RESIN", "Resinous"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7621,6 +10421,14 @@
       "displayName": "Ripening Bee",
       "source": "ExtraBees",
       "aliases": ["RIPENING", "Ripening"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7650,6 +10458,14 @@
       "displayName": "River Bee",
       "source": "ExtraBees",
       "aliases": ["RIVER", "River"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7672,6 +10488,14 @@
       "displayName": "Robust Bee",
       "source": "ExtraBees",
       "aliases": ["GRANITE", "Robust"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7687,6 +10511,14 @@
       "displayName": "Rockin' Bee",
       "source": "MagicBees",
       "aliases": ["TE_ROCKING", "Rockin'"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7710,6 +10542,14 @@
       "displayName": "Rocky Bee",
       "source": "ExtraBees",
       "aliases": ["ROCK", "Rocky"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7725,6 +10565,14 @@
       "displayName": "Rooted Bee",
       "source": "MagicBees",
       "aliases": ["BOT_ROOTED", "Rooted"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7740,6 +10588,14 @@
       "displayName": "Rubber Bee",
       "source": "GT++",
       "aliases": ["RUBBER", "Rubber"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7762,6 +10618,14 @@
       "displayName": "Ruby Bee",
       "source": "ExtraBees",
       "aliases": ["RUBY", "Ruby"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7784,6 +10648,14 @@
       "displayName": "Ruby Bee",
       "source": "GregTech",
       "aliases": ["RUBY", "Ruby"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7813,6 +10685,14 @@
       "displayName": "Rune Bee",
       "source": "GregTech",
       "aliases": ["RUNE", "Rune"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7842,6 +10722,14 @@
       "displayName": "Rural Bee",
       "source": "Forestry",
       "aliases": ["RURAL", "Rural"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7857,6 +10745,14 @@
       "displayName": "Rusty Bee",
       "source": "ExtraBees",
       "aliases": ["IRON", "Rusty"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7879,6 +10775,14 @@
       "displayName": "Saffron Bee",
       "source": "ExtraBees",
       "aliases": ["YELLOW", "Saffron"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7901,6 +10805,14 @@
       "displayName": "Salismundus Bee",
       "source": "GregTech",
       "aliases": ["SALISMUNDUS", "Salismundus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7923,6 +10835,14 @@
       "displayName": "Salty Bee",
       "source": "GregTech",
       "aliases": ["SALTY", "Salty"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -7962,6 +10882,14 @@
       "displayName": "Sandwich Bee",
       "source": "GregTech",
       "aliases": ["SANDWICH", "Sandwich"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8023,6 +10951,14 @@
       "displayName": "Sapphire Bee",
       "source": "ExtraBees",
       "aliases": ["SAPPHIRE", "Sapphire"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8045,6 +10981,14 @@
       "displayName": "Sapphire Bee",
       "source": "GregTech",
       "aliases": ["SAPPHIRE", "Sapphire"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8067,6 +11011,14 @@
       "displayName": "Saturn Bee",
       "source": "GregTech",
       "aliases": ["SATURN", "Saturn"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8106,6 +11058,14 @@
       "displayName": "Savant Bee",
       "source": "MagicBees",
       "aliases": ["SAVANT", "Savant"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8128,6 +11088,14 @@
       "displayName": "Scholarly Bee",
       "source": "MagicBees",
       "aliases": ["SCHOLARLY", "Scholarly"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8150,6 +11118,14 @@
       "displayName": "Seaweed Bee",
       "source": "GregTech",
       "aliases": ["SEAWEED", "Seaweed"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8173,6 +11149,14 @@
       "displayName": "Secluded Bee",
       "source": "Forestry",
       "aliases": ["SECLUDED", "Secluded"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "hermit",
+        "description": "Will not produce if other living creatures are nearby"
+      },
       "products": [
         {
           "kind": "item",
@@ -8188,6 +11172,14 @@
       "displayName": "Sepia Bee",
       "source": "ExtraBees",
       "aliases": ["BROWN", "Sepia"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8210,6 +11202,14 @@
       "displayName": "Shadowed Bee",
       "source": "ExtraBees",
       "aliases": ["SHADOW", "Shadowed"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8225,6 +11225,14 @@
       "displayName": "Shadowmetal Bee",
       "source": "GregTech",
       "aliases": ["SHADOWMETAL", "Shadowmetal"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8247,6 +11255,14 @@
       "displayName": "Sheepish Bee",
       "source": "MagicBees",
       "aliases": ["SHEEPISH", "Sheepish"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8276,6 +11292,14 @@
       "displayName": "Shining Bee",
       "source": "ExtraBees",
       "aliases": ["SILVER", "Shining"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8298,6 +11322,14 @@
       "displayName": "Shocking Bee",
       "source": "MagicBees",
       "aliases": ["TE_SHOCKING", "Shocking"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8321,6 +11353,14 @@
       "displayName": "Signalus Bee",
       "source": "MagicBees",
       "aliases": ["TE_SIGNALUS", "Signalus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8351,6 +11391,14 @@
       "displayName": "Silicon Bee",
       "source": "MagicBees",
       "aliases": ["SILICON", "Silicon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8374,6 +11422,14 @@
       "displayName": "Silicon Bee",
       "source": "GT++",
       "aliases": ["SILICON", "Silicon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8396,6 +11452,14 @@
       "displayName": "Silver Bee",
       "source": "GregTech",
       "aliases": ["SILVER", "Silver"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8425,6 +11489,14 @@
       "displayName": "Silverfish Bee",
       "source": "GregTech",
       "aliases": ["SILVERFISH", "Silverfish"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8447,6 +11519,14 @@
       "displayName": "Sinister Bee",
       "source": "Forestry",
       "aliases": ["SINISTER", "Sinister"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8462,6 +11542,14 @@
       "displayName": "Skeletal Bee",
       "source": "ExtraBees",
       "aliases": ["BONE", "Skeletal"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8484,6 +11572,14 @@
       "displayName": "Skulking Bee",
       "source": "MagicBees",
       "aliases": ["SKULKING", "Skulking"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8499,6 +11595,14 @@
       "displayName": "Skystone Bee",
       "source": "MagicBees",
       "aliases": ["AE_SKYSTONE", "Skystone"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8522,6 +11626,14 @@
       "displayName": "Slate Bee",
       "source": "ExtraBees",
       "aliases": ["GRAY", "Slate"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8544,6 +11656,14 @@
       "displayName": "Slimeball Bee",
       "source": "GregTech",
       "aliases": ["SLIMEBALL", "Slimeball"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8587,6 +11707,14 @@
       "displayName": "Smouldering Bee",
       "source": "MagicBees",
       "aliases": ["SMOULDERING", "Smouldering"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8616,6 +11744,14 @@
       "displayName": "Snowqueen Bee",
       "source": "GregTech",
       "aliases": ["SNOWQUEEN", "Snowqueen"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8638,6 +11774,14 @@
       "displayName": "Sodden Bee",
       "source": "ExtraBees",
       "aliases": ["BOGGY", "Sodden"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8653,6 +11797,14 @@
       "displayName": "Solum Bee",
       "source": "MagicBees",
       "aliases": ["TC_EARTH", "Solum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8675,6 +11827,14 @@
       "displayName": "Somnolent Bee",
       "source": "MagicBees",
       "aliases": ["BOT_SOMNOLENT", "Somnolent"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8697,6 +11857,14 @@
       "displayName": "Sorcerous Bee",
       "source": "MagicBees",
       "aliases": ["SORCEROUS", "Sorcerous"],
+      "climate": {
+        "temperature": "Hot",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8712,6 +11880,14 @@
       "displayName": "Soul Bee",
       "source": "MagicBees",
       "aliases": ["SOUL", "Soul"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8734,6 +11910,14 @@
       "displayName": "Space Bee",
       "source": "GregTech",
       "aliases": ["SPACE", "Space"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8749,6 +11933,14 @@
       "displayName": "Sparkeling Bee",
       "source": "GregTech",
       "aliases": ["SPARKELING", "Sparkeling"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8771,6 +11963,14 @@
       "displayName": "Spatial Bee",
       "source": "ExtraBees",
       "aliases": ["SPATIAL", "Spatial"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8793,6 +11993,14 @@
       "displayName": "Spectral Bee",
       "source": "Forestry",
       "aliases": ["SPECTRAL", "Spectral"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8808,6 +12016,14 @@
       "displayName": "Spidery Bee",
       "source": "MagicBees",
       "aliases": ["SPIDERY", "Spidery"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8837,6 +12053,14 @@
       "displayName": "Spirit Bee",
       "source": "MagicBees",
       "aliases": ["SPIRIT", "Spirit"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8859,6 +12083,14 @@
       "displayName": "Spiteful Bee",
       "source": "MagicBees",
       "aliases": ["SPITEFUL", "Spiteful"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8874,6 +12106,14 @@
       "displayName": "Stained Bee",
       "source": "ExtraBees",
       "aliases": ["INK", "Stained"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8896,6 +12136,14 @@
       "displayName": "Stainlesssteel Bee",
       "source": "GregTech",
       "aliases": ["STAINLESSSTEEL", "Stainlesssteel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8932,6 +12180,14 @@
       "displayName": "Stannum Bee",
       "source": "MagicBees",
       "aliases": ["TIN", "Stannum"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8954,6 +12210,14 @@
       "displayName": "Stardust Bee",
       "source": "GregTech",
       "aliases": ["STARDUST", "Stardust"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8976,6 +12240,14 @@
       "displayName": "Steadfast Bee",
       "source": "Forestry",
       "aliases": ["STEADFAST", "Steadfast"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -8991,6 +12263,14 @@
       "displayName": "Steel Bee",
       "source": "GregTech",
       "aliases": ["STEEL", "Steel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9020,6 +12300,14 @@
       "displayName": "Sticky Bee",
       "source": "ExtraBees",
       "aliases": ["STICKY", "Sticky"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9042,6 +12330,14 @@
       "displayName": "Stickyresin Bee",
       "source": "GregTech",
       "aliases": ["STICKYRESIN", "Stickyresin"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9071,6 +12367,14 @@
       "displayName": "Sugary Bee",
       "source": "ExtraBees",
       "aliases": ["SUGAR", "Sugary"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9093,6 +12397,14 @@
       "displayName": "Sulfur Bee",
       "source": "GregTech",
       "aliases": ["SULFUR", "Sulfur"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9122,6 +12434,14 @@
       "displayName": "Sunnarium Bee",
       "source": "GregTech",
       "aliases": ["SUNNARIUM", "Sunnarium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9146,6 +12466,14 @@
       "displayName": "Supernatural Bee",
       "source": "MagicBees",
       "aliases": ["SUPERNATURAL", "Supernatural"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9168,6 +12496,14 @@
       "displayName": "Sweetened Bee",
       "source": "ExtraBees",
       "aliases": ["SWEET", "Sweetened"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9190,6 +12526,14 @@
       "displayName": "Tainted Bee",
       "source": "GregTech",
       "aliases": ["TAINTED", "Tainted"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9212,6 +12556,14 @@
       "displayName": "Tarnished Bee",
       "source": "ExtraBees",
       "aliases": ["TIN", "Tarnished"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9234,6 +12586,14 @@
       "displayName": "Tarry Bee",
       "source": "ExtraBees",
       "aliases": ["CREOSOTE", "Tarry"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9256,6 +12616,14 @@
       "displayName": "Tceti Bee",
       "source": "GregTech",
       "aliases": ["TCETI", "Tceti"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9279,6 +12647,14 @@
       "displayName": "Tcetie Bee",
       "source": "GregTech",
       "aliases": ["TCETIE", "Tcetie"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9302,6 +12678,14 @@
       "displayName": "Tea Bee",
       "source": "GregTech",
       "aliases": ["TEA", "Tea"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9318,6 +12702,14 @@
       "displayName": "Tedious Bee",
       "source": "Avaritia",
       "aliases": ["TEDIOUS", "Tedious"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9333,6 +12725,14 @@
       "displayName": "Terrasteel Bee",
       "source": "GregTech",
       "aliases": ["TERRASTEEL", "Terrasteel"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9348,6 +12748,14 @@
       "displayName": "Terrestric Bee",
       "source": "MagicBees",
       "aliases": ["AM_EARTH", "Terrestric"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9373,6 +12781,14 @@
       "displayName": "Thauminite Bee",
       "source": "GregTech",
       "aliases": ["THAUMINITE", "Thauminite"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9395,6 +12811,14 @@
       "displayName": "Thaumiumdust Bee",
       "source": "GregTech",
       "aliases": ["THAUMIUMDUST", "Thaumiumdust"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9417,6 +12841,14 @@
       "displayName": "Thaumiumshard Bee",
       "source": "GregTech",
       "aliases": ["THAUMIUMSHARD", "Thaumiumshard"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9439,6 +12871,14 @@
       "displayName": "Thorium Bee",
       "source": "GregTech",
       "aliases": ["THORIUM", "Thorium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9454,6 +12894,14 @@
       "displayName": "Thriving Bee",
       "source": "ExtraBees",
       "aliases": ["THRIVING", "Thriving"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9469,6 +12917,14 @@
       "displayName": "Timely Bee",
       "source": "MagicBees",
       "aliases": ["TIMELY", "Timely"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9484,6 +12940,14 @@
       "displayName": "Tin Bee",
       "source": "GregTech",
       "aliases": ["TIN", "Tin"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9513,6 +12977,14 @@
       "displayName": "Tipsy Bee",
       "source": "Forestry",
       "aliases": ["TIPSY", "Tipsy"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9536,6 +13008,14 @@
       "displayName": "Titan Bee",
       "source": "GregTech",
       "aliases": ["TITAN", "Titan"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9559,6 +13039,14 @@
       "displayName": "Titanium Bee",
       "source": "GregTech",
       "aliases": ["TITANIUM", "Titanium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9588,6 +13076,14 @@
       "displayName": "Tolerant Bee",
       "source": "ExtraBees",
       "aliases": ["STONE", "Tolerant"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9603,6 +13099,14 @@
       "displayName": "Transmuting Bee",
       "source": "MagicBees",
       "aliases": ["TRANSMUTING", "Transmuting"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9639,6 +13143,14 @@
       "displayName": "Tricky Bee",
       "source": "Forestry",
       "aliases": ["TRICKY", "Tricky"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9689,6 +13201,14 @@
       "displayName": "Trinium Bee",
       "source": "GregTech",
       "aliases": ["TRINIUM", "Trinium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9711,6 +13231,14 @@
       "displayName": "Trippy Bee",
       "source": "Avaritia",
       "aliases": ["TRIPPY", "Trippy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9726,6 +13254,14 @@
       "displayName": "Triton Bee",
       "source": "GregTech",
       "aliases": ["TRITON", "Triton"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9749,6 +13285,14 @@
       "displayName": "Tropical Bee",
       "source": "Forestry",
       "aliases": ["TROPICAL", "Tropical"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9764,6 +13308,14 @@
       "displayName": "Tungsten Bee",
       "source": "GregTech",
       "aliases": ["TUNGSTEN", "Tungsten"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9793,6 +13345,14 @@
       "displayName": "Turquoise Bee",
       "source": "ExtraBees",
       "aliases": ["CYAN", "Turquoise"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9815,6 +13375,14 @@
       "displayName": "Unknownwater Bee",
       "source": "GregTech",
       "aliases": ["UNKNOWNWATER", "Unknownwater"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9830,6 +13398,14 @@
       "displayName": "Unstable Bee",
       "source": "ExtraBees",
       "aliases": ["UNSTABLE", "Unstable"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9845,6 +13421,14 @@
       "displayName": "Unusual Bee",
       "source": "MagicBees",
       "aliases": ["UNUSUAL", "Unusual"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9860,6 +13444,14 @@
       "displayName": "Unweary Bee",
       "source": "Forestry",
       "aliases": ["UNWEARY", "Unweary"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9875,6 +13467,14 @@
       "displayName": "Uranium Bee",
       "source": "GregTech",
       "aliases": ["URANIUM", "Uranium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9897,6 +13497,14 @@
       "displayName": "Uranus Bee",
       "source": "GregTech",
       "aliases": ["URANUS", "Uranus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9928,6 +13536,14 @@
       "displayName": "Urghast Bee",
       "source": "GregTech",
       "aliases": ["URGHAST", "Urghast"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9950,6 +13566,14 @@
       "displayName": "Valiant Bee",
       "source": "Forestry",
       "aliases": ["VALIANT", "Valiant"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9972,6 +13596,14 @@
       "displayName": "Valuable Bee",
       "source": "ExtraBees",
       "aliases": ["PLATINUM", "Valuable"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -9994,6 +13626,14 @@
       "displayName": "Vazbee Bee",
       "source": "MagicBees",
       "aliases": ["BOT_VAZBEE", "Vazbee"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10047,6 +13687,14 @@
       "displayName": "Vega Bee",
       "source": "GregTech",
       "aliases": ["VEGA", "Vega"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10070,6 +13718,14 @@
       "displayName": "Vegab Bee",
       "source": "GregTech",
       "aliases": ["VEGAB", "Vegab"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10093,6 +13749,14 @@
       "displayName": "Vengeful Bee",
       "source": "Forestry",
       "aliases": ["VENGEFUL", "Vengeful"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10108,6 +13772,14 @@
       "displayName": "Venus Bee",
       "source": "GregTech",
       "aliases": ["VENUS", "Venus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10123,6 +13795,14 @@
       "displayName": "Vibrantalloy Bee",
       "source": "GregTech",
       "aliases": ["VIBRANTALLOY", "Vibrantalloy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10145,6 +13825,14 @@
       "displayName": "Vindictive Bee",
       "source": "Forestry",
       "aliases": ["VINDICTIVE", "Vindictive"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10160,6 +13848,14 @@
       "displayName": "Virulent Bee",
       "source": "ExtraBees",
       "aliases": ["VIRULENT", "Virulent"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10182,6 +13878,14 @@
       "displayName": "Vis Bee",
       "source": "MagicBees",
       "aliases": ["TC_VIS", "Vis"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10197,6 +13901,14 @@
       "displayName": "Viscous Bee",
       "source": "ExtraBees",
       "aliases": ["VISCOUS", "Viscous"],
+      "climate": {
+        "temperature": "Warm",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10212,6 +13924,14 @@
       "displayName": "Void Bee",
       "source": "MagicBees",
       "aliases": ["TC_VOID", "Void"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10237,6 +13957,14 @@
       "displayName": "Volcanic Bee",
       "source": "ExtraBees",
       "aliases": ["VOLCANIC", "Volcanic"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10259,6 +13987,14 @@
       "displayName": "Vortex Bee",
       "source": "MagicBees",
       "aliases": ["AM_VORTEX", "Vortex"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10284,6 +14020,14 @@
       "displayName": "Walrus Bee",
       "source": "GregTech",
       "aliases": ["WALRUS", "Walrus"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10299,6 +14043,14 @@
       "displayName": "Water Bee",
       "source": "ExtraBees",
       "aliases": ["WATER", "Water"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Damp"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10314,6 +14066,14 @@
       "displayName": "Water Bee",
       "source": "GregTech",
       "aliases": ["WATER", "Water"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10329,6 +14089,14 @@
       "displayName": "Watery Bee",
       "source": "MagicBees",
       "aliases": ["WATERY", "Watery"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10351,6 +14119,14 @@
       "displayName": "Wight Bee",
       "source": "MagicBees",
       "aliases": ["AM_WIGHT", "Wight"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10383,6 +14159,14 @@
       "displayName": "Windy Bee",
       "source": "MagicBees",
       "aliases": ["WINDY", "Windy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10398,6 +14182,14 @@
       "displayName": "Winsome Bee",
       "source": "MagicBees",
       "aliases": ["TE_WINSOME", "Winsome"],
+      "climate": {
+        "temperature": "Cold",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10435,6 +14227,14 @@
       "displayName": "Wintry Bee",
       "source": "Forestry",
       "aliases": ["WINTRY", "Wintry"],
+      "climate": {
+        "temperature": "Icy",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10450,6 +14250,14 @@
       "displayName": "Wispy Bee",
       "source": "MagicBees",
       "aliases": ["TC_WISPY", "Wispy"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10475,6 +14283,14 @@
       "displayName": "Withering Bee",
       "source": "MagicBees",
       "aliases": ["WITHERING", "Withering"],
+      "climate": {
+        "temperature": "Hellish",
+        "humidity": "Arid"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10490,6 +14306,14 @@
       "displayName": "Xenon Bee",
       "source": "GregTech",
       "aliases": ["XENON", "Xenon"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "megaApiary",
+        "description": "Will only be produced in Mega Apiary"
+      },
       "products": [
         {
           "kind": "item",
@@ -10505,6 +14329,14 @@
       "displayName": "Yellorium Bee",
       "source": "ExtraBees",
       "aliases": ["YELLORIUM", "Yellorium"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10527,6 +14359,14 @@
       "displayName": "Yellowgarnet Bee",
       "source": "GregTech",
       "aliases": ["YELLOWGARNET", "Yellowgarnet"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",
@@ -10556,6 +14396,14 @@
       "displayName": "Zinc Bee",
       "source": "GregTech",
       "aliases": ["ZINC", "Zinc"],
+      "climate": {
+        "temperature": "Normal",
+        "humidity": "Normal"
+      },
+      "jubilance": {
+        "type": "preferredClimate",
+        "description": "Needs preferred climate"
+      },
       "products": [
         {
           "kind": "item",

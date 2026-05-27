@@ -154,6 +154,26 @@ const RECIPE_MAP_LAYOUTS: Record<string, RecipeMapLayoutDefinition> = {
     fluidOutputPositions: (count) => gridPositions(count, 142, 6, 1, Math.max(count, 1)),
     progressBars: DEFAULT_PROGRESS_BARS,
   },
+  "Bee Produce": {
+    id: "bee-produce",
+    maxItemInputs: 1,
+    maxItemOutputs: 6,
+    maxFluidInputs: 0,
+    maxFluidOutputs: 0,
+    itemInputPositions: (count) => gridPositions(count, 34, 52, 1, 1),
+    itemOutputPositions: (count) => gridPositions(count, 106, 26, 3),
+    progressBars: [{ x: 66, y: 52, width: 24, height: 17, direction: "right", texture: "arrow" }],
+  },
+  "Bee Production": {
+    id: "bee-produce",
+    maxItemInputs: 1,
+    maxItemOutputs: 6,
+    maxFluidInputs: 0,
+    maxFluidOutputs: 0,
+    itemInputPositions: (count) => gridPositions(count, 34, 52, 1, 1),
+    itemOutputPositions: (count) => gridPositions(count, 106, 26, 3),
+    progressBars: [{ x: 66, y: 52, width: 24, height: 17, direction: "right", texture: "arrow" }],
+  },
   "Distillation Tower": {
     id: "distillation-tower",
     maxItemInputs: 2,
@@ -322,6 +342,8 @@ function getProgressTextureForRecipeMap(recipeMap: string): NeiProgressTexture {
   const normalized = recipeMap.trim().toLowerCase();
   const exact: Record<string, NeiProgressTexture> = {
     "bacterial vat": "arrow_multiple",
+    "bee produce": "arrow",
+    "bee production": "arrow",
     "bending machine": "bending",
     "bio lab": "arrow_multiple",
     brewery: "arrow_multiple",
@@ -485,7 +507,8 @@ function isPlainFurnaceRecipeMap(recipeMap: string): boolean {
 }
 
 function craftingTableLayout(recipe: Recipe): RecipeMapLayoutDefinition {
-  const shaped = (recipe.nei?.itemInputGrid?.width ?? 0) >= 3 || countKind(recipe.inputs, "item") > 4;
+  const shaped =
+    (recipe.nei?.itemInputGrid?.width ?? 0) >= 3 || countKind(recipe.inputs, "item") > 4;
 
   return {
     id: shaped ? "shaped-crafting" : "shapeless-crafting",

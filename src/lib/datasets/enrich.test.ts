@@ -214,12 +214,12 @@ describe("enrichDatasetRecipes", () => {
     expect(statControl?.tiers.map((tier) => tier.label)).toEqual(["1/1/1", "23/31/0"]);
   });
 
-  it("adds bee production handlers and frame slot controls", () => {
+  it("adds bee production handlers and machine-specific controls", () => {
     const dataset = baseDataset([
       {
         id: "bee-explosive",
-        name: "Bee Production: Explosive Bee",
-        machineType: "Bee Production",
+        name: "Bee Produce: Explosive Bee",
+        machineType: "Bee Produce",
         minimumTier: "NONE",
         durationTicks: 550,
         eut: 0,
@@ -235,7 +235,7 @@ describe("enrichDatasetRecipes", () => {
         outputs: [
           { kind: "item", id: "IC2:blockITNT", amount: 0.02, displayName: "Industrial TNT" },
         ],
-        source: { recipeMap: "Bee Production" },
+        source: { recipeMap: "Bee Produce" },
       },
     ]);
 
@@ -247,6 +247,7 @@ describe("enrichDatasetRecipes", () => {
       eut: 0,
     });
     expect(recipe?.machineHandlers?.map((handler) => handler.label)).toEqual([
+      "Magic Apiary",
       "Alveary",
       "Industrial Apiary",
       "Mega Apiary",
@@ -256,8 +257,32 @@ describe("enrichDatasetRecipes", () => {
       "beeFrameSlot2",
       "beeFrameSlot3",
       "beeEnvironment",
-      "beeProductivity",
     ]);
+    expect(
+      recipe?.machineConfigControls
+        ?.find((control) => control.id === "beeEnvironment")
+        ?.tiers.map((tier) => tier.label),
+    ).toEqual(["Wrong", "Tolerated", "Preferred", "Controlled"]);
+    expect(
+      recipe?.machineHandlers
+        ?.find((handler) => handler.id === "alveary")
+        ?.machineConfigControls?.map((control) => control.id),
+    ).toEqual([
+      "beeAlvearyFrameHousing",
+      "beeAlvearyStimulator",
+      "beeAlvearySupport",
+      "beeEnvironment",
+    ]);
+    expect(
+      recipe?.machineHandlers
+        ?.find((handler) => handler.id === "industrial-apiary")
+        ?.machineConfigControls?.map((control) => control.id),
+    ).toEqual(["beeIndustrialSetup", "beeEnvironment"]);
+    expect(
+      recipe?.machineHandlers
+        ?.find((handler) => handler.id === "mega-apiary")
+        ?.machineConfigControls?.map((control) => control.id),
+    ).toEqual(["beeMegaVoltage", "beeMegaRoyalJelly"]);
   });
 
   it("does not treat ordinary craft names as passive production", () => {

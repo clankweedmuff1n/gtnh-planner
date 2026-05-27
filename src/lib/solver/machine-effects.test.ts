@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { FactoryNode, Recipe } from "@/lib/model/types";
 import { applyMachineHandlerToRecipe } from "@/lib/model/recipe-rules";
 import { enrichPassiveProductionRecipe } from "@/lib/model/passive-production";
-import { getMachineDurationMultiplier, getMachineOutputMultiplier } from "./machine-effects";
+import {
+  getMachineDurationMultiplier,
+  getMachineEutMultiplier,
+  getMachineOutputMultiplier,
+} from "./machine-effects";
 
 describe("passive production machine effects", () => {
   it("applies IC2 crop stat presets as generic config multipliers", () => {
@@ -43,6 +47,40 @@ describe("passive production machine effects", () => {
     ).toBeCloseTo(Math.pow(31, 0.52));
   });
 
+  it("applies bee climate requirements to specialty outputs", () => {
+    const recipe = enrichPassiveProductionRecipe({
+      ...testBeeRecipe(),
+      outputs: [
+        {
+          kind: "item",
+          id: "Forestry:beeCombs@0",
+          amount: 1,
+          displayName: "Honey Comb",
+          tooltip: ["Product chance: 30%"],
+        },
+        {
+          kind: "item",
+          id: "GTPlusPlus:hydraComb",
+          amount: 1,
+          displayName: "Hydra Comb",
+          tooltip: ["Specialty chance: 6%", "Needs preferred climate"],
+        },
+      ],
+    });
+    const toleratedNode: Pick<FactoryNode, "machineConfigTiers" | "coilTier"> = {
+      machineConfigTiers: { beeEnvironment: "tolerated" },
+    };
+    const wrongNode: Pick<FactoryNode, "machineConfigTiers" | "coilTier"> = {
+      machineConfigTiers: { beeEnvironment: "wrong" },
+    };
+
+    expect(getMachineOutputMultiplier(recipe, toleratedNode, recipe.outputs[0]!, "LV")).toBeCloseTo(
+      1,
+    );
+    expect(getMachineOutputMultiplier(recipe, toleratedNode, recipe.outputs[1]!, "LV")).toBe(0);
+    expect(getMachineOutputMultiplier(recipe, wrongNode, recipe.outputs[0]!, "LV")).toBe(0);
+  });
+
   it("applies bee machine handler production terms", () => {
     const recipe = enrichPassiveProductionRecipe(testBeeRecipe());
     const node: Pick<FactoryNode, "machineConfigTiers" | "machineHandlerId"> = {
@@ -53,6 +91,39 @@ describe("passive production machine effects", () => {
 
     expect(getMachineOutputMultiplier(alvearyRecipe, node, recipe.outputs[0]!, "LV")).toBeCloseTo(
       Math.pow(10, 0.52),
+    );
+  });
+
+  it("uses Industrial Apiary upgrade presets instead of frame slots", () => {
+    const recipe = enrichPassiveProductionRecipe(testBeeRecipe());
+    const node: Pick<FactoryNode, "machineConfigTiers" | "machineHandlerId" | "coilTier"> = {
+      machineConfigTiers: { beeIndustrialSetup: "speed-8-upgraded" },
+      machineHandlerId: "industrial-apiary",
+    };
+    const industrialRecipe = applyMachineHandlerToRecipe(recipe, node);
+
+    expect(industrialRecipe.machineConfigControls?.map((control) => control.id)).toEqual([
+      "beeIndustrialSetup",
+      "beeEnvironment",
+    ]);
+    expect(getMachineDurationMultiplier(industrialRecipe, node)).toBeCloseTo(1 / 256);
+    expect(
+      getMachineOutputMultiplier(industrialRecipe, node, recipe.outputs[0]!, "MV"),
+    ).toBeCloseTo(Math.pow((4 * 1.2 ** 8 + 8) / 0.1, 0.52));
+  });
+
+  it("models Mega Apiary batching and voltage slot scaling", () => {
+    const recipe = enrichPassiveProductionRecipe(testBeeRecipe());
+    const node: Pick<FactoryNode, "machineConfigTiers" | "machineHandlerId" | "coilTier"> = {
+      machineConfigTiers: { beeMegaVoltage: "zpm", beeMegaRoyalJelly: "full" },
+      machineHandlerId: "mega-apiary",
+    };
+    const megaRecipe = applyMachineHandlerToRecipe(recipe, node);
+
+    expect(megaRecipe.durationTicks).toBe(100);
+    expect(getMachineEutMultiplier(megaRecipe, node)).toBe(4);
+    expect(getMachineOutputMultiplier(megaRecipe, node, recipe.outputs[0]!, "LuV")).toBeCloseTo(
+      (6400 / 550) * 4 * 3 * Math.pow((17.19926784 + 7) / 0.1, 0.52),
     );
   });
 });
@@ -82,8 +153,8 @@ function testCropRecipe(): Recipe {
 function testBeeRecipe(): Recipe {
   return {
     id: "bee-explosive",
-    name: "Bee Production: Explosive Bee",
-    machineType: "Bee Production",
+    name: "Bee Produce: Explosive Bee",
+    machineType: "Bee Produce",
     minimumTier: "NONE",
     durationTicks: 550,
     eut: 0,
@@ -97,6 +168,6 @@ function testBeeRecipe(): Recipe {
       },
     ],
     outputs: [{ kind: "item", id: "IC2:blockITNT", amount: 0.02, displayName: "Industrial TNT" }],
-    source: { recipeMap: "Bee Production" },
+    source: { recipeMap: "Bee Produce" },
   };
 }

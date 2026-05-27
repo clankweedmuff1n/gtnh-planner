@@ -929,9 +929,12 @@ function ic2CatalogSeedInput(entry, visual) {
 
 function cropNhCatalogSeedInput(entry, visual) {
   const seedInfo = cropNhSeedInfoForCropName(entry.cropName);
-  const displayName = `${seedInfo?.cropName ?? entry.cropName} Seeds`;
   const idSource = seedInfo?.cropId ?? entry.key;
-  return virtualPassiveInput(`factoryflow:cropnh_seed:${slug(idSource)}`, displayName, visual);
+  return virtualPassiveInput(
+    `factoryflow:cropnh_seed:${slug(idSource)}`,
+    `${entry.cropName} Seeds`,
+    visual,
+  );
 }
 
 function usesLegacyIc2Crops() {

@@ -201,8 +201,8 @@ describe("NEI layout", () => {
     expect(layout.canvas.width).toBe(170);
     expect(layout.slots.map((slot) => [slot.kind, slot.side, slot.x, slot.y])).toEqual([
       ["item", "input", 48, 42],
-      ["item", "output", 120, 26],
-      ["item", "output", 138, 26],
+      ["item", "output", 106, 26],
+      ["item", "output", 124, 26],
     ]);
     expect(layout.frames.filter((frame) => frame.side === "output")).toHaveLength(6);
     expect(layout.progressBars[0]).toMatchObject({ x: 80, y: 42, texture: "arrow" });
@@ -220,7 +220,7 @@ describe("NEI layout", () => {
     expect(layout.id).toBe("bee-produce");
     expect(layout.slots.map((slot) => [slot.kind, slot.side, slot.x, slot.y])).toEqual([
       ["item", "input", 48, 42],
-      ["item", "output", 120, 26],
+      ["item", "output", 106, 26],
     ]);
     expect(layout.frames.filter((frame) => frame.side === "output")).toHaveLength(6);
   });
@@ -258,7 +258,7 @@ describe("NEI layout", () => {
 
     expect(layout.slots.map((slot) => [slot.kind, slot.side, slot.x, slot.y])).toEqual([
       ["item", "input", 48, 42],
-      ["item", "output", 120, 26],
+      ["item", "output", 106, 26],
     ]);
     expect(layout.progressBars[0]).toMatchObject({ x: 80, y: 42, texture: "arrow" });
   });

@@ -104,7 +104,7 @@ const BEE_PRODUCE_LAYOUT: RecipeMapLayoutDefinition = {
   maxFluidInputs: 0,
   maxFluidOutputs: 0,
   itemInputPositions: (count) => gridPositions(count, 48, 42, 1, 1),
-  itemOutputPositions: (count) => gridPositions(count, 120, 26, 3),
+  itemOutputPositions: (count) => gridPositions(count, 106, 26, 3),
   progressBars: [{ x: 80, y: 42, width: 24, height: 17, direction: "right", texture: "arrow" }],
 };
 

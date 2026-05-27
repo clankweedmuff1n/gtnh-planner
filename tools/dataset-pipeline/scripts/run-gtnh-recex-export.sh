@@ -59,6 +59,7 @@ if ! instance_root="$(node tools/dataset-pipeline/scripts/find-gtnh-instance-roo
   chmod -R u+rwX "$GTNH_INSTANCE_DIR/pack-content"
   instance_root="$(node tools/dataset-pipeline/scripts/find-gtnh-instance-root.mjs "$GTNH_INSTANCE_DIR/pack-content")"
 fi
+export GTNH_INSTANCE_ROOT="$instance_root"
 mkdir -p "$instance_root/mods"
 
 rm -rf "$recex_work"

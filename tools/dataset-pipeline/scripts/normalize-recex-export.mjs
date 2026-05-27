@@ -25,6 +25,8 @@ console.log(`Reading RecEx export from ${inputPath}.`);
 const raw = JSON.parse(stripBom(await fs.readFile(inputPath, "utf8")));
 console.log("Collecting raw item resources.");
 const rawItemResources = collectRawItemResources(raw);
+console.log("Collecting CropNH seed names.");
+const cropNhSeedCatalog = await loadCropNhSeedCatalog(process.env.GTNH_INSTANCE_ROOT);
 
 const resources = new Map();
 const recipeMaps = [];
@@ -543,8 +545,8 @@ function synthesizeIc2CropRecipes() {
   }
 
   const seed = virtualPassiveInput(
-    "factoryflow:ic2_crop_seed",
-    "IC2 Crop Seed",
+    "factoryflow:ic2_crop_seed:stickreed",
+    "Stickreed Seeds",
     passiveInputVisualFallback([
       "IC2:itemCropSeed",
       "IC2:itemCropSeed@32767",
@@ -575,22 +577,24 @@ function synthesizeCropNhRecipes() {
     return [];
   }
 
-  const seed =
-    resourceForPassiveRecipe("item", "cropsnh:genericSeed", { displayName: "Scanned Seed" }) ??
-    virtualPassiveInput(
+  const seedVisual =
+    passiveInputVisualFallback([
       "cropsnh:genericSeed",
-      "Scanned Seed",
-      passiveInputVisualFallback(["minecraft:wheat_seeds"]),
-    );
+      "cropsnh:genericSeed@32767",
+      "minecraft:wheat_seeds",
+    ]) ?? resourceForPassiveRecipe("item", "cropsnh:genericSeed");
   const outputs = passiveResourceValues()
-    .filter(isCropNhPassiveOutputResource)
+    .filter(
+      (resource) =>
+        isCropNhPassiveOutputResource(resource) || isCropNhQuestPassiveOutputResource(resource),
+    )
     .sort(compareById)
     .slice(0, 500);
 
   return outputs.map((output, index) =>
     addSyntheticPassiveRecipe({
       machineType: "CropNH",
-      input: seed,
+      input: cropNhSeedInputForOutput(output, seedVisual),
       output: passiveOutputAmount(output),
       index,
       durationTicks: 1200,
@@ -607,9 +611,7 @@ function synthesizeBeeProductionRecipes() {
   }
 
   const bee =
-    resourceForPassiveRecipe("item", "Forestry:beePrincessGE", {
-      displayName: "Bee Species",
-    }) ??
+    resourceForPassiveRecipe("item", "Forestry:beePrincessGE") ??
     virtualPassiveInput(
       "factoryflow:bee_species",
       "Bee Species",
@@ -671,9 +673,10 @@ function addSyntheticPassiveRecipe({
         { side: "input", kind: "item", slotIndex: 0, x: 34, y: 35 },
         { side: "output", kind: output.kind, slotIndex: 0, x: 124, y: 35 },
       ],
-      slotCapacity: output.kind === "fluid"
-        ? { maxItemInputs: 1, maxFluidOutputs: 1 }
-        : { maxItemInputs: 1, maxItemOutputs: 1 },
+      slotCapacity:
+        output.kind === "fluid"
+          ? { maxItemInputs: 1, maxFluidOutputs: 1 }
+          : { maxItemInputs: 1, maxItemOutputs: 1 },
     },
   };
   addRecipe(recipe);
@@ -723,8 +726,8 @@ function passiveInputVisualFallback(ids) {
   return undefined;
 }
 
-function virtualPassiveInput(id, displayName, visual) {
-  return {
+function virtualPassiveInput(id, displayName, visual, options = {}) {
+  const input = {
     kind: "item",
     id,
     amount: 1,
@@ -732,8 +735,11 @@ function virtualPassiveInput(id, displayName, visual) {
     iconPath: visual?.iconPath,
     iconAtlas: visual?.iconAtlas,
     dominantColor: visual?.dominantColor,
-    tooltip: ["Synthetic passive-production input"],
   };
+  if (options.tooltip) {
+    input.tooltip = options.tooltip;
+  }
+  return input;
 }
 
 function passiveOutputAmount(resource) {
@@ -748,6 +754,64 @@ function passiveOutputAmount(resource) {
     tooltip: resource.tooltip,
     oreDictionary: resource.oreDictionary,
   };
+}
+
+function cropNhSeedInputForOutput(output, visual) {
+  const seedInfo = cropNhBonsaiOutputLike(output)
+    ? cropNhSeedInfoForOutput(output, { requireBonsai: true })
+    : undefined;
+  const seedInfoForOutput = seedInfo ?? cropNhSeedInfoForOutput(output);
+  const fallbackName = cropNhSeedNameFromOutput(output);
+  const displayName = `${seedInfoForOutput?.cropName ?? fallbackName} Seeds (#4269)`;
+  const idSource = seedInfoForOutput?.cropId ?? `${output.kind}:${output.id}`;
+  return virtualPassiveInput(`factoryflow:cropnh_seed:${slug(idSource)}`, displayName, visual);
+}
+
+function cropNhSeedInfoForOutput(resource, options = {}) {
+  if (cropNhSeedCatalog.length === 0) {
+    return undefined;
+  }
+
+  const outputTokens = meaningfulCropTokens(
+    `${resource.displayName ?? ""} ${resource.id.replace(/[@:_-]/g, " ")}`,
+  );
+  if (outputTokens.length === 0) {
+    return undefined;
+  }
+
+  let best;
+  const seedCatalog = options.requireBonsai
+    ? cropNhSeedCatalog.filter((seed) => seed.tokens.includes("bonsai"))
+    : cropNhSeedCatalog;
+  for (const seed of seedCatalog) {
+    const sharedTokens = seed.tokens.filter((token) => outputTokens.includes(token));
+    if (sharedTokens.length === 0) {
+      continue;
+    }
+
+    const score = sharedTokens.length / Math.max(1, seed.tokens.length);
+    if (
+      !best ||
+      score > best.score ||
+      (score === best.score && seed.cropName.length < best.seed.cropName.length)
+    ) {
+      best = { seed, score };
+    }
+  }
+
+  return best?.seed;
+}
+
+function cropNhSeedNameFromOutput(resource) {
+  const displayName = resource.displayName ?? resource.id.split(":").pop() ?? resource.id;
+  const cleaned = displayName
+    .replace(
+      /\b(?:leaf|leaves|flower|flowers|berry|berries|stem|root|wart|fiber|hurd|residue)\b/gi,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || displayName;
 }
 
 function isCropNhPassiveOutputResource(resource) {
@@ -768,6 +832,23 @@ function isCropNhPassiveOutputResource(resource) {
     resource.id === "cropsnh:sulfurDopedGalvaniaResidue" ||
     resource.id === "cropsnh:sulfurDopedPlumbiliaResidue"
   );
+}
+
+function isCropNhQuestPassiveOutputResource(resource) {
+  if (resource.kind !== "item") {
+    return false;
+  }
+
+  if (!cropNhBonsaiOutputLike(resource)) {
+    return false;
+  }
+
+  return Boolean(cropNhSeedInfoForOutput(resource, { requireBonsai: true }));
+}
+
+function cropNhBonsaiOutputLike(resource) {
+  const normalized = normalizeLabel(`${resource.id} ${resource.displayName ?? ""}`);
+  return /\b(?:log|logs|wood|woods|leaf|leaves|sapling|saplings)\b/.test(normalized);
 }
 
 function isBeePassiveOutputResource(resource) {
@@ -1785,6 +1866,159 @@ function addResource(resource) {
     oreDictionary: resource.oreDictionary,
     alternatives: resource.alternatives,
   });
+}
+
+async function loadCropNhSeedCatalog(instanceRoot) {
+  if (!instanceRoot) {
+    return [];
+  }
+
+  const questsDir = path.join(instanceRoot, "config", "betterquesting", "DefaultQuests", "Quests");
+  const cropsById = new Map();
+
+  try {
+    for await (const questPath of walkJsonFiles(questsDir)) {
+      const quest = JSON.parse(stripBom(await fs.readFile(questPath, "utf8")));
+      const questName = betterQuestingQuestName(quest);
+      const cropIds = findCropNhSeedCropIds(quest);
+      for (const cropId of cropIds) {
+        const cropName = questName || cropNameFromCropId(cropId);
+        if (!cropName) {
+          continue;
+        }
+
+        const existing = cropsById.get(cropId);
+        if (!existing || cropName.length < existing.cropName.length) {
+          cropsById.set(cropId, {
+            cropId,
+            cropName,
+            tokens: meaningfulCropTokens(`${cropName} ${cropId.replace(/^cropsnh:/, "")}`),
+          });
+        }
+      }
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.warn(`Could not read CropNH quest seed names from ${questsDir}: ${error.message}`);
+    }
+  }
+
+  const catalog = [...cropsById.values()].filter((entry) => entry.tokens.length > 0);
+  if (catalog.length > 0) {
+    console.log(`Collected ${catalog.length} CropNH seed name(s).`);
+  }
+  return catalog;
+}
+
+async function* walkJsonFiles(dir) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      yield* walkJsonFiles(entryPath);
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".json")) {
+      yield entryPath;
+    }
+  }
+}
+
+function betterQuestingQuestName(quest) {
+  const properties = typedValue(quest, "properties");
+  const betterQuesting = typedValue(properties, "betterquesting");
+  return stripMinecraftFormatting(text(typedValue(betterQuesting, "name"), ""));
+}
+
+function findCropNhSeedCropIds(value) {
+  const cropIds = new Set();
+  const stack = [value];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object") {
+      continue;
+    }
+
+    if (Array.isArray(current)) {
+      stack.push(...current);
+      continue;
+    }
+
+    if (typedValue(current, "id") === "cropsnh:genericSeed") {
+      const cropId = typedValue(typedValue(current, "tag"), "crop");
+      if (typeof cropId === "string" && cropId.startsWith("cropsnh:")) {
+        cropIds.add(cropId);
+      }
+    }
+
+    for (const child of Object.values(current)) {
+      if (child && typeof child === "object") {
+        stack.push(child);
+      }
+    }
+  }
+
+  return [...cropIds];
+}
+
+function typedValue(value, key) {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(value, key)) {
+    return value[key];
+  }
+
+  const typedPrefix = `${key}:`;
+  const entry = Object.entries(value).find(([entryKey]) => entryKey.startsWith(typedPrefix));
+  return entry?.[1];
+}
+
+function stripMinecraftFormatting(value) {
+  return text(value, "")
+    .replace(/\u00a7./g, "")
+    .trim();
+}
+
+function cropNameFromCropId(cropId) {
+  const localId = cropId.replace(/^cropsnh:/, "");
+  const words = titleWords(localId);
+  if (words[0]?.toLowerCase() === "bonsai" && words.length > 1) {
+    return [...words.slice(1), "Bonsai"].join(" ");
+  }
+  return words.join(" ");
+}
+
+function meaningfulCropTokens(value) {
+  const stopWords = new Set([
+    "crop",
+    "crops",
+    "generic",
+    "item",
+    "material",
+    "scanned",
+    "seed",
+    "seeds",
+  ]);
+  return [
+    ...new Set(
+      titleWords(value)
+        .map((word) => word.toLowerCase())
+        .filter((word) => word.length > 1 && !stopWords.has(word)),
+    ),
+  ];
+}
+
+function titleWords(value) {
+  return text(value, "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 }
 
 function collectRawItemResources(value) {

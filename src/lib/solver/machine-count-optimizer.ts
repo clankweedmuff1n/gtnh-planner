@@ -141,6 +141,7 @@ class MachineCountOptimizer {
     if (!hasExplicitDemand) {
       const seededFromProducedOutput = this.seedMaximumProducedOutputDemands();
       this.seedImplicitTerminalDemands();
+      this.seedImplicitCyclicRatioDemands();
       if (seededFromProducedOutput) {
         this.flushStorageOutputConsumers(new Set());
       }
@@ -213,6 +214,88 @@ class MachineCountOptimizer {
         !storageKey || (this.context.storageConsumersByResource.get(storageKey) ?? []).length === 0
       );
     });
+  }
+
+  private seedImplicitCyclicRatioDemands() {
+    const nodeIdsByComponent = new Map<number, string[]>();
+    for (const node of this.context.project.nodes) {
+      const component = this.context.componentByEndpoint.get(node.id);
+      const plan = this.context.ratePlans.get(node.id);
+      if (
+        component === undefined ||
+        !this.context.cyclicComponents.has(component) ||
+        !plan?.enabled ||
+        !plan.valid
+      ) {
+        continue;
+      }
+
+      nodeIdsByComponent.set(component, [...(nodeIdsByComponent.get(component) ?? []), node.id]);
+    }
+
+    for (const [component, nodeIds] of nodeIdsByComponent) {
+      const exactDemands = this.solveCyclicComponentRatios(component, nodeIds);
+      if (!exactDemands) {
+        continue;
+      }
+
+      for (const [nodeId, exactDemand] of exactDemands) {
+        const plan = this.context.ratePlans.get(nodeId);
+        if (!plan || exactDemand <= 1 + EPSILON) {
+          continue;
+        }
+
+        this.ensureNodeOperations(nodeId, exactDemand, new Set(plan.inputs.keys()));
+      }
+    }
+  }
+
+  private solveCyclicComponentRatios(
+    component: number,
+    nodeIds: string[],
+  ): Map<string, number> | undefined {
+    const exactDemands = new Map(nodeIds.map((nodeId) => [nodeId, 1]));
+
+    for (let pass = 0; pass < nodeIds.length; pass += 1) {
+      let changed = false;
+
+      for (const sourceNodeId of nodeIds) {
+        const sourcePlan = this.context.ratePlans.get(sourceNodeId);
+        if (!sourcePlan?.enabled || !sourcePlan.valid) {
+          continue;
+        }
+
+        for (const edge of this.context.nodeToNodeEdges.get(sourceNodeId) ?? []) {
+          if (this.context.componentByEndpoint.get(edge.target) !== component) {
+            continue;
+          }
+
+          const outputKey = makeResourceKey(edge.resourceKind, edge.resourceId);
+          const outputRate = sourcePlan.outputs.get(outputKey) ?? 0;
+          const targetInputKey = getEdgeTargetDemandKey(this.context, edge);
+          const targetInputRate = targetInputKey
+            ? (this.context.ratePlans.get(edge.target)?.inputs.get(targetInputKey) ?? 0)
+            : 0;
+          if (!targetInputKey || outputRate <= EPSILON || targetInputRate <= EPSILON) {
+            continue;
+          }
+
+          const requiredTargetDemand =
+            ((exactDemands.get(sourceNodeId) ?? 1) * outputRate) / targetInputRate;
+          if (requiredTargetDemand > (exactDemands.get(edge.target) ?? 1) + EPSILON) {
+            exactDemands.set(edge.target, requiredTargetDemand);
+            changed = true;
+          }
+        }
+      }
+
+      if (!changed) {
+        return exactDemands;
+      }
+    }
+
+    this.context.diagnostics.push(`optimizer:cyclic-ratio-amplifying:${component}`);
+    return undefined;
   }
 
   private satisfyLooseOutputDemand(resourceKey: ResourceKey, amountPerSecond: number) {

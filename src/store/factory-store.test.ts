@@ -1111,6 +1111,27 @@ describe("factory machine count optimization", () => {
     expect(Math.max(...machineCounts)).toBeLessThanOrEqual(2);
   });
 
+  it("balances stable direct recipe cycles without an explicit target", () => {
+    useFactoryStore.getState().setProject(createStableDirectCycleOptimizationProject());
+
+    useFactoryStore.getState().optimizeMachineCounts();
+    const firstCounts = useFactoryStore
+      .getState()
+      .project.nodes.map((node) => [node.id, node.machineCount]);
+
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(
+      useFactoryStore.getState().project.nodes.map((node) => [node.id, node.machineCount]),
+    ).toEqual(firstCounts);
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "cycle-ingot-to-nuggets", machineCount: 1 }),
+        expect.objectContaining({ id: "cycle-nuggets-to-ingot", machineCount: 2 }),
+      ]),
+    );
+  });
+
   it("does not amplify cycles connected through separate buses for the same resource", () => {
     useFactoryStore.getState().setProject(createStorageBusCycleProject());
 
@@ -1743,6 +1764,58 @@ function createCyclicRatioProject(): FactoryProject {
         targetHandle: makeResourceHandleId("input", { kind: "item", id: "y" }, 0),
         resourceKind: "item",
         resourceId: "y",
+      },
+    ],
+    fuelProfiles: [],
+  };
+}
+
+function createStableDirectCycleOptimizationProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "stable-direct-cycle-optimization",
+    name: "Stable direct cycle optimization",
+    recipes: [
+      {
+        id: "ingot-to-nuggets-recipe",
+        name: "Ingot to Nuggets",
+        machineType: "Alloy Smelter",
+        minimumTier: "ULV",
+        durationTicks: 100,
+        eut: 1,
+        inputs: [{ kind: "item", id: "ingot", amount: 1 }],
+        outputs: [{ kind: "item", id: "nugget", amount: 9 }],
+      },
+      {
+        id: "nuggets-to-ingot-recipe",
+        name: "Nuggets to Ingot",
+        machineType: "Alloy Smelter",
+        minimumTier: "ULV",
+        durationTicks: 200,
+        eut: 1,
+        inputs: [{ kind: "item", id: "nugget", amount: 9 }],
+        outputs: [{ kind: "item", id: "ingot", amount: 1 }],
+      },
+    ],
+    nodes: [
+      makeNode("cycle-ingot-to-nuggets", "ingot-to-nuggets-recipe", 0),
+      makeNode("cycle-nuggets-to-ingot", "nuggets-to-ingot-recipe", 240),
+    ],
+    storages: [],
+    edges: [
+      {
+        id: "cycle-nugget-edge",
+        source: "cycle-ingot-to-nuggets",
+        target: "cycle-nuggets-to-ingot",
+        resourceKind: "item",
+        resourceId: "nugget",
+      },
+      {
+        id: "cycle-ingot-edge",
+        source: "cycle-nuggets-to-ingot",
+        target: "cycle-ingot-to-nuggets",
+        resourceKind: "item",
+        resourceId: "ingot",
       },
     ],
     fuelProfiles: [],

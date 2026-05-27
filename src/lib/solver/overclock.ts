@@ -4,7 +4,12 @@ import {
   getRecipeCoilTierControl,
   getRecipeSpecialValue,
 } from "@/lib/model/recipe-rules";
-import { getMachineDurationMultiplier, getMachineEutMultiplier } from "./machine-effects";
+import {
+  getBeeMegaApiaryTierEutMultiplier,
+  getMachineDurationMultiplier,
+  getMachineEutMultiplier,
+  isMegaApiaryMachineType,
+} from "./machine-effects";
 import type { FactoryNode, MachineTier, Recipe } from "@/lib/model/types";
 
 type VoltageTier = Exclude<MachineTier, "DEMO">;
@@ -50,6 +55,18 @@ export function getOverclockedRecipeStats(
       overclockSteps,
       durationTicks: effectiveRecipe.durationTicks,
       eut: effectiveRecipe.eut,
+    };
+  }
+  if (effectiveRecipe.machineType && isMegaApiaryMachineType(effectiveRecipe.machineType)) {
+    const eutMultiplier =
+      getMachineEutMultiplier(effectiveRecipe as Recipe, node) *
+      getBeeMegaApiaryTierEutMultiplier(tier);
+    return {
+      tier,
+      minimumTier,
+      overclockSteps,
+      durationTicks: effectiveRecipe.durationTicks,
+      eut: effectiveRecipe.eut * eutMultiplier,
     };
   }
 

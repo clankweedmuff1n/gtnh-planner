@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { FactoryNode, Recipe } from "@/lib/model/types";
 import { applyMachineHandlerToRecipe } from "@/lib/model/recipe-rules";
 import { enrichPassiveProductionRecipe } from "@/lib/model/passive-production";
-import {
-  getMachineDurationMultiplier,
-  getMachineEutMultiplier,
-  getMachineOutputMultiplier,
-} from "./machine-effects";
+import { getOverclockedRecipeStats } from "./overclock";
+import { getMachineDurationMultiplier, getMachineOutputMultiplier } from "./machine-effects";
 
 describe("passive production machine effects", () => {
   it("applies IC2 crop stat presets as generic config multipliers", () => {
@@ -94,35 +91,56 @@ describe("passive production machine effects", () => {
     );
   });
 
-  it("uses Industrial Apiary upgrade presets instead of frame slots", () => {
+  it("combines valid Industrial Apiary speed and production upgrades", () => {
     const recipe = enrichPassiveProductionRecipe(testBeeRecipe());
     const node: Pick<FactoryNode, "machineConfigTiers" | "machineHandlerId" | "coilTier"> = {
-      machineConfigTiers: { beeIndustrialSetup: "speed-8-upgraded" },
+      machineConfigTiers: { beeIndustrialSpeed: "speed-4", beeIndustrialProduction: "4" },
       machineHandlerId: "industrial-apiary",
     };
     const industrialRecipe = applyMachineHandlerToRecipe(recipe, node);
 
     expect(industrialRecipe.machineConfigControls?.map((control) => control.id)).toEqual([
-      "beeIndustrialSetup",
+      "beeIndustrialSpeed",
+      "beeIndustrialProduction",
       "beeEnvironment",
     ]);
+    expect(getMachineDurationMultiplier(industrialRecipe, node)).toBeCloseTo(1 / 16);
+    expect(
+      getMachineOutputMultiplier(industrialRecipe, node, recipe.outputs[0]!, "MV"),
+    ).toBeCloseTo(Math.pow((4 * 1.2 ** 4 + 8) / 0.1, 0.52));
+  });
+
+  it("does not combine Upgraded Acceleration x256 with production upgrades", () => {
+    const recipe = enrichPassiveProductionRecipe(testBeeRecipe());
+    const node: Pick<FactoryNode, "machineConfigTiers" | "machineHandlerId" | "coilTier"> = {
+      machineConfigTiers: { beeIndustrialSpeed: "speed-8-upgraded", beeIndustrialProduction: "8" },
+      machineHandlerId: "industrial-apiary",
+    };
+    const industrialRecipe = applyMachineHandlerToRecipe(recipe, node);
+
     expect(getMachineDurationMultiplier(industrialRecipe, node)).toBeCloseTo(1 / 256);
     expect(
       getMachineOutputMultiplier(industrialRecipe, node, recipe.outputs[0]!, "MV"),
-    ).toBeCloseTo(Math.pow((4 * 1.2 ** 8 + 8) / 0.1, 0.52));
+    ).toBeCloseTo(Math.pow((17.19926784 + 8) / 0.1, 0.52));
   });
 
   it("models Mega Apiary batching and voltage slot scaling", () => {
     const recipe = enrichPassiveProductionRecipe(testBeeRecipe());
-    const node: Pick<FactoryNode, "machineConfigTiers" | "machineHandlerId" | "coilTier"> = {
-      machineConfigTiers: { beeMegaVoltage: "zpm", beeMegaRoyalJelly: "full" },
+    const node: Pick<
+      FactoryNode,
+      "machineConfigTiers" | "machineHandlerId" | "coilTier" | "overclockTier"
+    > = {
+      machineConfigTiers: { beeMegaRoyalJelly: "full" },
       machineHandlerId: "mega-apiary",
+      overclockTier: "ZPM",
     };
     const megaRecipe = applyMachineHandlerToRecipe(recipe, node);
+    const stats = getOverclockedRecipeStats(megaRecipe, node);
 
     expect(megaRecipe.durationTicks).toBe(100);
-    expect(getMachineEutMultiplier(megaRecipe, node)).toBe(4);
-    expect(getMachineOutputMultiplier(megaRecipe, node, recipe.outputs[0]!, "LuV")).toBeCloseTo(
+    expect(stats.durationTicks).toBe(100);
+    expect(stats.eut).toBe(8110 * 4);
+    expect(getMachineOutputMultiplier(megaRecipe, node, recipe.outputs[0]!, "ZPM")).toBeCloseTo(
       (6400 / 550) * 4 * 3 * Math.pow((17.19926784 + 7) / 0.1, 0.52),
     );
   });

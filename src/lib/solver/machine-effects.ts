@@ -5,6 +5,9 @@ import {
 import {
   BEE_APIARY_BASE_PRODUCTION_TERM,
   BEE_ENVIRONMENT_CONTROL_ID,
+  BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID,
+  BEE_INDUSTRIAL_SPEED_CONTROL_ID,
+  MEGA_APIARY_BATCH_CYCLES,
   getBeeBaseProductionTerm,
   getBeeProductionTermModifier,
   isBeeFrameSlotControlId,
@@ -34,7 +37,8 @@ export function getMachineOutputMultiplier(
     return (
       configMultiplier *
       getBeeClimateOutputMultiplier(recipe, node, output) *
-      getBeeProductionTermOutputMultiplier(recipe, node)
+      getBeeProductionTermOutputMultiplier(recipe, node, tier) *
+      getBeeMegaApiaryBatchMultiplier(recipe, tier)
     );
   }
 
@@ -79,23 +83,62 @@ function hasBeeMegaApiaryRequirement(output: RecipeOutput) {
 }
 
 function isMegaApiaryRecipe(recipe: Pick<Recipe, "machineType">) {
-  return normalizeRecipeMapName(recipe.machineType).includes("mega apiary");
+  return isMegaApiaryMachineType(recipe.machineType);
 }
 
 function getBeeProductionTermOutputMultiplier(
   recipe: Pick<Recipe, "machineType" | "source" | "nei" | "machineConfigControls">,
   node: Pick<FactoryNode, "machineConfigTiers">,
+  tier: VoltageTier,
 ) {
   const baseTerm = getBeeBaseProductionTerm(recipe.machineType);
-  const configModifier = getRecipeMachineConfigTierControls(recipe, node).reduce(
-    (sum, control) => sum + getBeeProductionTermModifier(control.id, control.current.key),
-    0,
+  const controls = getRecipeMachineConfigTierControls(recipe, node);
+  const hasUpgradedSpeed8 = controls.some(
+    (control) =>
+      control.id === BEE_INDUSTRIAL_SPEED_CONTROL_ID && control.current.key === "speed-8-upgraded",
   );
-  const productionTerm = baseTerm + configModifier;
+  const configModifier = controls.reduce((sum, control) => {
+    if (hasUpgradedSpeed8 && control.id === BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID) {
+      return sum;
+    }
+    return sum + getBeeProductionTermModifier(control.id, control.current.key);
+  }, 0);
+  const productionTerm =
+    baseTerm + configModifier + getBeeMegaApiaryVoltageProductionModifier(recipe, tier);
   if (productionTerm <= 0) {
     return 0;
   }
   return Math.pow(productionTerm / BEE_APIARY_BASE_PRODUCTION_TERM, 0.52);
+}
+
+function getBeeMegaApiaryBatchMultiplier(recipe: Pick<Recipe, "machineType">, tier: VoltageTier) {
+  if (!isMegaApiaryRecipe(recipe)) {
+    return 1;
+  }
+  return MEGA_APIARY_BATCH_CYCLES * 4 ** getBeeMegaApiaryVoltageOffset(tier);
+}
+
+function getBeeMegaApiaryVoltageProductionModifier(
+  recipe: Pick<Recipe, "machineType">,
+  tier: VoltageTier,
+) {
+  if (!isMegaApiaryRecipe(recipe)) {
+    return 0;
+  }
+  return getBeeMegaApiaryVoltageOffset(tier);
+}
+
+export function getBeeMegaApiaryVoltageOffset(tier: VoltageTier) {
+  const offset = getVoltageTierIndex(tier) - getVoltageTierIndex("LuV");
+  return Math.max(0, Math.min(3, offset));
+}
+
+export function getBeeMegaApiaryTierEutMultiplier(tier: VoltageTier) {
+  return 4 ** getBeeMegaApiaryVoltageOffset(tier);
+}
+
+export function isMegaApiaryMachineType(machineType: string) {
+  return normalizeRecipeMapName(machineType).includes("mega apiary");
 }
 
 export function applyMachineOutputMultipliers(

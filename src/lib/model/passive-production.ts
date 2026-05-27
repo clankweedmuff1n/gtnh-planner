@@ -19,15 +19,15 @@ export const BEE_MAGIC_AURA_CONTROL_ID = "beeMagicAura";
 export const BEE_ALVEARY_FRAME_HOUSING_CONTROL_ID = "beeAlvearyFrameHousing";
 export const BEE_ALVEARY_STIMULATOR_CONTROL_ID = "beeAlvearyStimulator";
 export const BEE_ALVEARY_SUPPORT_CONTROL_ID = "beeAlvearySupport";
-export const BEE_INDUSTRIAL_SETUP_CONTROL_ID = "beeIndustrialSetup";
-export const BEE_MEGA_VOLTAGE_CONTROL_ID = "beeMegaVoltage";
+export const BEE_INDUSTRIAL_SPEED_CONTROL_ID = "beeIndustrialSpeed";
+export const BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID = "beeIndustrialProduction";
 export const BEE_MEGA_ROYAL_JELLY_CONTROL_ID = "beeMegaRoyalJelly";
 export const BEE_APIARY_BASE_PRODUCTION_TERM = 0.1;
 const BEE_MAGIC_APIARY_BASE_PRODUCTION_TERM = 0.9;
 const BEE_ALVEARY_BASE_PRODUCTION_TERM = 1;
 const BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM = 10;
-const BEE_MEGA_APIARY_BASE_PRODUCTION_TERM = 17.19926784 + 6;
-const MEGA_APIARY_BATCH_CYCLES = 6400 / 550;
+export const BEE_MEGA_APIARY_BASE_PRODUCTION_TERM = 17.19926784 + 6;
+export const MEGA_APIARY_BATCH_CYCLES = 6400 / 550;
 
 const CROP_CONTROL_IDS = new Set([
   CROP_STATS_CONTROL_ID,
@@ -44,8 +44,8 @@ const BEE_CONTROL_IDS = new Set([
   BEE_ALVEARY_FRAME_HOUSING_CONTROL_ID,
   BEE_ALVEARY_STIMULATOR_CONTROL_ID,
   BEE_ALVEARY_SUPPORT_CONTROL_ID,
-  BEE_INDUSTRIAL_SETUP_CONTROL_ID,
-  BEE_MEGA_VOLTAGE_CONTROL_ID,
+  BEE_INDUSTRIAL_SPEED_CONTROL_ID,
+  BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID,
   BEE_MEGA_ROYAL_JELLY_CONTROL_ID,
 ]);
 
@@ -194,10 +194,10 @@ export function getBeeProductionTermModifier(controlId: string, key: string) {
       return getAlvearyFrameHousingProductionModifier(key);
     case BEE_ALVEARY_STIMULATOR_CONTROL_ID:
       return getAlvearyStimulatorProductionModifier(key);
-    case BEE_INDUSTRIAL_SETUP_CONTROL_ID:
-      return getIndustrialApiarySetupProductionModifier(key);
-    case BEE_MEGA_VOLTAGE_CONTROL_ID:
-      return getMegaApiaryVoltageProductionModifier(key);
+    case BEE_INDUSTRIAL_SPEED_CONTROL_ID:
+      return getIndustrialApiarySpeedProductionModifier(key);
+    case BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID:
+      return getIndustrialApiaryProductionUpgradeModifier(key);
     default:
       return 0;
   }
@@ -430,45 +430,49 @@ function alvearyProductionControls(): MachineConfigControl[] {
 function industrialApiaryControls(): MachineConfigControl[] {
   return [
     selectControl({
-      id: BEE_INDUSTRIAL_SETUP_CONTROL_ID,
-      label: "Upgrades",
+      id: BEE_INDUSTRIAL_SPEED_CONTROL_ID,
+      label: "Acceleration",
       defaultKey: "none",
       tiers: [
-        option("none", "No Upgrades", "bee_industrial_upgrades_none", "No Upgrades"),
-        option(
-          "production-1",
-          "1 Production",
-          "gregtech:gt.metaitem.03@32209",
-          "Production Upgrade",
-        ),
-        option(
-          "production-4",
-          "4 Production",
-          "gregtech:gt.metaitem.03@32209",
-          "Production Upgrades",
-        ),
-        option(
-          "production-8",
-          "8 Production",
-          "gregtech:gt.metaitem.03@32209",
-          "Production Upgrades",
-        ),
-        option("speed-4", "Speed 4", "gregtech:gt.metaitem.03@32203", "Speed Upgrade 4", {
-          durationMultiplier: 1 / 16,
-        }),
-        option("speed-8", "Speed 8", "gregtech:gt.metaitem.03@32207", "Speed Upgrade 8", {
-          durationMultiplier: 1 / 256,
+        option("none", "0", "bee_industrial_speed_none", "No Acceleration Upgrade"),
+        ...Array.from({ length: 8 }, (_unused, index) => {
+          const speed = index + 1;
+          const multiplier = 2 ** speed;
+          return option(
+            `speed-${speed}`,
+            `x${multiplier}`,
+            `gregtech:gt.metaitem.03@${32199 + speed}`,
+            `Acceleration Upgrade x${multiplier}`,
+            {
+              durationMultiplier: 1 / multiplier,
+            },
+          );
         }),
         option(
           "speed-8-upgraded",
-          "Speed 8+",
+          "Upgraded x256",
           "gregtech:gt.metaitem.03@32208",
-          "Upgraded Speed 8",
+          "Upgraded Acceleration Upgrade x256",
           {
             durationMultiplier: 1 / 256,
           },
         ),
       ],
+    }),
+    selectControl({
+      id: BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID,
+      label: "Production",
+      defaultKey: "0",
+      tiers: Array.from({ length: 9 }, (_unused, count) =>
+        option(
+          String(count),
+          String(count),
+          count === 0 ? "bee_industrial_production_none" : "gregtech:gt.metaitem.03@32209",
+          count === 0
+            ? "No Production Upgrades"
+            : `${count} Production Upgrade${count > 1 ? "s" : ""}`,
+        ),
+      ),
     }),
     beeEnvironmentControl(),
   ];
@@ -476,28 +480,6 @@ function industrialApiaryControls(): MachineConfigControl[] {
 
 function megaApiaryControls(): MachineConfigControl[] {
   return [
-    selectControl({
-      id: BEE_MEGA_VOLTAGE_CONTROL_ID,
-      label: "Voltage",
-      defaultKey: "luv",
-      tiers: [
-        option("luv", "LuV", "bee_mega_voltage_luv", "LuV Energy Hatches", {
-          outputMultiplier: MEGA_APIARY_BATCH_CYCLES,
-        }),
-        option("zpm", "ZPM", "bee_mega_voltage_zpm", "ZPM Energy Hatches", {
-          outputMultiplier: MEGA_APIARY_BATCH_CYCLES * 4,
-          eutMultiplier: 4,
-        }),
-        option("uv", "UV", "bee_mega_voltage_uv", "UV Energy Hatches", {
-          outputMultiplier: MEGA_APIARY_BATCH_CYCLES * 16,
-          eutMultiplier: 16,
-        }),
-        option("uhv", "UHV", "bee_mega_voltage_uhv", "UHV Energy Hatches", {
-          outputMultiplier: MEGA_APIARY_BATCH_CYCLES * 64,
-          eutMultiplier: 64,
-        }),
-      ],
-    }),
     selectControl({
       id: BEE_MEGA_ROYAL_JELLY_CONTROL_ID,
       label: "Royal Jelly",
@@ -629,31 +611,20 @@ function getAlvearyStimulatorProductionModifier(key: string) {
   }
 }
 
-function getIndustrialApiarySetupProductionModifier(key: string) {
-  switch (key) {
-    case "production-1":
-      return 4 * 1.2 + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
-    case "production-4":
-      return 4 * 1.2 ** 4 + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
-    case "production-8":
-    case "speed-8-upgraded":
-      return 4 * 1.2 ** 8 + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
-    default:
-      return 0;
+function getIndustrialApiarySpeedProductionModifier(key: string) {
+  if (key !== "speed-8-upgraded") {
+    return 0;
   }
+  return 17.19926784 + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
 }
 
-function getMegaApiaryVoltageProductionModifier(key: string) {
-  switch (key) {
-    case "zpm":
-      return 1;
-    case "uv":
-      return 2;
-    case "uhv":
-      return 3;
-    default:
-      return 0;
+function getIndustrialApiaryProductionUpgradeModifier(key: string) {
+  const count = Number.parseInt(key, 10);
+  if (!Number.isFinite(count) || count <= 0) {
+    return 0;
   }
+  const clampedCount = Math.max(0, Math.min(8, count));
+  return 4 * 1.2 ** clampedCount + 8 - BEE_INDUSTRIAL_APIARY_BASE_PRODUCTION_TERM;
 }
 
 function cropStatsOption(

@@ -216,7 +216,6 @@ const treeGrowthSimulatorToolSlots = [
 
 const BONSAI_LOGS_PER_HARVEST = 10;
 const BEE_CYCLE_TICKS = 550;
-const BEE_APIARY_BASE_PRODUCTION_TERM = 0.1;
 const VANILLA_BONSAI_CROPS = [
   {
     key: "bonsai-oak",
@@ -1035,16 +1034,15 @@ function beeProductionOutputs(speciesEntry) {
     if (!resource) {
       continue;
     }
-    const amount = beeExpectedCycleAmount(product.chance);
     const key = `${resource.kind}:${resource.id}`;
     const existing = outputsByKey.get(key);
     if (existing) {
-      existing.amount = roundSyntheticAmount(existing.amount + amount);
+      existing.chance = Math.min(1, roundSyntheticAmount((existing.chance ?? 1) + product.chance));
       continue;
     }
     outputsByKey.set(key, {
       ...resource,
-      amount,
+      amount: 1,
       chance: product.chance,
       tooltip: [
         ...(resource.tooltip ?? []),
@@ -1086,19 +1084,6 @@ function beeCatalogOutputResource(product) {
       displayName: product.displayName ?? id,
       tooltip: product.tooltip,
     })
-  );
-}
-
-function beeExpectedCycleAmount(chance) {
-  const normalizedChance = Number(chance);
-  if (!Number.isFinite(normalizedChance) || normalizedChance <= 0) {
-    return 0;
-  }
-  return roundSyntheticAmount(
-    (2.8 *
-      Math.pow(normalizedChance * 100, 0.52) *
-      Math.pow(BEE_APIARY_BASE_PRODUCTION_TERM, 0.52)) /
-      100,
   );
 }
 

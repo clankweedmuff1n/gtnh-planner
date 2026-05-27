@@ -97,6 +97,16 @@ const DEFAULT_PROGRESS_BARS: NeiProgressBar[] = [
 const CROP_PROGRESS_BARS: NeiProgressBar[] = [
   { x: 78, y: 35, width: 24, height: 17, direction: "right", texture: "arrow" },
 ];
+const BEE_PRODUCE_LAYOUT: RecipeMapLayoutDefinition = {
+  id: "bee-produce",
+  maxItemInputs: 1,
+  maxItemOutputs: 6,
+  maxFluidInputs: 0,
+  maxFluidOutputs: 0,
+  itemInputPositions: (count) => gridPositions(count, 34, 52, 1, 1),
+  itemOutputPositions: (count) => gridPositions(count, 106, 26, 3),
+  progressBars: [{ x: 66, y: 52, width: 24, height: 17, direction: "right", texture: "arrow" }],
+};
 
 const LARGE_NEI_MAPS = new Set([
   "Entropic Processing",
@@ -157,26 +167,13 @@ const RECIPE_MAP_LAYOUTS: Record<string, RecipeMapLayoutDefinition> = {
     fluidOutputPositions: (count) => gridPositions(count, 142, 6, 1, Math.max(count, 1)),
     progressBars: DEFAULT_PROGRESS_BARS,
   },
-  "Bee Produce": {
-    id: "bee-produce",
-    maxItemInputs: 1,
-    maxItemOutputs: 6,
-    maxFluidInputs: 0,
-    maxFluidOutputs: 0,
-    itemInputPositions: (count) => gridPositions(count, 34, 52, 1, 1),
-    itemOutputPositions: (count) => gridPositions(count, 106, 26, 3),
-    progressBars: [{ x: 66, y: 52, width: 24, height: 17, direction: "right", texture: "arrow" }],
-  },
-  "Bee Production": {
-    id: "bee-produce",
-    maxItemInputs: 1,
-    maxItemOutputs: 6,
-    maxFluidInputs: 0,
-    maxFluidOutputs: 0,
-    itemInputPositions: (count) => gridPositions(count, 34, 52, 1, 1),
-    itemOutputPositions: (count) => gridPositions(count, 106, 26, 3),
-    progressBars: [{ x: 66, y: 52, width: 24, height: 17, direction: "right", texture: "arrow" }],
-  },
+  "Bee Produce": BEE_PRODUCE_LAYOUT,
+  "Bee Production": BEE_PRODUCE_LAYOUT,
+  Apiary: BEE_PRODUCE_LAYOUT,
+  "Magic Apiary": BEE_PRODUCE_LAYOUT,
+  Alveary: BEE_PRODUCE_LAYOUT,
+  "Industrial Apiary": BEE_PRODUCE_LAYOUT,
+  "Mega Apiary": BEE_PRODUCE_LAYOUT,
   "IC2 Crop": {
     id: "crop-production",
     maxItemInputs: 1,

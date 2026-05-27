@@ -207,6 +207,23 @@ describe("NEI layout", () => {
     expect(layout.progressBars[0]).toMatchObject({ x: 66, y: 52, texture: "arrow" });
   });
 
+  it("reuses the Bee Produce surface for bee machines", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Industrial Apiary",
+        inputs: [{ kind: "item", id: "factoryflow:bee_species:explosive", amount: 1 }],
+        outputs: [{ kind: "item", id: "IC2:blockITNT", amount: 1, chance: 0.2 }],
+      }),
+    );
+
+    expect(layout.id).toBe("bee-produce");
+    expect(layout.slots.map((slot) => [slot.kind, slot.side, slot.x, slot.y])).toEqual([
+      ["item", "input", 34, 52],
+      ["item", "output", 106, 26],
+    ]);
+    expect(layout.frames.filter((frame) => frame.side === "output")).toHaveLength(6);
+  });
+
   it("aligns crop production arrows with the crop slots", () => {
     const layout = getNeiRecipeLayout(
       recipe({

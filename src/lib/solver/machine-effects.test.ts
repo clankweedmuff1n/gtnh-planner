@@ -91,13 +91,18 @@ describe("passive production machine effects", () => {
     );
   });
 
-  it("combines valid Industrial Apiary speed and production upgrades", () => {
+  it("combines valid Industrial Apiary speed and production upgrades without voltage overclocking", () => {
     const recipe = enrichPassiveProductionRecipe(testBeeRecipe());
-    const node: Pick<FactoryNode, "machineConfigTiers" | "machineHandlerId" | "coilTier"> = {
+    const node: Pick<
+      FactoryNode,
+      "machineConfigTiers" | "machineHandlerId" | "coilTier" | "overclockTier"
+    > = {
       machineConfigTiers: { beeIndustrialSpeed: "speed-4", beeIndustrialProduction: "4" },
       machineHandlerId: "industrial-apiary",
+      overclockTier: "HV",
     };
     const industrialRecipe = applyMachineHandlerToRecipe(recipe, node);
+    const stats = getOverclockedRecipeStats(industrialRecipe, node);
 
     expect(industrialRecipe.machineConfigControls?.map((control) => control.id)).toEqual([
       "beeIndustrialSpeed",
@@ -105,6 +110,9 @@ describe("passive production machine effects", () => {
       "beeEnvironment",
     ]);
     expect(getMachineDurationMultiplier(industrialRecipe, node)).toBeCloseTo(1 / 16);
+    expect(stats.tier).toBe("MV");
+    expect(stats.overclockSteps).toBe(0);
+    expect(stats.durationTicks).toBeCloseTo(550 / 16);
     expect(
       getMachineOutputMultiplier(industrialRecipe, node, recipe.outputs[0]!, "MV"),
     ).toBeCloseTo(Math.pow((4 * 1.2 ** 4 + 8) / 0.1, 0.52));

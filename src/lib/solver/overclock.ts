@@ -10,6 +10,7 @@ import {
   getMachineEutMultiplier,
   isMegaApiaryMachineType,
 } from "./machine-effects";
+import { isIndustrialApiaryMachineType } from "@/lib/model/passive-production";
 import type { FactoryNode, MachineTier, Recipe } from "@/lib/model/types";
 
 type VoltageTier = Exclude<MachineTier, "DEMO">;
@@ -55,6 +56,17 @@ export function getOverclockedRecipeStats(
       overclockSteps,
       durationTicks: effectiveRecipe.durationTicks,
       eut: effectiveRecipe.eut,
+    };
+  }
+  if (effectiveRecipe.machineType && isIndustrialApiaryMachineType(effectiveRecipe.machineType)) {
+    const durationMultiplier = getMachineDurationMultiplier(effectiveRecipe as Recipe, node);
+    const eutMultiplier = getMachineEutMultiplier(effectiveRecipe as Recipe, node);
+    return {
+      tier: minimumTier,
+      minimumTier,
+      overclockSteps: 0,
+      durationTicks: Math.max(1, effectiveRecipe.durationTicks * durationMultiplier),
+      eut: effectiveRecipe.eut * eutMultiplier,
     };
   }
   if (effectiveRecipe.machineType && isMegaApiaryMachineType(effectiveRecipe.machineType)) {

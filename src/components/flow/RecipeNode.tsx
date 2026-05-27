@@ -27,12 +27,15 @@ import {
   getRecipePowerTier,
   getSelectedMachineHandler,
   getVoltageTierIndex,
+  BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID,
+  BEE_INDUSTRIAL_SPEED_CONTROL_ID,
   isRecipeInputConsumed,
   isBeeFrameSlotControlId,
   isBeeProductionConfigControl,
   isBeeProductionRecipe,
   isCropProductionConfigControl,
   isCropProductionRecipe,
+  isIndustrialApiaryMachineType,
   isVoltageTierAbove,
   makeResourceKey,
   resourceMatchesInput,
@@ -112,7 +115,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const beeFrameControls = beeProductionControls.filter((control) =>
     isBeeFrameSlotControlId(control.id),
   );
-  const beePanelControls = beeProductionControls;
+  const beePanelControls = getBeePanelControls(beeProductionControls);
   const tgsToolControls = machineConfigControls.filter(isTreeGrowthSimulatorToolControl);
   const statsMachineConfigControls = machineConfigControls.filter(
     (control) =>
@@ -163,11 +166,16 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
     }
   };
   const updateMachineConfigTier = (controlId: string, nextTier: string) => {
+    const nextMachineConfigTiers = {
+      ...(projectNode.machineConfigTiers ?? {}),
+      [controlId]: nextTier,
+    };
+    if (controlId === BEE_INDUSTRIAL_SPEED_CONTROL_ID && nextTier === "speed-8-upgraded") {
+      nextMachineConfigTiers[BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID] = "8";
+    }
+
     updateNode(projectNode.id, {
-      machineConfigTiers: {
-        ...(projectNode.machineConfigTiers ?? {}),
-        [controlId]: nextTier,
-      },
+      machineConfigTiers: nextMachineConfigTiers,
     });
   };
   const passiveProductionPanel =
@@ -580,6 +588,10 @@ function normalizeSearch(value: string) {
 type VoltageTier = Exclude<MachineTier, "DEMO">;
 
 function getNodeTierControl(recipe: Recipe, node: FactoryNode) {
+  if (isIndustrialApiaryMachineType(recipe.machineType)) {
+    return undefined;
+  }
+
   const hasVoltageTier = GT_VOLTAGE_TIERS.some((entry) => entry.tier === recipe.minimumTier);
   if (
     recipe.durationTicks <= 0 ||
@@ -693,6 +705,31 @@ function getBeeFrameControlForSlot(slot: NeiPositionedSlot, controls: MachineCon
   return controls.find((control) => {
     const position = BEE_FRAME_SLOTS[control.id];
     return position?.x === slot.x && position.y === slot.y;
+  });
+}
+
+function getBeePanelControls(controls: MachineConfigTierControl[]): MachineConfigTierControl[] {
+  const speedControl = controls.find((control) => control.id === BEE_INDUSTRIAL_SPEED_CONTROL_ID);
+  if (speedControl?.current.key !== "speed-8-upgraded") {
+    return controls;
+  }
+
+  return controls.map((control) => {
+    if (control.id !== BEE_INDUSTRIAL_PRODUCTION_CONTROL_ID) {
+      return control;
+    }
+
+    const production8 = control.tiers.find((tier) => tier.key === "8");
+    if (!production8) {
+      return control;
+    }
+
+    return {
+      ...control,
+      current: production8,
+      resource: production8.resource,
+      tiers: [production8],
+    };
   });
 }
 
@@ -983,7 +1020,8 @@ function PassiveProductionConfigPanel({
               onChange={(event) => onSelect(control.id, event.target.value)}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => event.stopPropagation()}
-              className="h-6 w-full min-w-0 border border-[#555] bg-[#d8d8d8] px-1 text-[10px] font-bold leading-4 text-black shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#8a8a8a] outline-none focus:border-cyan-700 focus:bg-white"
+              disabled={control.tiers.length <= 1}
+              className="h-6 w-full min-w-0 border border-[#555] bg-[#d8d8d8] px-1 text-[10px] font-bold leading-4 text-black shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#8a8a8a] outline-none focus:border-cyan-700 focus:bg-white disabled:cursor-not-allowed disabled:text-[#555]"
               title={`${control.label}: ${control.current.label}`}
               aria-label={control.label}
             >

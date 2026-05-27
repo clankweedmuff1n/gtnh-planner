@@ -182,6 +182,10 @@ export function getBeeBaseProductionTerm(machineType: string) {
   return BEE_APIARY_BASE_PRODUCTION_TERM;
 }
 
+export function isIndustrialApiaryMachineType(machineType: string) {
+  return normalizeLabel(machineType).includes("industrial apiary");
+}
+
 export function getBeeProductionTermModifier(controlId: string, key: string) {
   if (isBeeFrameSlotControlId(controlId)) {
     return getBeeFrameProductionModifier(key);
@@ -432,29 +436,34 @@ function alvearyProductionControls(): MachineConfigControl[] {
   return [
     selectControl({
       id: BEE_ALVEARY_FRAME_HOUSING_CONTROL_ID,
-      label: "Frame Housing",
+      label: "Frame Housings",
       defaultKey: "none",
       tiers: [
         option("none", "None", "bee_alveary_frame_none", "No Frame Housing"),
-        option("proven", "Proven Frame", "ExtraBees:alveary@1", "Frame Housing"),
-        option("magic", "Magic Frame", "ExtraBees:alveary@1", "Frame Housing"),
-        option("four-proven", "4x Proven", "ExtraBees:alveary@1", "Frame Housings"),
+        option("proven", "1x Proven Frame", "ExtraBees:alveary@1", "Alveary Frame Housing"),
+        option("magic", "1x Magic Frame", "ExtraBees:alveary@1", "Alveary Frame Housing"),
+        option("four-proven", "4x Proven Frames", "ExtraBees:alveary@1", "Alveary Frame Housings"),
       ],
     }),
     selectControl({
       id: BEE_ALVEARY_STIMULATOR_CONTROL_ID,
-      label: "Stimulator",
+      label: "Stimulators",
       defaultKey: "none",
       tiers: [
         option("none", "None", "bee_alveary_stimulator_none", "No Stimulator"),
-        option("low-voltage", "Low Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
-        option("high-voltage", "High Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
-        option("four-high-voltage", "4x High Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
+        option("low-voltage", "1x Low Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
+        option("high-voltage", "1x High Voltage", "ExtraBees:alveary@4", "Alveary Stimulator"),
+        option(
+          "four-high-voltage",
+          "4x High Voltage",
+          "ExtraBees:alveary@4",
+          "Alveary Stimulators",
+        ),
       ],
     }),
     selectControl({
       id: BEE_ALVEARY_SUPPORT_CONTROL_ID,
-      label: "Support Blocks",
+      label: "Utility Blocks",
       defaultKey: "plain",
       tiers: [
         option("plain", "Plain", "Forestry:alveary", "Plain Alveary"),
@@ -543,9 +552,7 @@ function beeEnvironmentControl(): MachineConfigControl {
     label: "Climate",
     defaultKey: "preferred",
     tiers: [
-      option("wrong", "Wrong", "bee_environment_wrong", "Wrong Climate", {
-        outputMultiplier: 0,
-      }),
+      option("wrong", "Wrong", "bee_environment_wrong", "Wrong Climate"),
       option("tolerated", "Tolerated", "bee_environment_tolerated", "Tolerated Climate"),
       option("preferred", "Preferred", "bee_environment_preferred", "Preferred Climate"),
       option("controlled", "Controlled", "bee_environment_controlled", "Controlled Climate"),

@@ -131,7 +131,11 @@ const COMPONENT_ASSEMBLY_LINE_LAYOUT: RecipeMapLayoutDefinition = {
   itemInputPositions: (count) => gridPositions(count, 16, 17, 3, 4),
   itemOutputPositions: (count) => (count > 0 ? [{ x: 151, y: 17 }] : []),
   fluidInputPositions: (count) => gridPositions(count, 97, 35, 4, 3),
-  progressBars: [],
+  progressBars: [
+    { x: 73, y: 20, width: 20, height: 18, direction: "right", texture: "arrow" },
+    { x: 73, y: 38, width: 20, height: 18, direction: "right", texture: "arrow" },
+    { x: 73, y: 56, width: 20, height: 18, direction: "right", texture: "arrow" },
+  ],
   labels: [
     { text: "F", x: 78, y: 25, color: "#3f94ff" },
     { text: "M", x: 78, y: 43, color: "#e53935" },

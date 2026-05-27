@@ -184,7 +184,11 @@ describe("NEI layout", () => {
 
     expect(layout.id).toBe("component-assembly-line");
     expect(layout.canvas).toEqual({ width: 170, height: 112 });
-    expect(layout.progressBars).toEqual([]);
+    expect(layout.progressBars).toEqual([
+      { x: 73, y: 20, width: 20, height: 18, direction: "right", texture: "arrow" },
+      { x: 73, y: 38, width: 20, height: 18, direction: "right", texture: "arrow" },
+      { x: 73, y: 56, width: 20, height: 18, direction: "right", texture: "arrow" },
+    ]);
     expect(layout.labels).toEqual([
       { text: "F", x: 78, y: 25, color: "#3f94ff" },
       { text: "M", x: 78, y: 43, color: "#e53935" },

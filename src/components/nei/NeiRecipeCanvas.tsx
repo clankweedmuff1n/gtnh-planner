@@ -82,7 +82,7 @@ export function NeiRecipeCanvas({
         backgroundSize: "100% 100%",
       }}
     >
-      {layout.progressBars.slice(0, 1).map((bar, index) => (
+      {layout.progressBars.map((bar, index) => (
         <ProgressTexture key={`${bar.x}-${bar.y}-${index}`} bar={bar} scale={renderScale} />
       ))}
 

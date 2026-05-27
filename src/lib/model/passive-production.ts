@@ -1,6 +1,7 @@
 import type {
   MachineConfigControl,
   MachineConfigTierOption,
+  MachineHandler,
   Recipe,
   ResourceAmount,
 } from "./types";
@@ -150,10 +151,10 @@ function enrichBeeProductionRecipe(recipe: Recipe): Recipe {
 
   return {
     ...recipe,
-    machineType: "Apiary",
+    machineType: isPassiveBaseMachine(recipe.machineType) ? "Apiary" : recipe.machineType,
     minimumTier: recipe.minimumTier === "UNKNOWN" ? "NONE" : recipe.minimumTier,
     eut: recipe.eut > 0 ? recipe.eut : 0,
-    machineHandlers: [],
+    machineHandlers: mergeMachineHandlers(recipe.machineHandlers, beeMachineHandlers()),
     machineConfigControls: mergeMachineConfigControls(recipe.machineConfigControls, controls),
     notes: withPassiveProductionNote(
       recipe.notes,
@@ -330,6 +331,35 @@ function beeProductionControls(): MachineConfigControl[] {
         ),
       ],
     }),
+  ];
+}
+
+function beeMachineHandlers(): MachineHandler[] {
+  return [
+    {
+      id: "alveary",
+      label: "Alveary",
+      machineType: "Alveary",
+      minimumTier: "NONE",
+      eut: 0,
+      kind: "multiblock",
+    },
+    {
+      id: "industrial-apiary",
+      label: "Industrial Apiary",
+      machineType: "Industrial Apiary",
+      minimumTier: "MV",
+      eut: 32,
+      kind: "automation",
+    },
+    {
+      id: "mega-apiary",
+      label: "Mega Apiary",
+      machineType: "Mega Apiary",
+      minimumTier: "HV",
+      eut: 120,
+      kind: "multiblock",
+    },
   ];
 }
 
@@ -613,6 +643,20 @@ function configResource(id: string, displayName: string, tooltip: string[] = [])
   };
 }
 
+function mergeMachineHandlers(
+  existing: Recipe["machineHandlers"],
+  incoming: MachineHandler[],
+): MachineHandler[] {
+  const handlersById = new Map<string, MachineHandler>();
+  for (const handler of [...(existing ?? []), ...incoming]) {
+    if (isManualHandler(handler)) {
+      continue;
+    }
+    handlersById.set(handler.id, handler);
+  }
+  return [...handlersById.values()];
+}
+
 function mergeMachineConfigControls(
   existing: Recipe["machineConfigControls"],
   incoming: MachineConfigControl[],
@@ -622,6 +666,11 @@ function mergeMachineConfigControls(
     controlsById.set(control.id, control);
   }
   return [...controlsById.values()];
+}
+
+function isManualHandler(handler: Pick<MachineHandler, "id" | "label" | "machineType">) {
+  const label = normalizeLabel(`${handler.id} ${handler.label} ${handler.machineType}`);
+  return /\bmanual\b/.test(label);
 }
 
 function isPassiveBaseMachine(machineType: string) {

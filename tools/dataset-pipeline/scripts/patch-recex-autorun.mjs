@@ -292,6 +292,40 @@ exporterSource = exporterSource.replace(
 );
 
 exporterSource = exporterSource.replace(
+  [
+    "        List<RecipeMap<RecipeMapBackend>> maps = new ArrayList<>();",
+    "        List<Class<?>> recipeMapClasses = Arrays.asList(",
+    "            RecipeMaps.class,",
+    "            GTPPRecipeMaps.class,",
+    "            BartWorksRecipeMaps.class,",
+    "            GoodGeneratorRecipeMaps.class,",
+    "            TecTechRecipeMaps.class);",
+    "",
+    "        for (Class<?> recipeMapClass : recipeMapClasses) {",
+    "            for (Field field : recipeMapClass.getDeclaredFields()) {",
+    "                if (field.getType() == RecipeMap.class) {",
+    "                    try {",
+    "                        maps.add((RecipeMap<RecipeMapBackend>) field.get(null));",
+    "                    } catch (IllegalArgumentException | IllegalAccessException e) {",
+    "                        e.printStackTrace();",
+    "                    }",
+    "                }",
+    "            }",
+    "        }",
+  ].join("\n"),
+  [
+    "        List<RecipeMap<RecipeMapBackend>> maps = new ArrayList<>();",
+    "        for (RecipeMap<?> recipeMap : RecipeMap.ALL_RECIPE_MAPS.values()) {",
+    "            try {",
+    "                maps.add((RecipeMap<RecipeMapBackend>) recipeMap);",
+    "            } catch (ClassCastException ignored) {",
+    "                // Some addon maps use custom backend generics, but RecEx only needs common recipe data.",
+    "            }",
+    "        }",
+  ].join("\n"),
+);
+
+exporterSource = exporterSource.replace(
   '            RecipeExporterMod.log.info("Processing recipe map " + mach.n);\n',
   [
     "            mach.nei = map.getFrontend().getUIProperties().neiTransferRectId;",

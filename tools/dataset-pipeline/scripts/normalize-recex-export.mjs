@@ -285,6 +285,80 @@ const VANILLA_BONSAI_OUTPUTS = new Map(
     bonsai.drops.map((drop) => [`item:${drop.id}`, { bonsai, drop }]),
   ),
 );
+const IC2_CROP_PRODUCTION_CATALOG = [
+  { key: "wheat", cropName: "Wheat", drops: ["minecraft:wheat"] },
+  { key: "pumpkin", cropName: "Pumpkin", drops: ["minecraft:pumpkin"] },
+  { key: "melon", cropName: "Melon", drops: ["minecraft:melon"] },
+  { key: "reed", cropName: "Reed", drops: ["minecraft:reeds"] },
+  { key: "red-mushroom", cropName: "Red Mushroom", drops: ["minecraft:red_mushroom"] },
+  { key: "brown-mushroom", cropName: "Brown Mushroom", drops: ["minecraft:brown_mushroom"] },
+  { key: "potato", cropName: "Potato", drops: ["minecraft:potato"] },
+  { key: "carrots", cropName: "Carrots", drops: ["minecraft:carrot"] },
+  { key: "venomilia", cropName: "Venomilia", drops: ["minecraft:dye@5"] },
+  { key: "stickreed", cropName: "Stickreed", drops: ["IC2:itemHarz"] },
+  {
+    key: "spidernip",
+    cropName: "Spidernip",
+    drops: ["minecraft:string", "minecraft:spider_eye", "minecraft:web"],
+  },
+  { key: "nether-wart", cropName: "Nether Wart", drops: ["minecraft:nether_wart"] },
+  { key: "terra-wart", cropName: "Terra Wart", drops: ["IC2:itemTerraWart"] },
+  {
+    key: "corpseplant",
+    cropName: "Corpseplant",
+    drops: ["minecraft:rotten_flesh", "minecraft:dye@15"],
+  },
+  { key: "milk-wart", cropName: "Milk Wart", drops: ["gregtech:gt.metaitem.02@32520"] },
+  {
+    key: "egg-plant",
+    cropName: "Egg Plant",
+    drops: ["minecraft:egg", "minecraft:chicken", "minecraft:feather"],
+  },
+  { key: "ferru", cropName: "Ferru", drops: ["gregtech:gt.metaitem.01@1032"] },
+  { key: "aurelia", cropName: "Aurelia", drops: ["gregtech:gt.metaitem.01@1086"] },
+  { key: "cyprium", cropName: "Cyprium", drops: ["gregtech:gt.metaitem.01@1035"] },
+  { key: "stagnium", cropName: "Stagnium", drops: ["gregtech:gt.metaitem.01@1057"] },
+  { key: "plumbiscus", cropName: "Plumbiscus", drops: ["gregtech:gt.metaitem.01@1089"] },
+  { key: "shining", cropName: "Shining", drops: ["gregtech:gt.metaitem.01@1054"] },
+  { key: "redwheat", cropName: "Redwheat", drops: ["minecraft:redstone", "minecraft:wheat"] },
+  { key: "corium", cropName: "Corium", drops: ["minecraft:leather"] },
+  {
+    key: "blazereed",
+    cropName: "Blazereed",
+    drops: ["minecraft:blaze_powder", "minecraft:blaze_rod", "gregtech:gt.metaitem.01@2022"],
+  },
+  { key: "slime-plant", cropName: "Slime Plant", drops: ["minecraft:slime_ball"] },
+  { key: "creeper-weed", cropName: "Creeper Weed", drops: ["minecraft:gunpowder"] },
+  {
+    key: "meat-rose",
+    cropName: "Meat Rose",
+    drops: [
+      "minecraft:dye@9",
+      "minecraft:chicken",
+      "minecraft:porkchop",
+      "minecraft:beef",
+      "harvestcraft:muttonrawItem",
+    ],
+  },
+  { key: "coffee", cropName: "Coffee", drops: ["IC2:itemCofeeBeans"] },
+  {
+    key: "withereed",
+    cropName: "Withereed",
+    drops: ["gregtech:gt.metaitem.01@2535", "minecraft:coal"],
+  },
+  { key: "tearstalks", cropName: "Tearstalks", drops: ["minecraft:ghast_tear"] },
+  { key: "oil-berries", cropName: "Oil Berries", drops: ["gregtech:gt.metaitem.02@32510"] },
+  {
+    key: "ender-blossom",
+    cropName: "Ender Blossom",
+    drops: ["minecraft:ender_pearl", "minecraft:ender_eye"],
+  },
+  {
+    key: "diareed",
+    cropName: "Diareed",
+    drops: ["gregtech:gt.metaitem.01@500", "minecraft:diamond"],
+  },
+];
 
 function expectedBonsaiDropAmount(chances, dropIndex, baseAmount) {
   const maxChance = Math.max(...chances);
@@ -716,6 +790,21 @@ function synthesizeIc2CropRecipes() {
     );
   });
 
+  syntheticIc2CropCatalogGroups(seedVisual).forEach((group, index) => {
+    recipes.push(
+      addSyntheticPassiveRecipe({
+        machineType: "IC2 Crop",
+        input: group.input,
+        outputs: group.outputs,
+        index: index + 501,
+        durationTicks: 1200,
+        eut: 0,
+        minimumTier: "NONE",
+        note: "Synthesized from GTNH IC2 crop product declarations because RecEx does not expose IC2 crop NEI recipes.",
+      }),
+    );
+  });
+
   return recipes;
 }
 
@@ -743,18 +832,33 @@ function synthesizeCropNhRecipes() {
     cropNhCropOutputAmount,
   );
 
-  return outputGroups.map((group, index) =>
-    addSyntheticPassiveRecipe({
-      machineType: "CropNH",
-      input: group.input,
-      outputs: group.outputs,
-      index,
-      durationTicks: 1200,
-      eut: 0,
-      minimumTier: "NONE",
-      note: "Synthesized from exported CropNH resources because RecEx does not expose CropNH passive NEI recipes.",
-    }),
-  );
+  return outputGroups
+    .map((group, index) =>
+      addSyntheticPassiveRecipe({
+        machineType: "CropNH",
+        input: group.input,
+        outputs: group.outputs,
+        index,
+        durationTicks: 1200,
+        eut: 0,
+        minimumTier: "NONE",
+        note: "Synthesized from exported CropNH resources because RecEx does not expose CropNH passive NEI recipes.",
+      }),
+    )
+    .concat(
+      syntheticCropNhCatalogGroups(seedVisual).map((group, index) =>
+        addSyntheticPassiveRecipe({
+          machineType: "CropNH",
+          input: group.input,
+          outputs: group.outputs,
+          index: index + 501,
+          durationTicks: 1200,
+          eut: 0,
+          minimumTier: "NONE",
+          note: "Synthesized from GTNH CropNH product declarations because RecEx does not expose CropNH passive NEI recipes.",
+        }),
+      ),
+    );
 }
 
 function groupSyntheticOutputsByInput(
@@ -784,8 +888,58 @@ function legacyIc2SeedInputForOutput(output, visual) {
   return virtualPassiveInput(`factoryflow:ic2_crop_seed:${slug(idSource)}`, displayName, visual);
 }
 
+function syntheticIc2CropCatalogGroups(visual) {
+  return IC2_CROP_PRODUCTION_CATALOG.map((entry) =>
+    syntheticCropCatalogGroup(entry, visual, "ic2"),
+  ).filter(Boolean);
+}
+
+function syntheticCropNhCatalogGroups(visual) {
+  return IC2_CROP_PRODUCTION_CATALOG.map((entry) =>
+    syntheticCropCatalogGroup(entry, visual, "cropnh"),
+  ).filter(Boolean);
+}
+
+function syntheticCropCatalogGroup(entry, visual, family) {
+  const outputs = entry.drops
+    .map((id) => resourceForPassiveRecipe("item", id))
+    .filter(Boolean)
+    .map((resource) => passiveOutputAmount(resource, { amount: resource.amount }));
+
+  if (outputs.length === 0) {
+    return undefined;
+  }
+
+  return {
+    input:
+      family === "cropnh"
+        ? cropNhCatalogSeedInput(entry, visual)
+        : ic2CatalogSeedInput(entry, visual),
+    outputs,
+  };
+}
+
+function ic2CatalogSeedInput(entry, visual) {
+  return virtualPassiveInput(
+    `factoryflow:ic2_crop_seed:${entry.key}`,
+    `${entry.cropName} Seeds`,
+    visual,
+  );
+}
+
+function cropNhCatalogSeedInput(entry, visual) {
+  const seedInfo = cropNhSeedInfoForCropName(entry.cropName);
+  const displayName = `${seedInfo?.cropName ?? entry.cropName} Seeds`;
+  const idSource = seedInfo?.cropId ?? entry.key;
+  return virtualPassiveInput(`factoryflow:cropnh_seed:${slug(idSource)}`, displayName, visual);
+}
+
 function usesLegacyIc2Crops() {
-  return cropNhSeedCatalog.length === 0;
+  return cropNhSeedCatalog.length === 0 && !isDailyGtnhVersion();
+}
+
+function isDailyGtnhVersion() {
+  return /\bdaily\b/i.test(`${datasetVersionId} ${gtnhVersion}`);
 }
 
 function isLegacyIc2CropPassiveOutputResource(resource) {
@@ -1200,6 +1354,19 @@ function cropNhSeedInfoForOutput(resource, options = {}) {
   }
 
   return best?.seed;
+}
+
+function cropNhSeedInfoForCropName(cropName) {
+  if (cropNhSeedCatalog.length === 0) {
+    return undefined;
+  }
+
+  const tokens = meaningfulCropTokens(cropName);
+  if (tokens.length === 0) {
+    return undefined;
+  }
+
+  return cropNhSeedCatalog.find((seed) => tokens.every((token) => seed.tokens.includes(token)));
 }
 
 function cropNhSeedNameFromOutput(resource) {

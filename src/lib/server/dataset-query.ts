@@ -138,6 +138,7 @@ const loadedShards = new Map<string, Recipe[]>();
 const pendingShardLoads = new Map<string, Promise<Recipe[]>>();
 const pendingPrewarmLoads = new Map<string, Promise<void>>();
 let manifestCache: DatasetManifest | undefined;
+let manifestCacheStamp: string | undefined;
 const gunzipAsync = promisify(gunzip);
 const maxLoadedShardCount = positiveIntEnv("GTNH_MAX_LOADED_RECIPE_SHARDS", 8);
 
@@ -547,47 +548,53 @@ export async function getDatasetRecipe(
 }
 
 async function loadManifest(): Promise<DatasetManifest> {
-  if (manifestCache) {
+  const manifestPath = path.join(datasetRoot, "datasets.manifest.json");
+  const stat = await fs.stat(manifestPath);
+  const stamp = `${stat.mtimeMs}:${stat.size}`;
+  if (manifestCache && manifestCacheStamp === stamp) {
     return manifestCache;
   }
-  const manifest = JSON.parse(
-    await fs.readFile(path.join(datasetRoot, "datasets.manifest.json"), "utf8"),
-  ) as DatasetManifest;
+
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as DatasetManifest;
   manifestCache = manifest;
+  manifestCacheStamp = stamp;
   return manifest;
 }
 
 async function loadCatalog(versionId: string): Promise<LoadedRecipeIndex> {
-  const cached = loadedCatalogs.get(versionId);
+  const manifest = await loadManifest();
+  const version = manifest.versions.find((entry) => entry.id === versionId);
+  if (!version?.resourceIndexPath) {
+    throw new Error(`Dataset ${versionId} has no server resource index.`);
+  }
+
+  const resourceIndexPath = version.resourceIndexPath;
+  const cacheKey = datasetVersionCacheKey(version);
+  const cached = loadedCatalogs.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const pending = pendingCatalogLoads.get(versionId);
+  const pending = pendingCatalogLoads.get(cacheKey);
   if (pending) {
     return pending;
   }
 
   const promise = (async () => {
-    const manifest = await loadManifest();
-    const version = manifest.versions.find((entry) => entry.id === versionId);
-    if (!version?.resourceIndexPath) {
-      throw new Error(`Dataset ${versionId} has no server resource index.`);
-    }
     const catalog = await readGzipJson<LoadedRecipeIndex>(
-      publicPathToFile(version.resourceIndexPath),
+      publicPathToFile(resourceIndexPath),
     );
     const loaded = {
       ...catalog,
       version,
     };
-    loadedCatalogs.set(versionId, loaded);
+    loadedCatalogs.set(cacheKey, loaded);
     return loaded;
   })().finally(() => {
-    pendingCatalogLoads.delete(versionId);
+    pendingCatalogLoads.delete(cacheKey);
   });
 
-  pendingCatalogLoads.set(versionId, promise);
+  pendingCatalogLoads.set(cacheKey, promise);
   return promise;
 }
 
@@ -597,7 +604,8 @@ async function loadRecipeIndex(versionId: string): Promise<LoadedRecipeIndex> {
     return catalog;
   }
 
-  const pending = pendingRecipeIndexLoads.get(versionId);
+  const cacheKey = datasetVersionCacheKey(catalog.version);
+  const pending = pendingRecipeIndexLoads.get(cacheKey);
   if (pending) {
     return pending;
   }
@@ -617,20 +625,34 @@ async function loadRecipeIndex(versionId: string): Promise<LoadedRecipeIndex> {
     catalog.recipeCount = recipeIndex.recipeCount;
     return catalog;
   })().finally(() => {
-    pendingRecipeIndexLoads.delete(versionId);
+    pendingRecipeIndexLoads.delete(cacheKey);
   });
 
-  pendingRecipeIndexLoads.set(versionId, promise);
+  pendingRecipeIndexLoads.set(cacheKey, promise);
   return promise;
 }
 
+function datasetVersionCacheKey(version: DatasetVersion): string {
+  return [
+    version.id,
+    version.checksumSha256,
+    version.publishedAt,
+    version.resourceIndexPath,
+    version.recipeIndexPath,
+    version.recipeLookupIndexPath,
+  ]
+    .filter(Boolean)
+    .join(":");
+}
+
 async function loadRecipeLookupIndex(version: DatasetVersion): Promise<LoadedRecipeLookupIndex> {
-  const cached = loadedRecipeLookupIndexes.get(version.id);
+  const cacheKey = datasetVersionCacheKey(version);
+  const cached = loadedRecipeLookupIndexes.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const pending = pendingRecipeLookupLoads.get(version.id);
+  const pending = pendingRecipeLookupLoads.get(cacheKey);
   if (pending) {
     return pending;
   }
@@ -654,13 +676,13 @@ async function loadRecipeLookupIndex(version: DatasetVersion): Promise<LoadedRec
       searchText: payload.searchText ?? [],
       entries: new Map(payload.entries.map(([key, recipesByMap]) => [key, new Map(recipesByMap)])),
     };
-    loadedRecipeLookupIndexes.set(version.id, loaded);
+    loadedRecipeLookupIndexes.set(cacheKey, loaded);
     return loaded;
   })().finally(() => {
-    pendingRecipeLookupLoads.delete(version.id);
+    pendingRecipeLookupLoads.delete(cacheKey);
   });
 
-  pendingRecipeLookupLoads.set(version.id, promise);
+  pendingRecipeLookupLoads.set(cacheKey, promise);
   return promise;
 }
 
@@ -678,7 +700,7 @@ async function getRecipeIndexFromLookup(
 }
 
 async function loadShard(version: DatasetVersion, shard: RecipeIndexShard): Promise<Recipe[]> {
-  const key = `${version.id}:${shard.id}`;
+  const key = `${datasetVersionCacheKey(version)}:${shard.id}`;
   const cached = getCachedShard(key);
   if (cached) {
     return cached;

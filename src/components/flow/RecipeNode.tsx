@@ -872,20 +872,11 @@ function PassiveProductionConfigPanel({
     return null;
   }
 
-  const statsControl = controls.find((control) => control.id === "cropStats");
-  const regularControls = controls.filter((control) => control.id !== "cropStats");
-
   return (
     <div className="nodrag mt-1 border-2 border-[#777] bg-[#b6b6b6] p-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1">
         {controls.map((control) => (
-          <label
-            key={control.id}
-            className={[
-              "min-w-0",
-              control === statsControl && regularControls.length > 0 ? "col-span-2" : "",
-            ].join(" ")}
-          >
+          <label key={control.id} className="min-w-0">
             <span className="mb-0.5 block truncate text-[8px] font-bold uppercase leading-3 text-[#4a4a4a]">
               {control.label}
             </span>

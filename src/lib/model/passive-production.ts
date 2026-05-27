@@ -115,14 +115,13 @@ function enrichCropProductionRecipe(recipe: Recipe): Recipe {
   return {
     ...recipe,
     machineType: isPassiveBaseMachine(recipe.machineType) ? baseMachine : recipe.machineType,
-    minimumTier:
-      recipe.minimumTier === "NONE" || recipe.minimumTier === "UNKNOWN" ? "LV" : recipe.minimumTier,
-    eut: recipe.eut > 0 ? recipe.eut : 8,
+    minimumTier: "NONE",
+    eut: 0,
     machineHandlers: mergeMachineHandlers(recipe.machineHandlers, cropMachineHandlers()),
     machineConfigControls,
     notes: withPassiveProductionNote(
       recipe.notes,
-      "Crop production controls are best-effort averages.",
+      "Crop production controls are best-effort passive averages. Seed count multiplies output without adding power draw.",
     ),
   };
 }
@@ -245,17 +244,26 @@ function cropStatsControl(recipe: PassiveProductionRecipeLabel): MachineConfigCo
     ? [
         cropStatsOption(
           { growth: 1, gain: 1, resistance: 1 },
-          { durationMultiplier: 31, outputMultiplier: 1 / 31 },
+          { durationMultiplier: 31, outputMultiplier: 1 },
         ),
-        cropStatsOption({ growth: 23, gain: 31, resistance: 0 }, { durationMultiplier: 31 / 23 }),
-        cropStatsOption({ growth: 31, gain: 31, resistance: 31 }),
+        cropStatsOption(
+          { growth: 23, gain: 31, resistance: 0 },
+          { durationMultiplier: 31 / 23, outputMultiplier: 31 },
+        ),
+        cropStatsOption(
+          { growth: 31, gain: 31, resistance: 31 },
+          { outputMultiplier: 31 },
+        ),
       ]
     : [
         cropStatsOption(
           { growth: 1, gain: 1, resistance: 1 },
-          { durationMultiplier: 23, outputMultiplier: 1 / 31 },
+          { durationMultiplier: 23, outputMultiplier: 1 },
         ),
-        cropStatsOption({ growth: 23, gain: 31, resistance: 0 }),
+        cropStatsOption(
+          { growth: 23, gain: 31, resistance: 0 },
+          { outputMultiplier: 31 },
+        ),
       ];
 
   return {
@@ -340,24 +348,24 @@ function cropMachineHandlers(): MachineHandler[] {
       id: "ic2-crop-harvester",
       label: "IC2 Crop Harvester",
       machineType: "IC2 Crop Harvester",
-      minimumTier: "LV",
-      eut: 4,
+      minimumTier: "NONE",
+      eut: 0,
       kind: "automation",
     },
     {
       id: "forestry-multifarm",
       label: "Forestry Multifarm",
       machineType: "Forestry Multifarm",
-      minimumTier: "MV",
-      eut: 16,
+      minimumTier: "NONE",
+      eut: 0,
       kind: "multiblock",
     },
     {
       id: "extreme-industrial-greenhouse",
       label: "Extreme Industrial Greenhouse",
       machineType: "Extreme Industrial Greenhouse",
-      minimumTier: "HV",
-      eut: 120,
+      minimumTier: "NONE",
+      eut: 0,
       kind: "multiblock",
     },
   ];

@@ -104,6 +104,7 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
   const cropProductionControls = isCropProductionRecipe(effectiveRecipe)
     ? machineConfigControls.filter((control) => isCropProductionConfigControl(control.id))
     : [];
+  const isCropProductionNode = cropProductionControls.length > 0;
   const beeProductionControls = isBeeProductionRecipe(effectiveRecipe)
     ? machineConfigControls.filter((control) => isBeeProductionConfigControl(control.id))
     : [];
@@ -408,17 +409,13 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
               );
             }}
             suppressSlotHover={(slot) =>
-              Boolean(getTreeGrowthSimulatorToolControlForSlot(slot, tgsToolControls)) ||
-              isCropSeedSlot(slot, effectiveRecipe, cropProductionControls)
+              Boolean(getTreeGrowthSimulatorToolControlForSlot(slot, tgsToolControls))
             }
             suppressConsumedState={(slot) =>
               Boolean(getTreeGrowthSimulatorToolControlForSlot(slot, tgsToolControls)) ||
               isCropSeedSlot(slot, effectiveRecipe, cropProductionControls)
             }
             getSlotZIndex={(slot) => {
-              if (isCropSeedSlot(slot, effectiveRecipe, cropProductionControls)) {
-                return 95;
-              }
               const control = getTreeGrowthSimulatorToolControlForSlot(slot, tgsToolControls);
               if (!control) {
                 return undefined;
@@ -442,9 +439,6 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
                     onSelect={(nextTier) => updateMachineConfigTier(tgsToolControl.id, nextTier)}
                   />
                 );
-              }
-              if (isCropSeedSlot(slot, effectiveRecipe, cropProductionControls)) {
-                return <CropSeedConfigOverlay controls={cropProductionControls} />;
               }
 
               const isInput = slot.side === "input";
@@ -508,13 +502,17 @@ export function RecipeNode({ data, selected }: NodeProps<RecipeFlowNode>) {
           style={nodeColor ? { backgroundColor: nodeColor.panel } : undefined}
         >
           <MachineCountStat
+            label={isCropProductionNode ? "Seeds" : "Machines"}
             machineCount={projectNode.machineCount}
             suggestedMachineCount={getSuggestedMachineCount(result, projectNode.machineCount)}
             onChange={(machineCount) => updateNode(projectNode.id, { machineCount })}
             onOptimize={() => optimizeMachineCount(projectNode.id)}
           />
           <Stat label="Usage" value={`${formatRate(utilizationPercent, 1)}%`} />
-          <Stat label="EU/t" value={formatRate(result?.euT ?? 0, 0)} />
+          <Stat
+            label={isCropProductionNode ? "Power" : "EU/t"}
+            value={isCropProductionNode ? "Passive" : formatRate(result?.euT ?? 0, 0)}
+          />
         </div>
       </div>
     </div>
@@ -866,43 +864,6 @@ function isCropSeedSlot(
   return slot.resourceIndex === firstItemInputIndex;
 }
 
-function CropSeedConfigOverlay({ controls }: { controls: MachineConfigTierControl[] }) {
-  const statsControl = controls.find((control) => control.id === "cropStats");
-  const hydration = controls.find((control) => control.id === "cropHydration");
-  const soil = controls.find((control) => control.id === "cropSoil");
-  const depth = controls.find((control) => control.id === "cropSoilDepth");
-  const air = controls.find((control) => control.id === "cropAirQuality");
-  const stats = getCropStatsPreset(statsControl?.current.key);
-
-  return (
-    <span className="pointer-events-none absolute inset-0 z-[95] block">
-      {air ? (
-        <span className="absolute bottom-[calc(100%+4px)] left-1/2 min-w-10 -translate-x-1/2 border border-[#555] bg-[#d8d8d8] px-1 text-center text-[8px] font-black leading-3 text-black shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#8a8a8a]">
-          {compactConfigLabel(air.current.label)}
-        </span>
-      ) : null}
-      {hydration ? (
-        <span className="absolute right-[calc(100%+4px)] top-1 min-w-9 border border-[#555] bg-[#d8d8d8] px-1 text-center text-[8px] font-black leading-3 text-black shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#8a8a8a]">
-          {compactConfigLabel(hydration.current.label)}
-        </span>
-      ) : null}
-      {soil ? (
-        <span className="absolute left-[calc(100%+4px)] top-1 min-w-12 border border-[#555] bg-[#d8d8d8] px-1 text-center text-[8px] font-black leading-3 text-black shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#8a8a8a]">
-          {compactConfigLabel(soil.current.label)}
-          {depth ? ` ${depth.current.label}` : ""}
-        </span>
-      ) : null}
-      {stats ? (
-        <span className="absolute left-1/2 top-[calc(100%+4px)] grid -translate-x-1/2 grid-cols-3 gap-1 text-center text-[8px] font-black leading-3 text-black">
-          <CropStatBadge label="Gr" value={stats.growth} />
-          <CropStatBadge label="Ga" value={stats.gain} />
-          <CropStatBadge label="R" value={stats.resistance} />
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
 function PassiveProductionConfigPanel({
   title,
   controls,
@@ -972,20 +933,6 @@ function CropStatBadge({ label, value }: { label: string; value: number }) {
       {value}
     </span>
   );
-}
-
-function compactConfigLabel(label: string) {
-  if (label.length <= 5) {
-    return label;
-  }
-
-  return label
-    .split(/\s+|-/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 4)
-    .toUpperCase();
 }
 
 function MachineConfigButton({
@@ -1126,11 +1073,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function MachineCountStat({
+  label,
   machineCount,
   suggestedMachineCount,
   onChange,
   onOptimize,
 }: {
+  label: string;
   machineCount: number;
   suggestedMachineCount: number;
   onChange: (machineCount: number) => void;
@@ -1158,7 +1107,7 @@ function MachineCountStat({
 
   return (
     <div className="min-w-0 border border-[#777] bg-[#b6b6b6] px-1 shadow-[inset_1px_1px_0_#eeeeee,inset_-1px_-1px_0_#777]">
-      <div className="truncate text-[9px] uppercase text-[#424242]">Machines</div>
+      <div className="truncate text-[9px] uppercase text-[#424242]">{label}</div>
       <div className="flex min-w-0 items-center gap-1">
         <input
           value={draft}
@@ -1175,8 +1124,8 @@ function MachineCountStat({
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
           inputMode="numeric"
-          aria-label="Machine count"
-          title="Edit machine count"
+          aria-label={`${label} count`}
+          title={`Edit ${label.toLowerCase()} count`}
           className="nodrag h-[18px] w-0 min-w-0 flex-1 border border-[#777] bg-[#d8d8d8] px-1 text-[12px] font-medium leading-4 text-black shadow-[inset_1px_1px_0_#ffffff,inset_-1px_-1px_0_#8a8a8a] outline-none focus:border-cyan-700 focus:bg-white focus:ring-1 focus:ring-cyan-400"
         />
         <button
@@ -1187,8 +1136,8 @@ function MachineCountStat({
           }}
           onPointerDown={(event) => event.stopPropagation()}
           className="nodrag flex h-4 w-4 shrink-0 items-center justify-center border border-[#555] bg-[#d0d0d0] text-[#202020] shadow-[inset_1px_1px_0_#fff,inset_-1px_-1px_0_#777] hover:bg-white"
-          title={`Set to ${suggestedMachineCount}x`}
-          aria-label={`Set machines to ${suggestedMachineCount}`}
+          title={`Set ${label.toLowerCase()} to ${suggestedMachineCount}x`}
+          aria-label={`Set ${label.toLowerCase()} to ${suggestedMachineCount}`}
         >
           <WandSparkles className="h-3 w-3" />
         </button>

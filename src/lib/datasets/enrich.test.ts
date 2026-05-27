@@ -206,8 +206,8 @@ describe("enrichDatasetRecipes", () => {
 
     expect(recipe).toMatchObject({
       machineType: "Crop Manager",
-      minimumTier: "LV",
-      eut: 8,
+      minimumTier: "NONE",
+      eut: 0,
     });
     expect(recipe?.machineHandlers?.map((handler) => handler.label)).not.toContain("Manual");
     expect(recipe?.machineHandlers?.map((handler) => handler.label)).toContain(

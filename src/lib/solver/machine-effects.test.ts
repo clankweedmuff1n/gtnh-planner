@@ -6,12 +6,17 @@ import { getMachineDurationMultiplier, getMachineOutputMultiplier } from "./mach
 describe("passive production machine effects", () => {
   it("applies IC2 crop stat presets as generic config multipliers", () => {
     const recipe = enrichPassiveProductionRecipe(testCropRecipe());
-    const node: Pick<FactoryNode, "machineConfigTiers" | "coilTier"> = {
+    const lowStatsNode: Pick<FactoryNode, "machineConfigTiers" | "coilTier"> = {
       machineConfigTiers: { cropStats: "1-1-1" },
     };
+    const gainNode: Pick<FactoryNode, "machineConfigTiers" | "coilTier"> = {
+      machineConfigTiers: { cropStats: "23-31-0" },
+    };
 
-    expect(getMachineDurationMultiplier(recipe, node)).toBe(23);
-    expect(getMachineOutputMultiplier(recipe, node, recipe.outputs[0]!, "LV")).toBeCloseTo(1 / 31);
+    expect(getMachineDurationMultiplier(recipe, lowStatsNode)).toBe(23);
+    expect(getMachineOutputMultiplier(recipe, lowStatsNode, recipe.outputs[0]!, "LV")).toBe(1);
+    expect(getMachineDurationMultiplier(recipe, gainNode)).toBe(1);
+    expect(getMachineOutputMultiplier(recipe, gainNode, recipe.outputs[0]!, "LV")).toBe(31);
   });
 });
 

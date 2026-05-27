@@ -542,7 +542,16 @@ function synthesizeIc2CropRecipes() {
     return [];
   }
 
-  const seed = virtualPassiveInput("factoryflow:ic2_crop_seed", "IC2 Crop Seed");
+  const seed = virtualPassiveInput(
+    "factoryflow:ic2_crop_seed",
+    "IC2 Crop Seed",
+    passiveInputVisualFallback([
+      "IC2:itemCropSeed",
+      "IC2:itemCropSeed@32767",
+      "cropsnh:genericSeed",
+      "minecraft:wheat_seeds",
+    ]),
+  );
   const outputs = [
     resourceForPassiveRecipe("item", "IC2:itemHarz", { displayName: "Sticky Resin" }),
   ].filter(Boolean);
@@ -554,8 +563,8 @@ function synthesizeIc2CropRecipes() {
       output,
       index: 0,
       durationTicks: 1200,
-      eut: 8,
-      minimumTier: "LV",
+      eut: 0,
+      minimumTier: "NONE",
       note: "Synthesized from exported GTNH resources because RecEx does not expose IC2 crop NEI recipes.",
     }),
   );
@@ -568,7 +577,11 @@ function synthesizeCropNhRecipes() {
 
   const seed =
     resourceForPassiveRecipe("item", "cropsnh:genericSeed", { displayName: "Scanned Seed" }) ??
-    virtualPassiveInput("cropsnh:genericSeed", "Scanned Seed");
+    virtualPassiveInput(
+      "cropsnh:genericSeed",
+      "Scanned Seed",
+      passiveInputVisualFallback(["minecraft:wheat_seeds"]),
+    );
   const outputs = passiveResourceValues()
     .filter(isCropNhPassiveOutputResource)
     .sort(compareById)
@@ -581,8 +594,8 @@ function synthesizeCropNhRecipes() {
       output: passiveOutputAmount(output),
       index,
       durationTicks: 1200,
-      eut: 8,
-      minimumTier: "LV",
+      eut: 0,
+      minimumTier: "NONE",
       note: "Synthesized from exported CropNH resources because RecEx does not expose CropNH passive NEI recipes.",
     }),
   );
@@ -596,7 +609,12 @@ function synthesizeBeeProductionRecipes() {
   const bee =
     resourceForPassiveRecipe("item", "Forestry:beePrincessGE", {
       displayName: "Bee Species",
-    }) ?? virtualPassiveInput("factoryflow:bee_species", "Bee Species");
+    }) ??
+    virtualPassiveInput(
+      "factoryflow:bee_species",
+      "Bee Species",
+      passiveInputVisualFallback(["Forestry:beePrincessGE@32767", "Forestry:beePrincessGE"]),
+    );
   const outputs = passiveResourceValues()
     .filter(isBeePassiveOutputResource)
     .sort(compareById)
@@ -692,12 +710,28 @@ function passiveResourceValues() {
   ];
 }
 
-function virtualPassiveInput(id, displayName) {
+function passiveInputVisualFallback(ids) {
+  for (const id of ids) {
+    const resource =
+      resources.get(`item:${id}`) ??
+      rawItemResources.find((entry) => entry.kind === "item" && entry.id === id);
+    if (resource?.iconPath || resource?.iconAtlas) {
+      return passiveOutputAmount(resource);
+    }
+  }
+
+  return undefined;
+}
+
+function virtualPassiveInput(id, displayName, visual) {
   return {
     kind: "item",
     id,
     amount: 1,
     displayName,
+    iconPath: visual?.iconPath,
+    iconAtlas: visual?.iconAtlas,
+    dominantColor: visual?.dominantColor,
     tooltip: ["Synthetic passive-production input"],
   };
 }

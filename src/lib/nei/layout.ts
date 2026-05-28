@@ -135,12 +135,15 @@ const COMPONENT_ASSEMBLY_LINE_LAYOUT: RecipeMapLayoutDefinition = {
   fluidInputPositions: (count) => gridPositions(count, 97, 35, 4, 3),
   progressBars: [],
   decorations: [
-    { x: 70, y: 17, width: 77, height: 2, color: "#f0f0f0" },
-    { x: 70, y: 19, width: 77, height: 1, color: "#777777" },
-    { x: 70, y: 20, width: 2, height: 15, color: "#f0f0f0" },
-    { x: 72, y: 20, width: 1, height: 15, color: "#777777" },
-    { x: 145, y: 17, width: 2, height: 18, color: "#f0f0f0" },
-    { x: 147, y: 17, width: 1, height: 18, color: "#777777" },
+    { x: 70, y: 19, width: 82, height: 1, color: "#373737" },
+    { x: 70, y: 20, width: 82, height: 1, color: "#8B8B8B" },
+    { x: 70, y: 21, width: 82, height: 1, color: "#ffffff" },
+    { x: 141, y: 25, width: 11, height: 1, color: "#030303" },
+    { x: 142, y: 26, width: 10, height: 1, color: "#373737" },
+    { x: 143, y: 27, width: 9, height: 1, color: "#8B8B8B" },
+    { x: 141, y: 25, width: 1, height: 18, color: "#030303" },
+    { x: 142, y: 26, width: 1, height: 18, color: "#373737" },
+    { x: 143, y: 27, width: 1, height: 18, color: "#8B8B8B" },
   ],
 };
 

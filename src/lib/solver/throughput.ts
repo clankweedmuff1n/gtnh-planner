@@ -1,5 +1,6 @@
 import {
   getChanceMultiplier,
+  getFilledCellFluidEquivalent,
   isRecipeInputConsumed,
   makeResourceKey,
   primaryOutput,
@@ -14,7 +15,6 @@ import type {
   FuelEstimate,
   NodeThroughputResult,
   Recipe,
-  RecipeOutput,
   ResourceAmount,
   ResourceBalance,
   ResourceFlow,
@@ -172,7 +172,7 @@ export function calculateThroughput(
         const countKey = `${targetStorage.id}|${key}`;
         const targetDemand = storageOutgoingDemand.get(key) ?? 0;
         const targetCount = storageIncomingCounts.get(key) ?? 1;
-        const sourceCapacity = sourceResult?.outputs[key]?.amountPerSecond ?? 0;
+        const sourceCapacity = getCompatibleOutputFlow(sourceResult, edge)?.amountPerSecond ?? 0;
         const demandedPerSecond = targetDemand / targetCount;
         const displayedDemandPerSecond = Math.max(sourceCapacity, demandedPerSecond);
         const transferredPerSecond = Math.min(sourceCapacity, displayedDemandPerSecond);
@@ -212,7 +212,7 @@ export function calculateThroughput(
     const targetCount = incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1;
     const targetDemand = targetResult?.inputs[targetDemandKey]?.amountPerSecond ?? 0;
     const demandPerSecond = targetDemand / targetCount;
-    const sourceCapacity = sourceResult?.outputs[key]?.amountPerSecond ?? 0;
+    const sourceCapacity = getCompatibleOutputFlow(sourceResult, edge)?.amountPerSecond ?? 0;
     const transferredPerSecond = Math.min(sourceCapacity, demandPerSecond);
 
     addRequiredRate(requiredByNodeAndResource, edge.source, key, demandPerSecond);
@@ -612,7 +612,7 @@ function refreshEdgeResultsFromNodeUtilization(
     const sourceFullCapacity =
       sourceStorage || !sourceResult
         ? Number.POSITIVE_INFINITY
-        : (sourceResult.outputs[key]?.amountPerSecond ?? 0);
+        : (getCompatibleOutputFlow(sourceResult, edge)?.amountPerSecond ?? 0);
     const targetCount = targetStorage
       ? (storageIncomingCounts.get(key) ?? 1)
       : (incomingEdgeCounts.get(`${edge.target}|${targetDemandKey}`) ?? 1);
@@ -632,7 +632,10 @@ function refreshEdgeResultsFromNodeUtilization(
         : Number.POSITIVE_INFINITY
       : !sourceResult
         ? Number.POSITIVE_INFINITY
-        : getEffectiveFlowRate(sourceResult.outputs[key], sourceResult.utilization);
+        : getEffectiveFlowRate(
+            getCompatibleOutputFlow(sourceResult, edge),
+            sourceResult.utilization,
+          );
     const sourceStorageCapacityBase =
       targetStorage && canRunForStorageSurplus(project, recipesById, edge.source)
         ? sourceFullCapacity
@@ -931,6 +934,76 @@ function refreshNodeUtilizationFromEdgeResults(
 
 function getEffectiveFlowRate(flow: ResourceFlow | undefined, utilization: number): number {
   return (flow?.amountPerSecond ?? 0) * clampUtilization(utilization);
+}
+
+function getCompatibleOutputFlow(
+  nodeResult: NodeThroughputResult | undefined,
+  resource: Pick<FactoryProject["edges"][number], "resourceKind" | "resourceId">,
+): ResourceFlow | undefined {
+  if (!nodeResult) {
+    return undefined;
+  }
+
+  return getCompatibleOutputFlowForResource(nodeResult, {
+    kind: resource.resourceKind,
+    id: resource.resourceId,
+  });
+}
+
+function getCompatibleOutputFlowForKey(
+  nodeResult: NodeThroughputResult,
+  resourceKey: ResourceKey,
+): ResourceFlow | undefined {
+  return getCompatibleOutputFlowForResource(nodeResult, resourceFromKey(resourceKey));
+}
+
+function getCompatibleOutputFlowForResource(
+  nodeResult: NodeThroughputResult,
+  resource: Pick<ResourceAmount, "kind" | "id">,
+): ResourceFlow | undefined {
+  const exact = nodeResult.outputs[makeResourceKey(resource.kind, resource.id)];
+  if (exact) {
+    return exact;
+  }
+
+  for (const output of Object.values(nodeResult.outputs)) {
+    const outputResource = {
+      kind: output.kind,
+      id: output.resourceId,
+      displayName: output.displayName,
+    };
+    if (!resourceMatchesInput(resource, outputResource)) {
+      continue;
+    }
+
+    if (resource.kind === "fluid" && output.kind === "item") {
+      const fluid = getFilledCellFluidEquivalent({
+        ...outputResource,
+        amount: output.amountPerSecond,
+      });
+      if (fluid?.id === resource.id) {
+        return {
+          key: makeResourceKey("fluid", fluid.id),
+          kind: "fluid",
+          resourceId: fluid.id,
+          displayName: fluid.displayName ?? output.displayName,
+          amountPerSecond: fluid.amount ?? output.amountPerSecond,
+        };
+      }
+    }
+
+    return output;
+  }
+
+  return undefined;
+}
+
+function resourceFromKey(resourceKey: ResourceKey): Pick<ResourceAmount, "kind" | "id"> {
+  const separatorIndex = resourceKey.indexOf(":");
+  return {
+    kind: resourceKey.slice(0, separatorIndex) as ResourceKind,
+    id: resourceKey.slice(separatorIndex + 1),
+  };
 }
 
 function clampUtilization(utilization: number): number {
@@ -1257,7 +1330,7 @@ function selectLimitingOutput(
   };
 
   for (const [resourceKey, requiredRatePerSecond] of requiredByResource) {
-    const outputFlow = nodeResult.outputs[resourceKey];
+    const outputFlow = getCompatibleOutputFlowForKey(nodeResult, resourceKey);
     if (!outputFlow) {
       continue;
     }
@@ -1270,17 +1343,11 @@ function selectLimitingOutput(
           : 0;
 
     if (utilization >= best.utilization) {
-      const recipeOutput = findRecipeOutputByKey(recipe.outputs, resourceKey);
       best = {
         requiredRatePerSecond,
         maxRatePerSecond: outputFlow.amountPerSecond,
         utilization,
-        theoreticalMachinesRequired: calculateTheoreticalMachines(
-          recipe,
-          node.parallel * getMachineParallelMultiplier(recipe, node),
-          requiredRatePerSecond,
-          recipeOutput,
-        ),
+        theoreticalMachinesRequired: node.machineCount * utilization,
         limitingResource: {
           ...outputFlow,
           amountPerSecond: requiredRatePerSecond,
@@ -1313,13 +1380,6 @@ function selectLimitingOutput(
   return best;
 }
 
-function findRecipeOutputByKey(
-  outputs: RecipeOutput[],
-  resourceKey: ResourceKey,
-): RecipeOutput | undefined {
-  return outputs.find((output) => makeResourceKey(output.kind, output.id) === resourceKey);
-}
-
 function applyOutputMultipliers(recipe: Recipe, node: FactoryProject["nodes"][number]) {
   const effectiveRecipe = applyMachineHandlerToRecipe(recipe, node);
   const overclockedRecipe = getOverclockedRecipeStats(recipe, node);
@@ -1332,27 +1392,6 @@ function applyOutputMultipliers(recipe: Recipe, node: FactoryProject["nodes"][nu
     );
     return multiplier === 1 ? output : { ...output, amount: output.amount * multiplier };
   });
-}
-
-function calculateTheoreticalMachines(
-  recipe: Recipe,
-  parallel: number,
-  requiredRatePerSecond: number,
-  output: RecipeOutput | undefined,
-): number {
-  if (!output) {
-    return 0;
-  }
-
-  const outputPerMachineSecond =
-    (output.amount * getChanceMultiplier(output) * parallel * TICKS_PER_SECOND) /
-    recipe.durationTicks;
-
-  if (outputPerMachineSecond <= EPSILON) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  return requiredRatePerSecond / outputPerMachineSecond;
 }
 
 function getNodeStatus(utilization: number): NodeThroughputResult["status"] {

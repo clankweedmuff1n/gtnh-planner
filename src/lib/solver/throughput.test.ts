@@ -1591,4 +1591,158 @@ describe("calculateThroughput", () => {
 
     expect(result.nodes.node.outputs["item:minecraft:log"].amountPerSecond).toBe(0);
   });
+
+  it("uses filled-cell outputs as fluid capacity for tank links", () => {
+    const project: FactoryProject = {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "filled-cell-fluid-storage-flow",
+      name: "Filled cell fluid storage flow",
+      recipes: [
+        {
+          id: "oxygen-cell-source",
+          name: "Oxygen Cell Source",
+          machineType: "Dehydrator",
+          minimumTier: "LV",
+          durationTicks: 196,
+          eut: 16,
+          inputs: [{ kind: "item", id: "empty_cell", amount: 14, displayName: "Empty Cell" }],
+          outputs: [
+            {
+              kind: "item",
+              id: "oxygen_cell",
+              amount: 14,
+              displayName: "Oxygen Cell",
+            },
+          ],
+        },
+        {
+          id: "oxygen-consumer",
+          name: "Oxygen Consumer",
+          machineType: "Chemical Reactor",
+          minimumTier: "LV",
+          durationTicks: 160,
+          eut: 30,
+          inputs: [
+            { kind: "fluid", id: "oxygen", amount: 1000, displayName: "Oxygen" },
+            { kind: "fluid", id: "ethylene", amount: 1000, displayName: "Ethylene" },
+          ],
+          outputs: [
+            { kind: "item", id: "water_cell", amount: 1, displayName: "Water Cell" },
+            { kind: "item", id: "empty_cell", amount: 1, displayName: "Empty Cell" },
+          ],
+        },
+      ],
+      nodes: [
+        {
+          id: "oxygen-cell-source-node",
+          recipeId: "oxygen-cell-source",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: "oxygen-consumer-node",
+          recipeId: "oxygen-consumer",
+          machineCount: 1,
+          parallel: 1,
+          overclockTier: "LV",
+          enabled: true,
+          position: { x: 200, y: 0 },
+          recipeInputOverrides: {
+            "0": {
+              kind: "fluid",
+              id: "oxygen",
+              amount: 1000,
+              displayName: "Oxygen",
+            },
+          },
+        },
+      ],
+      storages: [
+        {
+          id: "oxygen-tank",
+          kind: "fluid",
+          resourceId: "oxygen",
+          displayName: "Oxygen",
+          position: { x: 100, y: 0 },
+        },
+        {
+          id: "ethylene-tank",
+          kind: "fluid",
+          resourceId: "ethylene",
+          displayName: "Ethylene",
+          position: { x: 100, y: 100 },
+        },
+        {
+          id: "water-tank",
+          kind: "fluid",
+          resourceId: "water",
+          displayName: "Water",
+          position: { x: 400, y: 0 },
+        },
+        {
+          id: "empty-cell-drawer",
+          kind: "item",
+          resourceId: "empty_cell",
+          displayName: "Empty Cell",
+          position: { x: 400, y: 100 },
+        },
+      ],
+      edges: [
+        {
+          id: "oxygen-cell-to-tank",
+          source: "oxygen-cell-source-node",
+          target: "oxygen-tank",
+          resourceKind: "fluid",
+          resourceId: "oxygen",
+          label: "Oxygen Cell",
+        },
+        {
+          id: "oxygen-tank-to-consumer",
+          source: "oxygen-tank",
+          target: "oxygen-consumer-node",
+          resourceKind: "fluid",
+          resourceId: "oxygen",
+          label: "Oxygen",
+        },
+        {
+          id: "ethylene-tank-to-consumer",
+          source: "ethylene-tank",
+          target: "oxygen-consumer-node",
+          resourceKind: "fluid",
+          resourceId: "ethylene",
+          label: "Ethylene",
+        },
+        {
+          id: "water-cell-to-tank",
+          source: "oxygen-consumer-node",
+          target: "water-tank",
+          resourceKind: "fluid",
+          resourceId: "water",
+          label: "Water Cell",
+        },
+        {
+          id: "empty-cell-to-drawer",
+          source: "oxygen-consumer-node",
+          target: "empty-cell-drawer",
+          resourceKind: "item",
+          resourceId: "empty_cell",
+          label: "Empty Cell",
+        },
+      ],
+      fuelProfiles: [],
+    };
+
+    const result = calculateThroughput(project, { generatedAt: "fixed" });
+
+    expect(result.edges["oxygen-cell-to-tank"].transferredPerSecond).toBeCloseTo(125);
+    expect(result.edges["oxygen-tank-to-consumer"].transferredPerSecond).toBeCloseTo(125);
+    expect(result.edges["water-cell-to-tank"].transferredPerSecond).toBeCloseTo(125);
+    expect(result.edges["empty-cell-to-drawer"].transferredPerSecond).toBeCloseTo(0.125);
+    expect(result.storages["oxygen-tank"].producedPerSecond).toBeCloseTo(125);
+    expect(result.storages["oxygen-tank"].consumedPerSecond).toBeCloseTo(125);
+    expect(result.storages["oxygen-tank"].netPerSecond).toBeCloseTo(0);
+  });
 });

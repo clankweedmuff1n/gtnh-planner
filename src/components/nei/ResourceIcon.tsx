@@ -77,12 +77,6 @@ export function ResourceIcon({
         </span>
       ) : null}
 
-      {resource?.alternatives?.length ? (
-        <span className="absolute left-0 bottom-0 font-mono text-[9px] font-black leading-none text-[#55ffff] drop-shadow-[1px_1px_0_#000]">
-          +
-        </span>
-      ) : null}
-
       {resource && showName ? (
         <span className="absolute left-0.5 top-0.5 max-w-[calc(100%-4px)] truncate font-mono text-[8px] leading-none text-white drop-shadow-[1px_1px_0_#000]">
           {resourceLabel(resource)}

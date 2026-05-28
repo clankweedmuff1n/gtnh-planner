@@ -133,11 +133,14 @@ function buildTooltipLabel(resource: ResourceIconProps["resource"]) {
     resource.consumed === false && !resource.tooltip?.some(isNotConsumedTooltipLine)
       ? "Not consumed"
       : undefined;
-  const alternativesLine = resource.alternatives?.length
-    ? `Accepts: ${resource.alternatives
+  const visibleAlternatives =
+    resource.alternatives?.filter((alternative) => !isFluidCellAlternative(resource, alternative)) ??
+    [];
+  const alternativesLine = visibleAlternatives.length
+    ? `Accepts: ${visibleAlternatives
         .slice(0, 12)
         .map((alternative) => resourceLabel(alternative))
-        .join(", ")}${resource.alternatives.length > 12 ? `, +${resource.alternatives.length - 12} more` : ""}`
+        .join(", ")}${visibleAlternatives.length > 12 ? `, +${visibleAlternatives.length - 12} more` : ""}`
     : undefined;
 
   return [...baseLines, alternativesLine, chanceLine, consumedLine].filter(Boolean).join("\n");

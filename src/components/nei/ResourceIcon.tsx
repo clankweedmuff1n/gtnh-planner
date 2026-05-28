@@ -4,7 +4,6 @@ import type { CSSProperties } from "react";
 import type { ResourceAmount, ResourceKind } from "@/lib/model/types";
 import {
   formatNumberWithThousands,
-  getFilledCellFluidEquivalent,
   resourceLabel,
   stripOreDictionaryPrefix,
   trimTrailingDecimalZeros,
@@ -109,15 +108,10 @@ function isFluidCellAlternative(
   resource: DisplayResourceAmount,
   alternative: NonNullable<DisplayResourceAmount["alternatives"]>[number],
 ): boolean {
-  if (resource.kind === "item" && alternative.kind === "fluid") {
-    return getFilledCellFluidEquivalent(resource)?.id === alternative.id;
-  }
-
-  if (resource.kind === "fluid" && alternative.kind === "item") {
-    return getFilledCellFluidEquivalent(alternative)?.id === resource.id;
-  }
-
-  return false;
+  return (
+    (resource.kind === "item" && alternative.kind === "fluid") ||
+    (resource.kind === "fluid" && alternative.kind === "item")
+  );
 }
 
 function buildTooltipLabel(resource: ResourceIconProps["resource"]) {

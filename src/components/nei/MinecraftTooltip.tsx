@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
 export function MinecraftTooltip({
@@ -66,7 +74,7 @@ export function MinecraftTooltip({
     });
   };
 
-  const clearTooltip = () => {
+  const clearTooltip = useCallback(() => {
     pendingPositionRef.current = undefined;
     if (frameRef.current !== undefined) {
       window.cancelAnimationFrame(frameRef.current);
@@ -75,7 +83,29 @@ export function MinecraftTooltip({
     if (position !== undefined) {
       setPosition(undefined);
     }
-  };
+  }, [position]);
+
+  useEffect(() => {
+    if (!position) {
+      return undefined;
+    }
+
+    const clearOnInteraction = () => clearTooltip();
+    const options = { capture: true, passive: true } as const;
+
+    window.addEventListener("wheel", clearOnInteraction, options);
+    window.addEventListener("pointerdown", clearOnInteraction, options);
+    window.addEventListener("pointercancel", clearOnInteraction, options);
+    window.addEventListener("resize", clearOnInteraction, options);
+    window.addEventListener("blur", clearOnInteraction, options);
+    return () => {
+      window.removeEventListener("wheel", clearOnInteraction, options);
+      window.removeEventListener("pointerdown", clearOnInteraction, options);
+      window.removeEventListener("pointercancel", clearOnInteraction, options);
+      window.removeEventListener("resize", clearOnInteraction, options);
+      window.removeEventListener("blur", clearOnInteraction, options);
+    };
+  }, [clearTooltip, position]);
 
   return (
     <span
@@ -88,6 +118,7 @@ export function MinecraftTooltip({
       {position && lines.length > 0 && typeof document !== "undefined"
         ? createPortal(
             <div
+              data-minecraft-tooltip="true"
               className="pointer-events-none fixed z-[9999] max-w-[260px] border-2 border-[#2a005f] bg-[#100010] px-2 py-1 font-mono text-[16px] leading-[18px] text-white shadow-[inset_1px_1px_0_rgba(255,255,255,0.18),inset_-1px_-1px_0_rgba(0,0,0,0.8)] [text-shadow:2px_2px_0_#3f3f3f]"
               style={{ left: position.x, top: position.y }}
             >

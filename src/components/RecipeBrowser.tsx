@@ -1627,14 +1627,10 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {
-    if (typeof value === "string" && value.length === 0) {
-      setDebouncedValue(value);
-      return undefined;
-    }
-
+    const timeoutMs = typeof value === "string" && value.length === 0 ? 0 : delayMs;
     const timer = window.setTimeout(() => {
       setDebouncedValue(value);
-    }, delayMs);
+    }, timeoutMs);
 
     return () => window.clearTimeout(timer);
   }, [delayMs, value]);

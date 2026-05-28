@@ -476,9 +476,11 @@ function ProgressTexture({
     height: number;
     direction: string;
     texture: NeiProgressTexture;
+    frame?: number;
   };
   scale: number;
 }) {
+  const frameOffset = bar.frame === undefined ? undefined : bar.frame * bar.height * scale;
   return (
     <div
       className="absolute"
@@ -488,8 +490,8 @@ function ProgressTexture({
         width: bar.width * scale,
         height: bar.height * scale,
         backgroundImage: `url('/nei/gregtech/gui/progressbar/${bar.texture}.png')`,
-        backgroundPosition: "top left",
-        backgroundSize: "100% 200%",
+        backgroundPosition: frameOffset === undefined ? "top left" : `0 -${frameOffset}px`,
+        backgroundSize: frameOffset === undefined ? "100% 200%" : "100% auto",
       }}
     />
   );

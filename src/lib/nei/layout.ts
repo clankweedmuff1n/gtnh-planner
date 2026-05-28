@@ -52,6 +52,7 @@ export interface NeiProgressBar {
   height: number;
   direction: "right" | "up" | "circular";
   texture: NeiProgressTexture;
+  frame?: number;
 }
 
 export interface NeiLabel {
@@ -132,9 +133,51 @@ const COMPONENT_ASSEMBLY_LINE_LAYOUT: RecipeMapLayoutDefinition = {
   itemOutputPositions: (count) => (count > 0 ? [{ x: 151, y: 17 }] : []),
   fluidInputPositions: (count) => gridPositions(count, 97, 35, 4, 3),
   progressBars: [
-    { x: 73, y: 20, width: 20, height: 18, direction: "right", texture: "arrow" },
-    { x: 73, y: 38, width: 20, height: 18, direction: "right", texture: "arrow" },
-    { x: 73, y: 56, width: 20, height: 18, direction: "right", texture: "arrow" },
+    {
+      x: 73,
+      y: 17,
+      width: 17,
+      height: 18,
+      direction: "right",
+      texture: "assemblyline_1",
+      frame: 0,
+    },
+    {
+      x: 90,
+      y: 17,
+      width: 18,
+      height: 18,
+      direction: "right",
+      texture: "assemblyline_2",
+      frame: 0,
+    },
+    {
+      x: 108,
+      y: 17,
+      width: 18,
+      height: 18,
+      direction: "right",
+      texture: "assemblyline_2",
+      frame: 0,
+    },
+    {
+      x: 126,
+      y: 17,
+      width: 18,
+      height: 18,
+      direction: "right",
+      texture: "assemblyline_2",
+      frame: 0,
+    },
+    {
+      x: 144,
+      y: 17,
+      width: 10,
+      height: 18,
+      direction: "right",
+      texture: "assemblyline_3",
+      frame: 0,
+    },
   ],
   labels: [
     { text: "F", x: 78, y: 25, color: "#3f94ff" },

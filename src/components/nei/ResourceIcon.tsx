@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import type { ResourceAmount, ResourceKind } from "@/lib/model/types";
 import {
   formatNumberWithThousands,
+  getFilledCellFluidEquivalent,
   resourceLabel,
   stripOreDictionaryPrefix,
   trimTrailingDecimalZeros,
@@ -77,6 +78,12 @@ export function ResourceIcon({
         </span>
       ) : null}
 
+      {resource && shouldShowAlternativeMarker(resource) ? (
+        <span className="absolute left-0 bottom-0 font-mono text-[9px] font-black leading-none text-[#55ffff] drop-shadow-[1px_1px_0_#000]">
+          +
+        </span>
+      ) : null}
+
       {resource && showName ? (
         <span className="absolute left-0.5 top-0.5 max-w-[calc(100%-4px)] truncate font-mono text-[8px] leading-none text-white drop-shadow-[1px_1px_0_#000]">
           {resourceLabel(resource)}
@@ -90,6 +97,27 @@ export function ResourceIcon({
   }
 
   return <MinecraftTooltip label={title}>{icon}</MinecraftTooltip>;
+}
+
+function shouldShowAlternativeMarker(resource: DisplayResourceAmount): boolean {
+  return Boolean(
+    resource.alternatives?.some((alternative) => !isFluidCellAlternative(resource, alternative)),
+  );
+}
+
+function isFluidCellAlternative(
+  resource: DisplayResourceAmount,
+  alternative: NonNullable<DisplayResourceAmount["alternatives"]>[number],
+): boolean {
+  if (resource.kind === "item" && alternative.kind === "fluid") {
+    return getFilledCellFluidEquivalent(resource)?.id === alternative.id;
+  }
+
+  if (resource.kind === "fluid" && alternative.kind === "item") {
+    return getFilledCellFluidEquivalent(alternative)?.id === resource.id;
+  }
+
+  return false;
 }
 
 function buildTooltipLabel(resource: ResourceIconProps["resource"]) {

@@ -326,10 +326,9 @@ export function calculateThroughput(
     });
   }
 
-  const resourceResults = Object.fromEntries(calculateEffectiveBalances(nodes)) as Record<
-    ResourceKey,
-    ResourceBalance
-  >;
+  const resourceResults = Object.fromEntries(
+    calculateEffectiveBalances(project, nodes, edgeResults, storagesById),
+  ) as Record<ResourceKey, ResourceBalance>;
   const externalInputs = Object.values(resourceResults)
     .filter((balance) => balance.deficitPerSecond > EPSILON)
     .sort((a, b) => b.deficitPerSecond - a.deficitPerSecond);
@@ -440,6 +439,16 @@ function addBalanceProduction(
   updateBalanceNet(balance);
 }
 
+function subtractBalanceProduction(
+  balances: Map<ResourceKey, ResourceBalance>,
+  resource: ResourceAmount,
+  amountPerSecond: number,
+): void {
+  const balance = ensureBalance(balances, resource);
+  balance.producedPerSecond = Math.max(0, balance.producedPerSecond - amountPerSecond);
+  updateBalanceNet(balance);
+}
+
 function addBalanceConsumption(
   balances: Map<ResourceKey, ResourceBalance>,
   resource: ResourceAmount,
@@ -457,7 +466,10 @@ function updateBalanceNet(balance: ResourceBalance): void {
 }
 
 function calculateEffectiveBalances(
+  project: FactoryProject,
   nodes: Record<string, NodeThroughputResult>,
+  edgeResults: Record<string, EdgeThroughput>,
+  storagesById: Map<string, FactoryStorage>,
 ): Map<ResourceKey, ResourceBalance> {
   const balances = new Map<ResourceKey, ResourceBalance>();
 
@@ -494,7 +506,71 @@ function calculateEffectiveBalances(
     }
   }
 
+  applyConvertedStorageOutputBalances(project, nodes, edgeResults, storagesById, balances);
+
   return balances;
+}
+
+function applyConvertedStorageOutputBalances(
+  project: FactoryProject,
+  nodes: Record<string, NodeThroughputResult>,
+  edgeResults: Record<string, EdgeThroughput>,
+  storagesById: Map<string, FactoryStorage>,
+  balances: Map<ResourceKey, ResourceBalance>,
+): void {
+  for (const edge of project.edges) {
+    if (!storagesById.has(edge.target) || storagesById.has(edge.source)) {
+      continue;
+    }
+
+    const transferredPerSecond = edgeResults[edge.id]?.transferredPerSecond ?? 0;
+    if (transferredPerSecond <= EPSILON) {
+      continue;
+    }
+
+    const sourceResult = nodes[edge.source];
+    const output = sourceResult
+      ? Object.values(sourceResult.outputs).find(
+          (candidate) =>
+            candidate.kind !== edge.resourceKind &&
+            resourceMatchesInput(
+              { kind: edge.resourceKind, id: edge.resourceId },
+              {
+                kind: candidate.kind,
+                id: candidate.resourceId,
+                displayName: candidate.displayName,
+              },
+            ),
+        )
+      : undefined;
+    if (!sourceResult || !output) {
+      continue;
+    }
+
+    const outputResource = {
+      kind: output.kind,
+      id: output.resourceId,
+      displayName: output.displayName,
+      amount: transferredPerSecond,
+    };
+    const edgeResource = {
+      kind: edge.resourceKind,
+      id: edge.resourceId,
+      displayName: edge.label,
+      amount: transferredPerSecond,
+    };
+
+    if (edge.resourceKind === "fluid" && output.kind === "item") {
+      const fluid = getFilledCellFluidEquivalent(outputResource);
+      if (fluid?.id !== edge.resourceId || !fluid.amount || fluid.amount <= 0) {
+        continue;
+      }
+
+      const cellAmountPerSecond = transferredPerSecond * (output.amountPerSecond / fluid.amount);
+      subtractBalanceProduction(balances, outputResource, cellAmountPerSecond);
+      addBalanceProduction(balances, edgeResource, transferredPerSecond);
+    }
+  }
 }
 
 function countIncomingEdgesByTargetResource(project: FactoryProject): Map<string, number> {
@@ -636,10 +712,7 @@ function refreshEdgeResultsFromNodeUtilization(
             getCompatibleOutputFlow(sourceResult, edge),
             sourceResult.utilization,
           );
-    const sourceStorageCapacityBase =
-      targetStorage && canRunForStorageSurplus(project, recipesById, edge.source)
-        ? sourceFullCapacity
-        : sourceEffectiveCapacity;
+    const sourceStorageCapacityBase = targetStorage ? sourceFullCapacity : sourceEffectiveCapacity;
     const sourceCapacity = targetStorage
       ? Math.max(
           0,

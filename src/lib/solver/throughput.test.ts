@@ -662,7 +662,7 @@ describe("calculateThroughput", () => {
     expect(result.nodes.consumer.utilization).toBeCloseTo(1);
   });
 
-  it("does not display unproduced remaining capacity from consuming recipes", () => {
+  it("lets storage sinks absorb surplus from consuming recipes", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "storage-direct-surplus-project",
@@ -738,13 +738,13 @@ describe("calculateThroughput", () => {
 
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
-    expect(result.nodes.source.utilization).toBeCloseTo(0.2);
+    expect(result.nodes.source.utilization).toBeCloseTo(1);
     expect(result.edges["source-to-consumer"].transferredPerSecond).toBeCloseTo(2);
-    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(0);
-    expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(0);
+    expect(result.edges["source-to-drawer"].transferredPerSecond).toBeCloseTo(8);
+    expect(result.storages["dust-drawer"].netPerSecond).toBeCloseTo(8);
   });
 
-  it("does not mark consumed-input storage output as limited by unused capacity", () => {
+  it("fills storage with unused capacity from consumed-input producers", () => {
     const project: FactoryProject = {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       id: "consumed-input-storage-output-limited-project",
@@ -820,9 +820,10 @@ describe("calculateThroughput", () => {
 
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
-    expect(result.nodes.extractor.utilization).toBeCloseTo(0.25);
-    expect(result.edges["extractor-to-tank"].demandPerSecond).toBeCloseTo(1_000);
-    expect(result.edges["extractor-to-tank"].transferredPerSecond).toBeCloseTo(1_000);
+    expect(result.nodes.extractor.utilization).toBeCloseTo(1);
+    expect(result.edges["extractor-to-tank"].demandPerSecond).toBeCloseTo(4_000);
+    expect(result.edges["extractor-to-tank"].transferredPerSecond).toBeCloseTo(4_000);
+    expect(result.storages["woodtar-tank"].netPerSecond).toBeCloseTo(3_000);
     expect(result.edges["extractor-to-tank"].isLimited).toBe(false);
   });
 
@@ -1737,12 +1738,17 @@ describe("calculateThroughput", () => {
 
     const result = calculateThroughput(project, { generatedAt: "fixed" });
 
-    expect(result.edges["oxygen-cell-to-tank"].transferredPerSecond).toBeCloseTo(125);
+    expect(result.edges["oxygen-cell-to-tank"].transferredPerSecond).toBeCloseTo(
+      1428.5714285714287,
+    );
     expect(result.edges["oxygen-tank-to-consumer"].transferredPerSecond).toBeCloseTo(125);
     expect(result.edges["water-cell-to-tank"].transferredPerSecond).toBeCloseTo(125);
     expect(result.edges["empty-cell-to-drawer"].transferredPerSecond).toBeCloseTo(0.125);
-    expect(result.storages["oxygen-tank"].producedPerSecond).toBeCloseTo(125);
+    expect(result.storages["oxygen-tank"].producedPerSecond).toBeCloseTo(1428.5714285714287);
     expect(result.storages["oxygen-tank"].consumedPerSecond).toBeCloseTo(125);
-    expect(result.storages["oxygen-tank"].netPerSecond).toBeCloseTo(0);
+    expect(result.storages["oxygen-tank"].netPerSecond).toBeCloseTo(1303.5714285714287);
+    expect(result.externalInputs).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "fluid", resourceId: "oxygen" })]),
+    );
   });
 });

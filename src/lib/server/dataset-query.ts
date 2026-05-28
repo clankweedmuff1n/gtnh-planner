@@ -1661,9 +1661,7 @@ function recipeMatchesTierIndex(indexes: QueryIndexes, recipeIndex: number, maxT
   if (maxTier === "all") {
     return true;
   }
-  return (
-    (indexes.tierIndexes[recipeIndex] ?? GT_VOLTAGE_TIERS.length - 1) === getTierIndex(maxTier)
-  );
+  return (indexes.tierIndexes[recipeIndex] ?? GT_VOLTAGE_TIERS.length - 1) <= getTierIndex(maxTier);
 }
 
 function recipeMatchesLookupTier(
@@ -1674,7 +1672,7 @@ function recipeMatchesLookupTier(
   if (maxTier === "all") {
     return true;
   }
-  return (lookup.tierIndexes[recipeIndex] ?? GT_VOLTAGE_TIERS.length - 1) === getTierIndex(maxTier);
+  return (lookup.tierIndexes[recipeIndex] ?? GT_VOLTAGE_TIERS.length - 1) <= getTierIndex(maxTier);
 }
 
 function getRecipeTier(recipe: RecipeSummary): Exclude<MachineTier, "DEMO"> {

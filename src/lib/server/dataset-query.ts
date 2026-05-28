@@ -100,6 +100,7 @@ interface LoadedRecipeLookupIndex {
   tierIndexes: number[];
   iconScores: number[];
   searchText: string[];
+  searchIndex?: TextSearchIndex;
   entries: Map<string, Map<number, number[]>>;
 }
 
@@ -528,7 +529,8 @@ async function prewarmDatasetVersionOnce(
   ensureResourceIndexes(catalog);
 
   if (catalog.version.recipeLookupIndexPath) {
-    await loadRecipeLookupIndex(catalog.version);
+    const lookup = await loadRecipeLookupIndex(catalog.version);
+    ensureLookupSearchIndex(lookup);
   } else {
     const recipeCatalog = await loadRecipeIndex(versionId);
     ensureIndexes(recipeCatalog);
@@ -909,14 +911,14 @@ async function getSearchMatchedRecipeIndexes(
   queryTokens: string[],
 ): Promise<Set<number>> {
   if (lookup?.searchText.length) {
-    const scopedSearchIndex = buildTextSearchIndex(lookup.searchText, recipeIndexes);
-    const indexedCandidates = queryTextSearchIndex(scopedSearchIndex, queryTokens);
+    const searchIndex = ensureLookupSearchIndex(lookup);
+    const indexedCandidates = queryTextSearchIndex(searchIndex, queryTokens);
     const indexedCandidateSet = indexedCandidates ? new Set(indexedCandidates) : undefined;
     return new Set(
       recipeIndexes.filter(
         (recipeIndex) =>
           (!indexedCandidateSet || indexedCandidateSet.has(recipeIndex)) &&
-          searchTokensMatch(scopedSearchIndex.tokensByEntry[recipeIndex] ?? [], queryTokens),
+          searchTokensMatch(searchIndex.tokensByEntry[recipeIndex] ?? [], queryTokens),
       ),
     );
   }
@@ -932,6 +934,14 @@ async function getSearchMatchedRecipeIndexes(
         searchTokensMatch(indexes.searchIndex.tokensByEntry[recipeIndex] ?? [], queryTokens),
     ),
   );
+}
+
+function ensureLookupSearchIndex(lookup: LoadedRecipeLookupIndex): TextSearchIndex {
+  lookup.searchIndex ??= buildTextSearchIndex(
+    lookup.searchText,
+    lookup.searchText.map((_, index) => index),
+  );
+  return lookup.searchIndex;
 }
 
 async function getRecipeSummariesByIndexMap(

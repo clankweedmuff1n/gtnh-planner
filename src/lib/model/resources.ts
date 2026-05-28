@@ -66,14 +66,24 @@ export function formatRate(value: number, digits = 2): string {
   }
 
   if (Math.abs(value) >= 100) {
-    return value.toFixed(0);
+    return formatNumberWithThousands(value.toFixed(0));
   }
 
   if (Math.abs(value) >= 10) {
-    return value.toFixed(1);
+    return formatNumberWithThousands(value.toFixed(1));
   }
 
-  return value.toFixed(digits);
+  return formatNumberWithThousands(value.toFixed(digits));
+}
+
+export function formatNumberWithThousands(value: number | string): string {
+  const text = String(value);
+  const sign = text.startsWith("-") ? "-" : "";
+  const unsigned = sign ? text.slice(1) : text;
+  const [integer, fraction] = unsigned.split(".");
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  return `${sign}${grouped}${fraction !== undefined ? `,${fraction}` : ""}`;
 }
 
 export function trimTrailingDecimalZeros(value: string): string {
@@ -102,17 +112,124 @@ export function isRecipeInputConsumed(input: Pick<ResourceAmount, "id"> & { cons
 }
 
 export function resourceMatchesInput(
-  resource: Pick<ResourceAmount, "kind" | "id">,
-  input: Pick<ResourceAmount, "kind" | "id" | "alternatives">,
+  resource: Pick<ResourceAmount, "kind" | "id" | "displayName">,
+  input: Pick<ResourceAmount, "kind" | "id" | "displayName" | "alternatives">,
 ): boolean {
-  if (resource.kind !== input.kind) {
+  if (resource.kind === input.kind) {
+    return (
+      resource.id === input.id ||
+      Boolean(
+        input.alternatives?.some(
+          (alternative) => alternative.kind === resource.kind && alternative.id === resource.id,
+        ),
+      )
+    );
+  }
+
+  if (resource.kind === "fluid" && input.kind === "item") {
+    return isFluidEquivalentToFilledCell(resource, input);
+  }
+
+  if (resource.kind === "item" && input.kind === "fluid") {
+    return isFluidEquivalentToFilledCell(input, resource);
+  }
+
+  return false;
+}
+
+export function getFilledCellFluidEquivalent<
+  T extends Pick<
+    ResourceAmount,
+    "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
+  > & {
+    amount?: number;
+    alternatives?: ResourceAmount["alternatives"];
+  },
+>(resource: T): (Pick<T, "amount"> &
+  Pick<ResourceAmount, "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip">) | undefined {
+  if (resource.kind === "fluid") {
+    return resource as Pick<T, "amount"> &
+      Pick<ResourceAmount, "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip">;
+  }
+
+  const alternative = resource.alternatives?.find((entry) => entry.kind === "fluid");
+  if (alternative) {
+    return {
+      ...alternative,
+      kind: "fluid",
+      amount:
+        resource.amount === undefined
+          ? undefined
+          : getFilledCellFluidAmount({ amount: resource.amount }),
+    };
+  }
+
+  const fluidName = getFilledCellFluidName(resource);
+  if (!fluidName) {
+    return undefined;
+  }
+
+  return {
+    kind: "fluid",
+    id: normalizeFluidId(fluidName),
+    displayName: fluidName,
+    amount:
+      resource.amount === undefined ? undefined : getFilledCellFluidAmount({ amount: resource.amount }),
+  };
+}
+
+export function getFilledCellFluidAmount(resource: Pick<ResourceAmount, "amount">): number {
+  return resource.amount * 1000;
+}
+
+function isFluidEquivalentToFilledCell(
+  fluid: Pick<ResourceAmount, "kind" | "id" | "displayName">,
+  cell: Pick<ResourceAmount, "kind" | "id" | "displayName" | "alternatives">,
+): boolean {
+  if (
+    cell.alternatives?.some(
+      (alternative) => alternative.kind === "fluid" && alternative.id === fluid.id,
+    )
+  ) {
+    return true;
+  }
+
+  const fluidName = getFilledCellFluidName(cell);
+  if (!fluidName) {
     return false;
   }
 
+  const normalizedFluidName = normalizeResourceName(fluidName);
+  const normalizedFluidDisplayName = normalizeResourceName(resourceLabel(fluid));
+
   return (
-    resource.id === input.id ||
-    Boolean(input.alternatives?.some((alternative) => alternative.id === resource.id))
+    normalizeFluidId(fluidName) === fluid.id ||
+    normalizedFluidName === normalizedFluidDisplayName ||
+    normalizedFluidName === normalizeResourceName(fluid.id)
   );
+}
+
+function getFilledCellFluidName(resource: Pick<ResourceAmount, "displayName" | "id">): string | undefined {
+  const label = resourceLabel(resource).trim();
+  const match = label.match(/^(.+?)\s+Cell$/i);
+  if (!match) {
+    return undefined;
+  }
+
+  const fluidName = match[1]?.trim();
+  return fluidName && !/^empty$/i.test(fluidName) ? fluidName : undefined;
+}
+
+function normalizeFluidId(fluidName: string): string {
+  return normalizeResourceName(fluidName).replace(/\s+/g, ".");
+}
+
+function normalizeResourceName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/^fluid:/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 export function stripOreDictionaryPrefix(value: string | undefined): string | undefined {

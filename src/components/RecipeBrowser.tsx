@@ -686,7 +686,7 @@ interface IndexedResource extends Pick<
   recipeCount: number;
 }
 
-type PreviewContextResource = Pick<
+export type PreviewContextResource = Pick<
   ResourceAmount,
   "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor"
 >;
@@ -1351,7 +1351,7 @@ function summaryToPreviewRecipe(summary: RecipeSummary): Recipe {
   };
 }
 
-function contextualizePreviewRecipe(
+export function contextualizePreviewRecipe(
   recipe: Recipe,
   resource: PreviewContextResource | undefined,
 ): Recipe {
@@ -1362,6 +1362,10 @@ function contextualizePreviewRecipe(
   let changed = false;
   const inputs = recipe.inputs.map((input) => {
     if (!resourceMatchesInput(resource, input)) {
+      return input;
+    }
+
+    if (input.kind !== resource.kind) {
       return input;
     }
 
@@ -1423,9 +1427,8 @@ function getRecipeAddContextResource(
   if (mode === "uses") {
     const contextInputIndex = contextRecipe?.inputs.findIndex(
       (input) =>
-        input.kind === activeResource.kind &&
-        (input.id === activeResource.id ||
-          resourceMatchesInput({ kind: activeResource.kind, id: activeResource.id }, input)),
+        (input.kind === activeResource.kind && input.id === activeResource.id) ||
+        resourceMatchesInput({ kind: activeResource.kind, id: activeResource.id }, input),
     );
     const contextInput =
       contextInputIndex !== undefined && contextInputIndex >= 0
@@ -1436,7 +1439,6 @@ function getRecipeAddContextResource(
       contextRecipe?.inputs.find(
         (input) =>
           input.neiSlot &&
-          input.kind === activeResource.kind &&
           resourceMatchesInput({ kind: activeResource.kind, id: activeResource.id }, input),
       );
     if (contextSlotInput && !contextSlotInput.id.startsWith("oredict:")) {

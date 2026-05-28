@@ -6,7 +6,7 @@ import type { Recipe } from "@/lib/model/types";
 import type { DatasetManifest, DatasetVersion, RecipeSummary } from "@/lib/datasets/types";
 import { PROJECT_SCHEMA_VERSION } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
-import { RecipeBrowser } from "./RecipeBrowser";
+import { RecipeBrowser, contextualizePreviewRecipe } from "./RecipeBrowser";
 import { queryRecipeDatasetRecipes } from "@/lib/datasets/browser-loader";
 
 const datasetVersion: DatasetVersion = {
@@ -207,6 +207,55 @@ describe("RecipeBrowser", () => {
     expect(useFactoryStore.getState().project.recipes[0]?.inputs[1]).toEqual(
       expect.objectContaining({
         id: "oredict:logWood",
+      }),
+    );
+  });
+
+  it("keeps filled-cell recipe slots renderable when browsing by equivalent fluid", () => {
+    const recipe: Recipe = {
+      id: "fluid-canner-empty-oxygen-cell",
+      name: "Fluid Canner: Oxygen",
+      machineType: "Fluid Canner",
+      minimumTier: "ULV",
+      durationTicks: 16,
+      eut: 1,
+      inputs: [
+        {
+          kind: "item",
+          id: "gregtech:gt.metaitem.01@32000",
+          amount: 1,
+          displayName: "Oxygen Cell",
+          iconPath: "/items/oxygen-cell.png",
+          alternatives: [{ kind: "fluid", id: "oxygen", displayName: "Oxygen" }],
+          neiSlot: { x: 34, y: 17 },
+        },
+      ],
+      outputs: [
+        { kind: "item", id: "gregtech:gt.metaitem.01@32001", amount: 1, displayName: "Empty Cell" },
+        { kind: "fluid", id: "oxygen", amount: 1000, displayName: "Oxygen" },
+      ],
+      nei: {
+        slots: [
+          { side: "input", kind: "item", slotIndex: 0, x: 34, y: 17 },
+          { side: "output", kind: "item", slotIndex: 0, x: 88, y: 17 },
+          { side: "output", kind: "fluid", slotIndex: 0, x: 88, y: 53 },
+        ],
+      },
+    };
+
+    const preview = contextualizePreviewRecipe(recipe, {
+      kind: "fluid",
+      id: "oxygen",
+      displayName: "Oxygen",
+      iconPath: "/fluids/oxygen.png",
+    });
+
+    expect(preview.inputs[0]).toEqual(
+      expect.objectContaining({
+        kind: "item",
+        id: "gregtech:gt.metaitem.01@32000",
+        displayName: "Oxygen Cell",
+        iconPath: "/items/oxygen-cell.png",
       }),
     );
   });

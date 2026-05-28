@@ -44,6 +44,7 @@ import {
 import {
   formatRate,
   applyRecipeInputOverrides,
+  restoreCrossKindInputOverrideVisuals,
   applyMachineHandlerToRecipe,
   isRecipeInputConsumed,
   makeResourceKey,
@@ -468,8 +469,7 @@ export function FactoryFlow() {
         if (
           sourceHandle &&
           targetHandle &&
-          sourceHandle.side !== targetHandle.side &&
-          sourceHandle.kind === targetHandle.kind
+          sourceHandle.side !== targetHandle.side
         ) {
           const outputHandle =
             sourceHandle.side === "output"
@@ -3710,11 +3710,6 @@ function isCompatibleDraggedResourceTarget(
   targetHandle: ResolvedResourceHandle,
 ) {
   const targetResource = getResourceForHandle(project, targetHandle.nodeId, targetHandle.handleId);
-  const dragged = {
-    kind: draggedResource.kind,
-    id: draggedResource.id,
-    alternatives: draggedResource.alternatives,
-  };
 
   if (!targetResource) {
     return false;
@@ -3723,10 +3718,9 @@ function isCompatibleDraggedResourceTarget(
   return (
     draggedResource.nodeId !== targetHandle.nodeId &&
     draggedResource.side !== targetHandle.side &&
-    draggedResource.kind === targetHandle.kind &&
     (targetHandle.side === "input"
-      ? resourceMatchesInput(dragged, targetResource)
-      : resourceMatchesInput(targetResource, dragged))
+      ? resourceMatchesInput(draggedResource, targetResource)
+      : resourceMatchesInput(targetResource, draggedResource))
   );
 }
 
@@ -3777,10 +3771,9 @@ function getStorageHandleAtPosition(
       resourceId &&
       nodeId !== draggedResource.nodeId &&
       (kind === "item" || kind === "fluid") &&
-      kind === draggedResource.kind &&
       (draggedResource.side === "input"
         ? resourceMatchesInput({ kind, id: resourceId }, draggedResource)
-        : resourceId === draggedResource.id)
+        : resourceMatchesInput(draggedResource, { kind, id: resourceId }))
     ) {
       const side = draggedResource.side === "output" ? "input" : "output";
       return {
@@ -3879,9 +3872,7 @@ function isCompatibleResourceConnection(
   const input = sourceHandle.side === "input" ? sourceResource : targetResource;
 
   return (
-    sourceHandle.side !== targetHandle.side &&
-    sourceHandle.kind === targetHandle.kind &&
-    resourceMatchesInput(output, input)
+    sourceHandle.side !== targetHandle.side && resourceMatchesInput(output, input)
   );
 }
 
@@ -3984,10 +3975,10 @@ function getNodeRecipeForHandles(recipe: Recipe, node: FactoryProject["nodes"][n
     node,
     overclockedStats.tier,
   );
-  return {
+  return restoreCrossKindInputOverrideVisuals({
     ...effectiveRecipe,
     ...adjustedRecipe,
-  };
+  }, recipe, node);
 }
 
 function getClientPosition(event: MouseEvent | TouchEvent) {

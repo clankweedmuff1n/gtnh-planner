@@ -1,7 +1,9 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { ResourceAmount, ResourceKind } from "@/lib/model/types";
 import {
+  formatNumberWithThousands,
   resourceLabel,
   stripOreDictionaryPrefix,
   trimTrailingDecimalZeros,
@@ -75,7 +77,7 @@ export function ResourceIcon({
         </span>
       ) : null}
 
-      {resource?.alternatives?.length ? (
+      {resource && shouldShowAlternativeMarker(resource) ? (
         <span className="absolute left-0 bottom-0 font-mono text-[9px] font-black leading-none text-[#55ffff] drop-shadow-[1px_1px_0_#000]">
           +
         </span>
@@ -94,6 +96,22 @@ export function ResourceIcon({
   }
 
   return <MinecraftTooltip label={title}>{icon}</MinecraftTooltip>;
+}
+
+function shouldShowAlternativeMarker(resource: DisplayResourceAmount): boolean {
+  return Boolean(
+    resource.alternatives?.some((alternative) => !isFluidCellAlternative(resource, alternative)),
+  );
+}
+
+function isFluidCellAlternative(
+  resource: DisplayResourceAmount,
+  alternative: NonNullable<DisplayResourceAmount["alternatives"]>[number],
+): boolean {
+  return (
+    (resource.kind === "item" && alternative.kind === "fluid") ||
+    (resource.kind === "fluid" && alternative.kind === "item")
+  );
 }
 
 function buildTooltipLabel(resource: ResourceIconProps["resource"]) {
@@ -115,11 +133,14 @@ function buildTooltipLabel(resource: ResourceIconProps["resource"]) {
     resource.consumed === false && !resource.tooltip?.some(isNotConsumedTooltipLine)
       ? "Not consumed"
       : undefined;
-  const alternativesLine = resource.alternatives?.length
-    ? `Accepts: ${resource.alternatives
+  const visibleAlternatives =
+    resource.alternatives?.filter((alternative) => !isFluidCellAlternative(resource, alternative)) ??
+    [];
+  const alternativesLine = visibleAlternatives.length
+    ? `Accepts: ${visibleAlternatives
         .slice(0, 12)
         .map((alternative) => resourceLabel(alternative))
-        .join(", ")}${resource.alternatives.length > 12 ? `, +${resource.alternatives.length - 12} more` : ""}`
+        .join(", ")}${visibleAlternatives.length > 12 ? `, +${visibleAlternatives.length - 12} more` : ""}`
     : undefined;
 
   return [...baseLines, alternativesLine, chanceLine, consumedLine].filter(Boolean).join("\n");
@@ -187,17 +208,31 @@ function AmountLabel({ resource }: { resource: Pick<ResourceAmount, "kind" | "am
 
   const position =
     resource.kind === "fluid" ? "bottom-0 left-0.5" : "bottom-0 right-0.5 text-right";
+  const style = getAmountLabelStyle(label, resource.kind);
 
   return (
     <span
       className={[
-        "absolute max-w-[95%] truncate font-mono text-[10px] font-black leading-none text-white drop-shadow-[1px_1px_0_#000]",
+        "absolute max-w-[95%] whitespace-nowrap font-mono font-black text-white drop-shadow-[1px_1px_0_#000]",
         position,
       ].join(" ")}
+      style={style}
     >
       {label}
     </span>
   );
+}
+
+function getAmountLabelStyle(label: string, kind: ResourceKind): CSSProperties {
+  const length = label.length;
+  const fontSize = length <= 4 ? 10 : length <= 6 ? 8 : length <= 9 ? 6 : 5;
+  const scaleX = length <= 9 ? 1 : length <= 12 ? 0.9 : 0.78;
+  return {
+    fontSize,
+    lineHeight: `${fontSize}px`,
+    transform: scaleX === 1 ? undefined : `scaleX(${scaleX})`,
+    transformOrigin: kind === "fluid" ? "bottom left" : "bottom right",
+  };
 }
 
 function formatMinecraftAmount(amount: number, kind: ResourceKind): string | undefined {
@@ -206,7 +241,7 @@ function formatMinecraftAmount(amount: number, kind: ResourceKind): string | und
       return undefined;
     }
 
-    return Number.isInteger(amount) ? String(amount) : trimAmount(amount);
+    return Number.isInteger(amount) ? formatNumberWithThousands(amount) : trimAmount(amount);
   }
 
   return `${trimAmount(amount)}L`;
@@ -214,8 +249,8 @@ function formatMinecraftAmount(amount: number, kind: ResourceKind): string | und
 
 function trimAmount(amount: number): string {
   if (Number.isInteger(amount)) {
-    return String(amount);
+    return formatNumberWithThousands(amount);
   }
 
-  return trimTrailingDecimalZeros(amount.toFixed(2));
+  return formatNumberWithThousands(trimTrailingDecimalZeros(amount.toFixed(2)));
 }

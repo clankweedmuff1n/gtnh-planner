@@ -136,7 +136,6 @@ type ResourceEdgeData = {
     isLimited: boolean;
   };
   isFlowHighlighted?: boolean;
-  isInteractionActive?: boolean;
 };
 
 type ResourceFlowEdge = Edge<ResourceEdgeData, "resourceEdge">;
@@ -284,7 +283,6 @@ export function FactoryFlow() {
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
   const [isNodeDragging, setNodeDragging] = useState(false);
-  const [isViewportMoving, setViewportMoving] = useState(false);
   const draggingNodeRef = useRef(false);
   const draggedResourceRef = useRef<DraggedResourceConnection | undefined>(undefined);
   const lastConnectionPointerRef = useRef<{ x: number; y: number } | undefined>(undefined);
@@ -317,7 +315,6 @@ export function FactoryFlow() {
   const edges = useMemo<ResourceFlowEdge[]>(() => {
     const edgeBundles = getEdgeBundles(project, project.edges, result.edges);
     const endpointOffsets = getEdgeEndpointOffsets(project);
-    const isInteractionActive = isNodeDragging || isViewportMoving;
 
     return project.edges.map((edge, edgeIndex) => {
       const edgeResult = result.edges[edge.id];
@@ -374,7 +371,6 @@ export function FactoryFlow() {
           routeIndex: edgeIndex,
           bundle: edgeBundles.get(edge.id),
           isFlowHighlighted,
-          isInteractionActive,
         },
         style: {
           stroke: edgeColor,
@@ -404,7 +400,6 @@ export function FactoryFlow() {
     activeFlowResourceKey,
     hoveredStorageResourceKey,
     isNodeDragging,
-    isViewportMoving,
     project,
     recipeSearch,
     result.edges,
@@ -688,11 +683,11 @@ export function FactoryFlow() {
   }, [setFlowViewportCenter]);
 
   const handleMoveStart = useCallback(() => {
-    setViewportMoving(true);
+    boardRef.current?.classList.add("factory-flow-board--moving");
   }, []);
 
   const handleMoveEnd = useCallback(() => {
-    setViewportMoving(false);
+    boardRef.current?.classList.remove("factory-flow-board--moving");
     updateFlowViewportCenter();
   }, [updateFlowViewportCenter]);
 
@@ -963,7 +958,6 @@ export function FactoryFlow() {
   );
 
   const fitViewOptions = useMemo(() => ({ padding: 0.18 }), []);
-  const shouldVirtualizeFlow = flowNodes.length > 120 || edges.length > 180;
 
   return (
     <div
@@ -1000,7 +994,7 @@ export function FactoryFlow() {
         onEdgesDelete={handleEdgesDelete}
         fitView
         fitViewOptions={fitViewOptions}
-        onlyRenderVisibleElements={shouldVirtualizeFlow}
+        onlyRenderVisibleElements
         minZoom={0.15}
         maxZoom={1.8}
       >
@@ -1146,8 +1140,7 @@ function ResourceEdge({
   const edgeColor = resourceColor;
   const isGlobalView = zoom < 0.45;
   const isHighlighted = selected || data?.isFlowHighlighted === true;
-  const isInteractionActive = data?.isInteractionActive === true;
-  const shouldUsePreciseRouting = !isGlobalView && !isInteractionActive;
+  const shouldUsePreciseRouting = !isGlobalView;
   const visualSourceCandidates = getSlotEdgeEndpointCandidates({
     nodeId: source,
     handleId: data?.sourceHandleId ?? sourceHandleId,
@@ -1183,11 +1176,10 @@ function ResourceEdge({
     data?.bundle?.role === "member" && data.bundle.mode === "single-target";
   const showLabel = Boolean(
     data?.showLabel &&
-    !isInteractionActive &&
     !isHiddenBundleMember &&
     (selected || data.isFlowHighlighted || zoom >= EDGE_LABEL_ZOOM),
   );
-  const showArrowHead = !isInteractionActive && (isHighlighted || zoom >= EDGE_ARROW_ZOOM);
+  const showArrowHead = isHighlighted || zoom >= EDGE_ARROW_ZOOM;
   const labelOffset = isLabelDragging ? draftLabelOffset : storedLabelOffset;
   const routedEdge =
     data?.bundle?.role === "primary"

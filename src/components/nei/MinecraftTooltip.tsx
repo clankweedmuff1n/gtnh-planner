@@ -34,7 +34,9 @@ export function MinecraftTooltip({
 
     if (event.buttons !== 0) {
       pendingPositionRef.current = undefined;
-      setPosition(undefined);
+      if (position !== undefined) {
+        setPosition(undefined);
+      }
       return;
     }
 
@@ -70,7 +72,9 @@ export function MinecraftTooltip({
       window.cancelAnimationFrame(frameRef.current);
       frameRef.current = undefined;
     }
-    setPosition(undefined);
+    if (position !== undefined) {
+      setPosition(undefined);
+    }
   };
 
   return (

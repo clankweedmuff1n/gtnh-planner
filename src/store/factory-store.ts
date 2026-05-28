@@ -8,6 +8,7 @@ import { calculateThroughput } from "@/lib/solver";
 import { applyRecipeInputOverrides } from "@/lib/model/recipe-input-overrides";
 import { optimizeMachineCountsForProject } from "@/lib/solver/machine-count-optimizer";
 import {
+  getFilledCellFluidEquivalent,
   getResourceKey,
   isOreDictionaryResource,
   isRecipeInputConsumed,
@@ -107,13 +108,15 @@ interface FactoryStore {
     resource: Pick<
       ResourceAmount,
       "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor"
-    >,
+    > &
+      Partial<Pick<ResourceAmount, "tooltip" | "amount" | "alternatives">>,
   ) => void;
   addStorageForConnection: (
     resource: Pick<
       ResourceAmount,
       "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor"
-    >,
+    > &
+      Partial<Pick<ResourceAmount, "tooltip" | "amount" | "alternatives">>,
     nodeId: string,
     side: "input" | "output",
     position: FactoryStorage["position"],
@@ -640,14 +643,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   },
   addStorageForConnection: (resource, nodeId, side, position, handleId) => {
     set((state) => {
+      const storageResource = getStorageResourceForConnection(resource);
       const storage: FactoryStorage = {
         id: createId("storage"),
-        kind: resource.kind,
-        resourceId: resource.id,
-        displayName: resource.displayName,
-        iconPath: resource.iconPath,
-        iconAtlas: resource.iconAtlas,
-        dominantColor: resource.dominantColor ?? resource.iconAtlas?.dominantColor,
+        kind: storageResource.kind,
+        resourceId: storageResource.id,
+        displayName: storageResource.displayName,
+        iconPath: storageResource.iconPath,
+        iconAtlas: storageResource.iconAtlas,
+        dominantColor: storageResource.dominantColor ?? storageResource.iconAtlas?.dominantColor,
         position,
       };
       const projectWithStorage: FactoryProject = {
@@ -655,20 +659,22 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         storages: [...(state.project.storages ?? []), storage],
       };
       const selectedResource = {
-        kind: resource.kind,
-        id: resource.id,
-        displayName: resource.displayName,
-        iconPath: resource.iconPath,
-        iconAtlas: resource.iconAtlas,
-        dominantColor: resource.dominantColor ?? resource.iconAtlas?.dominantColor,
+        kind: storageResource.kind,
+        id: storageResource.id,
+        amount: storageResource.amount,
+        displayName: storageResource.displayName,
+        iconPath: storageResource.iconPath,
+        iconAtlas: storageResource.iconAtlas,
+        dominantColor: storageResource.dominantColor ?? storageResource.iconAtlas?.dominantColor,
+        tooltip: storageResource.tooltip,
         sourceHandle:
           side === "output"
             ? handleId
-            : makeResourceHandleId("output", { kind: resource.kind, id: resource.id }),
+            : makeResourceHandleId("output", { kind: storageResource.kind, id: storageResource.id }),
         targetHandle:
           side === "input"
             ? handleId
-            : makeResourceHandleId("input", { kind: resource.kind, id: resource.id }),
+            : makeResourceHandleId("input", { kind: storageResource.kind, id: storageResource.id }),
       };
       const edge =
         side === "output"
@@ -680,7 +686,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return withProjectHistory(state, {
           project,
           selectedNodeId: undefined,
-          hoveredStorageResourceKey: getResourceKey(resource),
+          hoveredStorageResourceKey: getResourceKey(storageResource),
           lastResult: calculateThroughput(project),
         });
       }
@@ -691,24 +697,27 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return withProjectHistory(state, {
           project,
           selectedNodeId: undefined,
-          hoveredStorageResourceKey: getResourceKey(resource),
+          hoveredStorageResourceKey: getResourceKey(storageResource),
           lastResult: calculateThroughput(project),
         });
       }
 
+      const projectWithEdge = {
+        ...projectWithStorage,
+        edges: duplicateEdge
+          ? projectWithStorage.edges.filter((entry) => entry.id !== duplicateEdge.id)
+          : [...projectWithStorage.edges, edge],
+      };
       const project = touchProject(
-        pruneOrphanStorages({
-          ...projectWithStorage,
-          edges: duplicateEdge
-            ? projectWithStorage.edges.filter((entry) => entry.id !== duplicateEdge.id)
-            : [...projectWithStorage.edges, edge],
-        }),
+        pruneOrphanStorages(
+          duplicateEdge ? projectWithEdge : applyEdgeInputOverride(projectWithEdge, edge, selectedResource),
+        ),
       );
 
       return withProjectHistory(state, {
         project,
         selectedNodeId: undefined,
-        hoveredStorageResourceKey: getResourceKey(resource),
+        hoveredStorageResourceKey: getResourceKey(storageResource),
         lastResult: calculateThroughput(project),
       });
     });
@@ -758,10 +767,15 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         return state;
       }
 
-      const project = touchProject({
-        ...state.project,
-        edges: [...state.project.edges, ...missingEdges],
-      });
+      const project = touchProject(
+        applyEdgeInputOverrides(
+          {
+            ...state.project,
+            edges: [...state.project.edges, ...missingEdges],
+          },
+          missingEdges,
+        ),
+      );
 
       return withProjectHistory(state, {
         project,
@@ -1353,7 +1367,8 @@ function applyEdgeInputOverride(
   resource?: Pick<
     ResourceAmount,
     "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
-  >,
+  > &
+    Partial<Pick<ResourceAmount, "amount">>,
 ): FactoryProject {
   const targetNode = project.nodes.find((node) => node.id === edge.target);
   const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
@@ -1382,11 +1397,13 @@ function applyEdgeInputOverride(
   const alternative = input.alternatives?.find(
     (entry) => entry.kind === edge.resourceKind && entry.id === edge.resourceId,
   );
+  const filledCellFluidInput = getFilledCellFluidEquivalent(input);
   const override: Recipe["inputs"][number] = {
     ...input,
     ...alternative,
     kind: edge.resourceKind,
     id: edge.resourceId,
+    amount: resource?.amount ?? filledCellFluidInput?.amount ?? input.amount,
     displayName:
       resource?.displayName ?? edge.label ?? alternative?.displayName ?? input.displayName,
     iconPath: resource?.iconPath ?? alternative?.iconPath ?? input.iconPath,
@@ -1470,9 +1487,7 @@ function isFactoryEdgeStillValid(project: FactoryProject, edge: FactoryEdge): bo
       edge.resourceKind === targetStorage.kind &&
       edge.resourceId === targetStorage.resourceId &&
       effectiveSourceRecipe.outputs.some(
-        (output) =>
-          output.kind === edge.resourceKind &&
-          resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, output),
+        (output) => resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, output),
       )
     );
   }
@@ -1486,9 +1501,7 @@ function isFactoryEdgeStillValid(project: FactoryProject, edge: FactoryEdge): bo
 
   return (
     effectiveSourceRecipe.outputs.some(
-      (output) =>
-        output.kind === edge.resourceKind &&
-        resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, output),
+      (output) => resourceMatchesInput({ kind: edge.resourceKind, id: edge.resourceId }, output),
     ) &&
     effectiveTargetRecipe.inputs.some(
       (input) =>
@@ -1506,6 +1519,7 @@ function buildEdgeBetweenNodes(
     ResourceAmount,
     "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
   > & {
+    amount?: number;
     sourceHandle?: string;
     targetHandle?: string;
   },
@@ -1527,8 +1541,6 @@ function buildEdgeBetweenNodes(
       : targetRecipe;
     const matchedInput = effectiveTargetRecipe.inputs.find(
       (input) =>
-        input.kind === sourceStorage.kind &&
-        input.kind === selectedResource.kind &&
         sourceStorage.kind === selectedResource.kind &&
         sourceStorage.resourceId === selectedResource.id &&
         resourceMatchesInput(sourceStorageResource(sourceStorage), input) &&
@@ -1556,10 +1568,7 @@ function buildEdgeBetweenNodes(
       : sourceRecipe;
     const matchedOutput = effectiveSourceRecipe.outputs.find(
       (output) =>
-        output.kind === targetStorage.kind &&
-        output.id === targetStorage.resourceId &&
-        output.kind === selectedResource.kind &&
-        output.id === selectedResource.id,
+        resourceMatchesInput(sourceStorageResource(targetStorage), output),
     );
     if (!matchedOutput) {
       return undefined;
@@ -1717,7 +1726,7 @@ function buildCompatibleEdgesForStorage(
     const effectiveRecipe = applyRecipeInputOverrides(recipe, node);
 
     effectiveRecipe.outputs.forEach((output, outputIndex) => {
-      if (output.kind !== storage.kind || output.id !== storage.resourceId) {
+      if (!resourceMatchesInput(sourceStorageResource(storage), output)) {
         return;
       }
 
@@ -1736,7 +1745,6 @@ function buildCompatibleEdgesForStorage(
     effectiveRecipe.inputs.forEach((input, inputIndex) => {
       if (
         input.consumed === false ||
-        input.kind !== storage.kind ||
         !resourceMatchesInput(sourceStorageResource(storage), input)
       ) {
         return;
@@ -1767,6 +1775,20 @@ function buildCompatibleEdgesForStorage(
 
 function sourceStorageResource(storage: FactoryStorage): Pick<ResourceAmount, "kind" | "id"> {
   return { kind: storage.kind, id: storage.resourceId };
+}
+
+function getStorageResourceForConnection(
+  resource: Pick<
+    ResourceAmount,
+    "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor"
+  > &
+    Partial<Pick<ResourceAmount, "tooltip" | "amount" | "alternatives">>,
+): Pick<
+  ResourceAmount,
+  "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip"
+> &
+  Partial<Pick<ResourceAmount, "amount">> {
+  return getFilledCellFluidEquivalent(resource) ?? resource;
 }
 
 function hasDuplicateEdge(edges: FactoryEdge[], edge: FactoryEdge): boolean {

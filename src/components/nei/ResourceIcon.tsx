@@ -2,6 +2,7 @@
 
 import type { ResourceAmount, ResourceKind } from "@/lib/model/types";
 import {
+  formatNumberWithThousands,
   resourceLabel,
   stripOreDictionaryPrefix,
   trimTrailingDecimalZeros,
@@ -206,7 +207,7 @@ function formatMinecraftAmount(amount: number, kind: ResourceKind): string | und
       return undefined;
     }
 
-    return Number.isInteger(amount) ? String(amount) : trimAmount(amount);
+    return Number.isInteger(amount) ? formatNumberWithThousands(amount) : trimAmount(amount);
   }
 
   return `${trimAmount(amount)}L`;
@@ -214,8 +215,8 @@ function formatMinecraftAmount(amount: number, kind: ResourceKind): string | und
 
 function trimAmount(amount: number): string {
   if (Number.isInteger(amount)) {
-    return String(amount);
+    return formatNumberWithThousands(amount);
   }
 
-  return trimTrailingDecimalZeros(amount.toFixed(2));
+  return formatNumberWithThousands(trimTrailingDecimalZeros(amount.toFixed(2)));
 }

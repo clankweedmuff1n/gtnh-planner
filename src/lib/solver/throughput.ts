@@ -514,7 +514,9 @@ function getEdgeTargetDemandKey(project: FactoryProject, edge: FactoryProject["e
   const targetNode = project.nodes.find((node) => node.id === edge.target);
   const targetRecipe = project.recipes.find((recipe) => recipe.id === targetNode?.recipeId);
   const edgeResource = { kind: edge.resourceKind, id: edge.resourceId };
-  const input = targetRecipe?.inputs.find(
+  const effectiveTargetRecipe =
+    targetNode && targetRecipe ? applyRecipeInputOverrides(targetRecipe, targetNode) : undefined;
+  const input = effectiveTargetRecipe?.inputs.find(
     (entry) => isRecipeInputConsumed(entry) && resourceMatchesInput(edgeResource, entry),
   );
 

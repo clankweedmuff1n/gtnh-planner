@@ -18,7 +18,7 @@ export function applyRecipeInputOverrides(
     return {
       ...input,
       ...override,
-      amount: input.amount,
+      amount: override.amount ?? input.amount,
       optional: input.optional,
       consumed: input.consumed,
       neiSlot: input.neiSlot,

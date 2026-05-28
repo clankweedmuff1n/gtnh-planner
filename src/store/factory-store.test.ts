@@ -425,6 +425,80 @@ describe("factory resource links", () => {
     expect(useFactoryStore.getState().project.edges).toHaveLength(2);
   });
 
+  it("creates a fluid tank when dragging a filled cell input into storage", () => {
+    useFactoryStore.getState().setProject({
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      id: "filled-cell-storage-test",
+      name: "Filled cell storage test",
+      fuelProfiles: [],
+      recipes: [
+        {
+          id: "cell-consumer",
+          name: "Cell Consumer",
+          machineType: "Assembler",
+          minimumTier: "LV",
+          durationTicks: 20,
+          eut: 1,
+          inputs: [
+            {
+              kind: "item",
+              id: "gregtech:gt.metaitem.99@143",
+              amount: 2,
+              displayName: "Molten Magmatter Cell",
+            },
+          ],
+          outputs: [{ kind: "item", id: "plate", amount: 1 }],
+        },
+      ],
+      nodes: [makeNode("cell-consumer-node", "cell-consumer", 0)],
+      storages: [],
+      edges: [],
+    });
+
+    useFactoryStore.getState().addStorageForConnection(
+      {
+        kind: "item",
+        id: "gregtech:gt.metaitem.99@143",
+        amount: 2,
+        displayName: "Molten Magmatter Cell",
+      },
+      "cell-consumer-node",
+      "input",
+      { x: 320, y: 20 },
+      makeResourceHandleId(
+        "input",
+        { kind: "item", id: "gregtech:gt.metaitem.99@143" },
+        0,
+      ),
+    );
+
+    const state = useFactoryStore.getState();
+    expect(state.project.storages?.[0]).toEqual(
+      expect.objectContaining({
+        kind: "fluid",
+        resourceId: "molten.magmatter",
+        displayName: "Molten Magmatter",
+      }),
+    );
+    expect(state.project.edges[0]).toEqual(
+      expect.objectContaining({
+        source: state.project.storages?.[0]?.id,
+        target: "cell-consumer-node",
+        resourceKind: "fluid",
+        resourceId: "molten.magmatter",
+        targetHandle: "input:item:gregtech%3Agt.metaitem.99%40143:0",
+      }),
+    );
+    expect(state.project.nodes[0]?.recipeInputOverrides?.["0"]).toEqual(
+      expect.objectContaining({
+        kind: "fluid",
+        id: "molten.magmatter",
+        amount: 2000,
+        displayName: "Molten Magmatter",
+      }),
+    );
+  });
+
   it("connects a new drawer to an overridden concrete recipe input", () => {
     useFactoryStore.getState().setProject({
       schemaVersion: PROJECT_SCHEMA_VERSION,

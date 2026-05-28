@@ -468,8 +468,7 @@ export function FactoryFlow() {
         if (
           sourceHandle &&
           targetHandle &&
-          sourceHandle.side !== targetHandle.side &&
-          sourceHandle.kind === targetHandle.kind
+          sourceHandle.side !== targetHandle.side
         ) {
           const outputHandle =
             sourceHandle.side === "output"
@@ -3723,7 +3722,6 @@ function isCompatibleDraggedResourceTarget(
   return (
     draggedResource.nodeId !== targetHandle.nodeId &&
     draggedResource.side !== targetHandle.side &&
-    draggedResource.kind === targetHandle.kind &&
     (targetHandle.side === "input"
       ? resourceMatchesInput(dragged, targetResource)
       : resourceMatchesInput(targetResource, dragged))
@@ -3777,10 +3775,9 @@ function getStorageHandleAtPosition(
       resourceId &&
       nodeId !== draggedResource.nodeId &&
       (kind === "item" || kind === "fluid") &&
-      kind === draggedResource.kind &&
       (draggedResource.side === "input"
         ? resourceMatchesInput({ kind, id: resourceId }, draggedResource)
-        : resourceId === draggedResource.id)
+        : resourceMatchesInput(draggedResource, { kind, id: resourceId }))
     ) {
       const side = draggedResource.side === "output" ? "input" : "output";
       return {

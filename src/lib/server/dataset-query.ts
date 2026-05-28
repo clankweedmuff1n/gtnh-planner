@@ -12,10 +12,12 @@ import type {
 import type { MachineTier, Recipe, RecipeOutput, ResourceAmount } from "@/lib/model/types";
 import {
   enrichPassiveProductionRecipe,
+  getFilledCellFluidEquivalent,
   getRecipePowerTier,
   GT_VOLTAGE_TIERS,
   isOreDictionaryResource,
   isVirtualChoiceResource,
+  resourceMatchesInput,
 } from "@/lib/model";
 
 type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
@@ -1044,18 +1046,26 @@ function getRecipeResourceScope(
   mode: "recipes" | "uses",
 ): RecipeResourceScope {
   const resources = [resource];
+  const resourcesByKey = getCatalogResourcesByKey(catalog);
+  const indexed = resourcesByKey.get(`${resource.kind}:${resource.id}`);
+  for (const equivalent of getFilledCellEquivalentResources(
+    catalog,
+    indexed ? { ...indexed, kind: indexed.kind, id: indexed.id } : resource,
+  )) {
+    addScopedResource(resources, equivalent);
+  }
+
   if (mode !== "uses" || resource.kind !== "item" || isOreDictionaryResource(resource)) {
     return { resource, resources };
   }
 
   const wildcardResource = getWildcardResource(resource);
   if (wildcardResource) {
-    resources.push(wildcardResource);
+    addScopedResource(resources, wildcardResource);
   }
 
-  const indexed = getCatalogResourcesByKey(catalog).get(`${resource.kind}:${resource.id}`);
   const oreDictionaryNames = new Set(indexed?.oreDictionary ?? []);
-  for (const candidate of getCatalogResourcesByKey(catalog).values()) {
+  for (const candidate of resourcesByKey.values()) {
     if (
       candidate.kind === "item" &&
       isOreDictionaryResource(candidate) &&
@@ -1067,10 +1077,46 @@ function getRecipeResourceScope(
     }
   }
   for (const name of oreDictionaryNames ?? []) {
-    resources.push({ kind: "item", id: `oredict:${name}` });
+    addScopedResource(resources, { kind: "item", id: `oredict:${name}` });
   }
 
   return { resource, resources };
+}
+
+function getFilledCellEquivalentResources(
+  catalog: LoadedRecipeIndex,
+  resource: Pick<ResourceAmount, "kind" | "id" | "displayName">,
+): Array<Pick<ResourceAmount, "kind" | "id">> {
+  const resourcesByKey = getCatalogResourcesByKey(catalog);
+  if (resource.kind === "item") {
+    const fluid = getFilledCellFluidEquivalent(resource);
+    if (!fluid) {
+      return [];
+    }
+
+    const indexedFluid = resourcesByKey.get(`fluid:${fluid.id}`);
+    return [{ kind: "fluid", id: indexedFluid?.id ?? fluid.id }];
+  }
+
+  const cells: Array<Pick<ResourceAmount, "kind" | "id">> = [];
+  for (const candidate of resourcesByKey.values()) {
+    if (candidate.kind !== "item" || isOreDictionaryResource(candidate)) {
+      continue;
+    }
+    if (resourceMatchesInput(resource, candidate)) {
+      cells.push({ kind: "item", id: candidate.id });
+    }
+  }
+  return cells;
+}
+
+function addScopedResource(
+  resources: Array<Pick<ResourceAmount, "kind" | "id">>,
+  resource: Pick<ResourceAmount, "kind" | "id">,
+): void {
+  if (!resources.some((entry) => entry.kind === resource.kind && entry.id === resource.id)) {
+    resources.push(resource);
+  }
 }
 
 function getResourceIndexes(

@@ -146,6 +146,7 @@ class MachineCountOptimizer {
       if (seededFromProducedOutput) {
         this.flushStorageOutputConsumers(new Set());
       }
+      this.flushRoundedStorageOutputConsumers(new Set());
     }
 
     return {
@@ -200,7 +201,7 @@ class MachineCountOptimizer {
         continue;
       }
 
-      this.ensureNodeOperations(node.id, normalizeMachineCount(node.machineCount), new Set());
+      this.ensureNodeOperations(node.id, 1, new Set());
     }
   }
 
@@ -490,6 +491,60 @@ class MachineCountOptimizer {
         }
       }
     }
+  }
+
+  private flushRoundedStorageOutputConsumers(stack: Set<string>) {
+    const roundedContributions = new Map<ResourceKey, Map<EndpointId, number>>();
+
+    for (const plan of this.context.ratePlans.values()) {
+      if (!plan.enabled || !plan.valid) {
+        continue;
+      }
+
+      const roundedMachineCount = this.machineCounts.get(plan.node.id) ?? 0;
+      if (roundedMachineCount <= EPSILON) {
+        continue;
+      }
+
+      for (const edge of this.context.nodeToStorageEdges.get(plan.node.id) ?? []) {
+        const storageKey = this.context.storageResourceById.get(edge.target);
+        if (
+          !storageKey ||
+          (this.context.storageConsumersByResource.get(storageKey) ?? []).length === 0
+        ) {
+          continue;
+        }
+
+        const outputKey = getPlanOutputKeyForEdge(plan, edge);
+        const outputRate = outputKey ? (plan.outputs.get(outputKey) ?? 0) : 0;
+        if (!outputKey || outputRate <= EPSILON) {
+          continue;
+        }
+
+        const contribution =
+          convertOutputRateForEdge(plan, edge, outputKey, outputRate) * roundedMachineCount;
+        if (contribution <= EPSILON) {
+          continue;
+        }
+
+        const contributions = roundedContributions.get(storageKey) ?? new Map<EndpointId, number>();
+        contributions.set(plan.node.id, (contributions.get(plan.node.id) ?? 0) + contribution);
+        roundedContributions.set(storageKey, contributions);
+      }
+    }
+
+    for (const [resourceKey, roundedByProducer] of roundedContributions) {
+      const contributions = this.storageForwardContributions.get(resourceKey) ?? new Map();
+      for (const [producerEndpoint, roundedContribution] of roundedByProducer) {
+        contributions.set(
+          producerEndpoint,
+          Math.max(contributions.get(producerEndpoint) ?? 0, roundedContribution),
+        );
+      }
+      this.storageForwardContributions.set(resourceKey, contributions);
+    }
+
+    this.flushStorageOutputConsumers(stack);
   }
 
   private getOutputConsumers(nodeId: string, resourceKey: ResourceKey): OutputConsumer[] {

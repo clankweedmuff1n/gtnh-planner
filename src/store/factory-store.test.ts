@@ -1483,8 +1483,8 @@ describe("factory machine count optimization", () => {
 
     expect(useFactoryStore.getState().project.nodes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "oxygen-cell-source-node", machineCount: 2 }),
-        expect.objectContaining({ id: "oxygen-consumer-node", machineCount: 12 }),
+        expect.objectContaining({ id: "oxygen-cell-source-node", machineCount: 1 }),
+        expect.objectContaining({ id: "oxygen-consumer-node", machineCount: 11 }),
       ]),
     );
   });
@@ -1498,6 +1498,37 @@ describe("factory machine count optimization", () => {
       expect.arrayContaining([
         expect.objectContaining({ id: "implicit-source", machineCount: 1 }),
         expect.objectContaining({ id: "implicit-consumer", machineCount: 10 }),
+      ]),
+    );
+  });
+
+  it("uses rounded storage producer capacity for implicit terminal ratios", () => {
+    const project = createImplicitRoundedStorageProducerProject();
+    useFactoryStore.getState().setProject({
+      ...project,
+      nodes: project.nodes.map((node) =>
+        node.id === "storage-consumer"
+          ? {
+              ...node,
+              machineCount: 100,
+            }
+          : node,
+      ),
+    });
+
+    useFactoryStore.getState().optimizeMachineCounts();
+    const firstCounts = useFactoryStore
+      .getState()
+      .project.nodes.map((node) => [node.id, node.machineCount]);
+    useFactoryStore.getState().optimizeMachineCounts();
+
+    expect(
+      useFactoryStore.getState().project.nodes.map((node) => [node.id, node.machineCount]),
+    ).toEqual(firstCounts);
+    expect(useFactoryStore.getState().project.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "storage-producer", machineCount: 1 }),
+        expect.objectContaining({ id: "storage-consumer", machineCount: 3 }),
       ]),
     );
   });
@@ -2673,6 +2704,60 @@ function createImplicitTerminalStorageDemandProject(): FactoryProject {
         target: "implicit-consumer",
         resourceKind: "fluid",
         resourceId: "oil",
+      },
+    ],
+    fuelProfiles: [],
+  };
+}
+
+function createImplicitRoundedStorageProducerProject(): FactoryProject {
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: "implicit-rounded-storage-producer",
+    name: "Implicit rounded storage producer",
+    recipes: [
+      {
+        id: "storage-producer-recipe",
+        name: "Storage Producer",
+        machineType: "Chemical Reactor",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "item", id: "feedstock", amount: 1 }],
+        outputs: [{ kind: "fluid", id: "product", amount: 3 }],
+      },
+      {
+        id: "storage-consumer-recipe",
+        name: "Storage Consumer",
+        machineType: "Assembler",
+        minimumTier: "LV",
+        durationTicks: 20,
+        eut: 1,
+        inputs: [{ kind: "fluid", id: "product", amount: 1 }],
+        outputs: [{ kind: "item", id: "part", amount: 1 }],
+      },
+    ],
+    nodes: [
+      makeNode("storage-producer", "storage-producer-recipe", 0),
+      makeNode("storage-consumer", "storage-consumer-recipe", 320),
+    ],
+    storages: [
+      { id: "product-tank", kind: "fluid", resourceId: "product", position: { x: 160, y: 0 } },
+    ],
+    edges: [
+      {
+        id: "producer-to-tank",
+        source: "storage-producer",
+        target: "product-tank",
+        resourceKind: "fluid",
+        resourceId: "product",
+      },
+      {
+        id: "tank-to-consumer",
+        source: "product-tank",
+        target: "storage-consumer",
+        resourceKind: "fluid",
+        resourceId: "product",
       },
     ],
     fuelProfiles: [],

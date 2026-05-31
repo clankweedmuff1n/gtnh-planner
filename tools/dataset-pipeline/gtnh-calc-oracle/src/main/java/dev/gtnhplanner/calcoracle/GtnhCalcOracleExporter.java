@@ -52,6 +52,7 @@ public final class GtnhCalcOracleExporter {
         8L, 32L, 128L, 512L, 2048L, 8192L, 32768L, 131072L, 524288L, 2097152L, 8388608L,
         33554432L, 134217728L, 536870912L, Long.MAX_VALUE
     };
+    private Map<String, List<String>> oreDictionaryNamesByChoiceSignature;
 
     public ExportResult export() throws Exception {
         String generatedAt = isoNow();
@@ -504,7 +505,6 @@ public final class GtnhCalcOracleExporter {
             variant.put("durationTicks", Integer.valueOf(Math.max(1, duration)));
             variant.put("eut", Long.valueOf(Math.max(0L, eut)));
             variant.put("parallel", Integer.valueOf(1));
-            variant.put("outputs", gtRuntimeOutputs(recipe));
             return variant;
         } catch (Throwable ignored) {
             return null;
@@ -704,10 +704,10 @@ public final class GtnhCalcOracleExporter {
             return fluidStack((FluidStack) input);
         }
         if (input instanceof String) {
-            return oreDictionaryChoice(Collections.singletonList((String) input), OreDictionary.getOres((String) input));
+            return oreDictionaryChoice(Collections.singletonList((String) input));
         }
         if (input instanceof List) {
-            return oreDictionaryChoice(Collections.<String>emptyList(), (List<?>) input);
+            return stackChoice((List<?>) input);
         }
         if (input.getClass().isArray()) {
             List<Map<String, Object>> resources = resourcesFromUnknown(input);
@@ -734,21 +734,80 @@ public final class GtnhCalcOracleExporter {
         return resources;
     }
 
-    private Map<String, Object> oreDictionaryChoice(List<String> names, List<?> rawAlternatives) {
+    private Map<String, Object> oreDictionaryChoice(List<String> names) {
         Map<String, Object> choice = map();
         choice.put("kind", "oreDictionary");
         choice.put("names", names);
+        return choice;
+    }
+
+    private Map<String, Object> stackChoice(List<?> rawAlternatives) {
+        List<String> oreNames = oreDictionaryNamesForChoice(rawAlternatives);
+        if (oreNames != null && !oreNames.isEmpty()) {
+            return oreDictionaryChoice(oreNames);
+        }
+
         List<Map<String, Object>> alternatives = new ArrayList<Map<String, Object>>();
+        List<String> keys = new ArrayList<String>();
         for (Object raw : rawAlternatives) {
             if (raw instanceof ItemStack) {
-                Map<String, Object> item = itemStack((ItemStack) raw);
+                ItemStack stack = (ItemStack) raw;
+                Map<String, Object> item = compactItemStack(stack);
                 if (item != null) {
                     alternatives.add(item);
+                    keys.add(stackKey(stack));
                 }
             }
         }
+        if (alternatives.isEmpty()) {
+            return null;
+        }
+        if (alternatives.size() == 1) {
+            return alternatives.get(0);
+        }
+        Map<String, Object> choice = map();
+        choice.put("kind", "choice");
+        choice.put("id", "choice:" + sha1(keys.toString()).substring(0, 16));
+        choice.put("amount", Integer.valueOf(1));
+        choice.put("displayName", "Item Choice");
         choice.put("alternatives", alternatives);
         return choice;
+    }
+
+    private List<String> oreDictionaryNamesForChoice(List<?> rawAlternatives) {
+        if (rawAlternatives == null || rawAlternatives.isEmpty()) {
+            return Collections.emptyList();
+        }
+        if (oreDictionaryNamesByChoiceSignature == null) {
+            oreDictionaryNamesByChoiceSignature = new LinkedHashMap<String, List<String>>();
+            for (String name : OreDictionary.getOreNames()) {
+                String signature = choiceSignature(OreDictionary.getOres(name));
+                if (signature.length() == 0) {
+                    continue;
+                }
+                List<String> names = oreDictionaryNamesByChoiceSignature.get(signature);
+                if (names == null) {
+                    names = new ArrayList<String>();
+                    oreDictionaryNamesByChoiceSignature.put(signature, names);
+                }
+                names.add(name);
+            }
+        }
+        return oreDictionaryNamesByChoiceSignature.get(choiceSignature(rawAlternatives));
+    }
+
+    private String choiceSignature(List<?> rawAlternatives) {
+        List<String> keys = new ArrayList<String>();
+        for (Object raw : rawAlternatives) {
+            if (raw instanceof ItemStack) {
+                String key = stackKey((ItemStack) raw);
+                if (key.length() > 0) {
+                    keys.add(key);
+                }
+            }
+        }
+        Collections.sort(keys);
+        return keys.isEmpty() ? "" : keys.toString();
     }
 
     private List<Map<String, Object>> aspectResources(Object aspectList) {
@@ -777,6 +836,29 @@ public final class GtnhCalcOracleExporter {
             aspects.add(resource);
         }
         return aspects;
+    }
+
+    private Map<String, Object> compactItemStack(ItemStack stack) {
+        if (stack == null || stack.getItem() == null || stack.stackSize <= 0) {
+            return null;
+        }
+
+        String registryId = String.valueOf(Item.itemRegistry.getNameForObject(stack.getItem()));
+        if (registryId == null || registryId.length() == 0 || "null".equals(registryId)) {
+            return null;
+        }
+
+        Map<String, Object> item = map();
+        int meta = stack.getItemDamage();
+        item.put("kind", "item");
+        item.put("id", meta == 0 ? registryId : registryId + "@" + meta);
+        item.put("amount", Integer.valueOf(stack.stackSize));
+        item.put("displayName", displayName(stack));
+        String modId = modId(registryId);
+        if (modId != null) {
+            item.put("modId", modId);
+        }
+        return item;
     }
 
     private int[] getInputChances(Object recipe, int inputCount) {

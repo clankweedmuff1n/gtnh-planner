@@ -27,6 +27,7 @@ const resources = new Map();
 const recipes = [];
 const recipeMaps = new Set();
 const recipeSignatures = new Set();
+const oreDictionaryAlternativesByName = new Map();
 const oreDictionary = normalizeOreDictionary(findDomain("oreDictionary")?.entries ?? {});
 
 normalizeGregtech(findDomain("gregtech"));
@@ -310,7 +311,17 @@ function addRecipe(recipe) {
   for (const resource of [...recipe.inputs, ...recipe.outputs]) {
     addResource(resource);
   }
-  recipes.push(recipe);
+  recipes.push({
+    ...recipe,
+    inputs: recipe.inputs.map(compactRecipeResource),
+    outputs: recipe.outputs.map(compactRecipeResource),
+  });
+}
+
+function compactRecipeResource(resource) {
+  const compact = { ...resource };
+  delete compact.alternatives;
+  return compact;
 }
 
 function resourceAmount(rawResource, options = {}) {
@@ -320,6 +331,9 @@ function resourceAmount(rawResource, options = {}) {
 
   if (rawResource.kind === "oreDictionary") {
     return oreDictionaryResource(rawResource);
+  }
+  if (rawResource.kind === "choice") {
+    return choiceResource(rawResource);
   }
   if (rawResource.kind === "text") {
     return undefined;
@@ -352,9 +366,10 @@ function resourceAmount(rawResource, options = {}) {
 
 function oreDictionaryResource(rawResource) {
   const names = (rawResource.names ?? []).map((entry) => text(entry, "")).filter(Boolean);
-  const alternatives = (rawResource.alternatives ?? [])
-    .map((entry) => resourceAmount(entry))
-    .filter(Boolean);
+  const alternatives = [
+    ...(rawResource.alternatives ?? []).map((entry) => resourceAmount(entry)).filter(Boolean),
+    ...names.flatMap((name) => oreDictionaryAlternativesByName.get(name) ?? []),
+  ];
   if (names.length === 0 && alternatives.length === 0) {
     return undefined;
   }
@@ -382,6 +397,30 @@ function oreDictionaryResource(rawResource) {
         : undefined,
     ].filter(Boolean),
     oreDictionary: names.length > 0 ? names : undefined,
+  };
+}
+
+function choiceResource(rawResource) {
+  const alternatives = (rawResource.alternatives ?? [])
+    .map((entry) => resourceAmount(entry))
+    .filter(Boolean);
+  if (alternatives.length === 0) {
+    return undefined;
+  }
+
+  const id = text(rawResource.id, `choice:${hashRecipe(alternatives.map((entry) => entry.id))}`);
+  return {
+    kind: "item",
+    id,
+    amount: positiveNumber(rawResource.amount, 1),
+    displayName: text(rawResource.displayName, "Item Choice"),
+    alternatives: alternatives.map(resourceAlternative),
+    tooltip: [
+      `Accepts: ${alternatives
+        .slice(0, 12)
+        .map(resourceLabel)
+        .join(", ")}${alternatives.length > 12 ? `, +${alternatives.length - 12} more` : ""}`,
+    ],
   };
 }
 
@@ -581,11 +620,11 @@ function renderedIconColor(fileName) {
 function normalizeOreDictionary(entries) {
   const normalized = {};
   for (const [name, alternatives] of Object.entries(entries ?? {})) {
-    normalized[name] = (alternatives ?? [])
+    const normalizedAlternatives = (alternatives ?? [])
       .map((entry) => resourceAmount(entry))
-      .filter(Boolean)
-      .map((entry) => entry.id)
-      .sort();
+      .filter(Boolean);
+    oreDictionaryAlternativesByName.set(name, normalizedAlternatives);
+    normalized[name] = normalizedAlternatives.map((entry) => entry.id).sort();
   }
   return normalized;
 }

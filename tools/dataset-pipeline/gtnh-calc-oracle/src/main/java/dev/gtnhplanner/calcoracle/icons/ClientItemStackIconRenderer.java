@@ -77,10 +77,6 @@ public final class ClientItemStackIconRenderer {
             ICONS_BY_STACK_KEY.put(key, "");
             warnRenderFailure(stack, t);
             return null;
-        } finally {
-            RenderHelper.disableStandardItemLighting();
-            GL11.glDisable(GL12.GL_RESCALE_NORMAL);
-            resetTessellator();
         }
     }
 

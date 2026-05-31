@@ -8,6 +8,23 @@ import { getDominantOpaqueColor } from "./icon-utils.mjs";
 
 const inputPath = process.argv[2];
 const outputPath = process.argv[3];
+const GT_VOLTAGE_NAMES = [
+  "ULV",
+  "LV",
+  "MV",
+  "HV",
+  "EV",
+  "IV",
+  "LuV",
+  "ZPM",
+  "UV",
+  "UHV",
+  "UEV",
+  "UIV",
+  "UXV",
+  "OpV",
+  "MAX",
+];
 
 if (!inputPath || !outputPath) {
   throw new Error("Usage: normalize-oracle-export.mjs <oracle.json> <recipes.json>");
@@ -473,7 +490,10 @@ function normalizeRuntimeCalculation(rawRuntime, recipeMap, fallbackOutputs) {
   if (!rawRuntime || typeof rawRuntime !== "object") {
     return undefined;
   }
-  const variants = (rawRuntime.variants ?? [])
+  const rawVariants = rawRuntime.compactVariants
+    ? rawRuntime.compactVariants.map((variant) => compactRuntimeVariant(variant))
+    : (rawRuntime.variants ?? []);
+  const variants = rawVariants
     .map((variant, index) => normalizeRuntimeVariant(variant, index, fallbackOutputs))
     .filter(Boolean);
   return {
@@ -487,6 +507,22 @@ function normalizeRuntimeCalculation(rawRuntime, recipeMap, fallbackOutputs) {
     generatedAt: rawRuntime.generatedAt ?? generatedAt,
     variants,
     warnings: normalizeStringArray(rawRuntime.warnings),
+  };
+}
+
+function compactRuntimeVariant(value) {
+  if (!Array.isArray(value)) {
+    return value;
+  }
+  const tierIndex = Number(value[0]);
+  const tier = GT_VOLTAGE_NAMES[tierIndex] ?? `tier-${tierIndex}`;
+  return {
+    id: `tier-${tier.toLowerCase()}`,
+    label: tier,
+    overclockTier: tier,
+    durationTicks: value[1],
+    eut: value[2],
+    parallel: 1,
   };
 }
 

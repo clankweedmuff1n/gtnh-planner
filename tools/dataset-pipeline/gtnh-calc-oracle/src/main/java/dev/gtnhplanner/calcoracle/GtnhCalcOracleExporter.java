@@ -44,7 +44,7 @@ import java.util.TimeZone;
 
 public final class GtnhCalcOracleExporter {
 
-    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final String[] GT_VOLTAGE_NAMES = new String[] {
         "ULV", "LV", "MV", "HV", "EV", "IV", "LuV", "ZPM", "UV", "UHV", "UEV", "UIV", "UXV", "OpV", "MAX"
     };
@@ -470,15 +470,16 @@ public final class GtnhCalcOracleExporter {
         out.put("strict", Boolean.TRUE);
         out.put("generatedAt", isoNow());
 
-        List<Map<String, Object>> variants = new ArrayList<Map<String, Object>>();
+        List<List<Object>> variants = new ArrayList<List<Object>>();
         int minimumTier = voltageTierForEu(recipe.mEUt);
         for (int tier = minimumTier; tier < GT_VOLTAGE_NAMES.length; tier++) {
-            Map<String, Object> variant = buildGtOverclockVariant(recipe, tier);
+            List<Object> variant = buildGtOverclockVariant(recipe, tier);
             if (variant != null) {
                 variants.add(variant);
             }
         }
-        out.put("variants", variants);
+        out.put("variantFormat", "tierIndex,durationTicks,eut");
+        out.put("compactVariants", variants);
         if (variants.isEmpty()) {
             out.put("status", "missing");
             out.put("warnings", Arrays.asList("OverclockCalculator runtime invocation did not return any variant."));
@@ -486,7 +487,7 @@ public final class GtnhCalcOracleExporter {
         return out;
     }
 
-    private Map<String, Object> buildGtOverclockVariant(GTRecipe recipe, int tier) {
+    private List<Object> buildGtOverclockVariant(GTRecipe recipe, int tier) {
         try {
             Class<?> calculatorClass = Class.forName("gregtech.api.util.OverclockCalculator");
             Object calculator = calculatorClass.getConstructor().newInstance();
@@ -498,14 +499,11 @@ public final class GtnhCalcOracleExporter {
 
             int duration = ((Number) calculatorClass.getMethod("getDuration").invoke(calculator)).intValue();
             long eut = ((Number) calculatorClass.getMethod("getConsumption").invoke(calculator)).longValue();
-            Map<String, Object> variant = map();
-            variant.put("id", "tier-" + GT_VOLTAGE_NAMES[tier].toLowerCase(Locale.ROOT));
-            variant.put("label", GT_VOLTAGE_NAMES[tier]);
-            variant.put("overclockTier", GT_VOLTAGE_NAMES[tier]);
-            variant.put("durationTicks", Integer.valueOf(Math.max(1, duration)));
-            variant.put("eut", Long.valueOf(Math.max(0L, eut)));
-            variant.put("parallel", Integer.valueOf(1));
-            return variant;
+            return Arrays.<Object>asList(
+                Integer.valueOf(tier),
+                Integer.valueOf(Math.max(1, duration)),
+                Long.valueOf(Math.max(0L, eut))
+            );
         } catch (Throwable ignored) {
             return null;
         }

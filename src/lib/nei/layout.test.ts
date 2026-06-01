@@ -285,7 +285,9 @@ describe("NEI layout", () => {
       ["item", "output", 106, 17],
       ["item", "output", 124, 17],
     ]);
-    expect(layout.frames.filter((frame) => frame.side === "output").map((frame) => [frame.x, frame.y])).toEqual([
+    expect(
+      layout.frames.filter((frame) => frame.side === "output").map((frame) => [frame.x, frame.y]),
+    ).toEqual([
       [106, 17],
       [124, 17],
       [142, 17],
@@ -372,6 +374,123 @@ describe("NEI layout", () => {
     );
 
     expect(layout.progressBars[0]).toMatchObject({ x: 78, y: 35, texture: "arrow" });
+  });
+
+  it("uses exported Thaumcraft infusion slots instead of a generic machine row", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Thaumcraft Infusion",
+        sourceRecipeMap: "Thaumcraft Infusion",
+        inputs: [
+          { kind: "item", id: "central", amount: 1, neiSlot: { x: 75, y: 58 } },
+          { kind: "item", id: "component-a", amount: 1, neiSlot: { x: 75, y: 19 } },
+          { kind: "item", id: "component-b", amount: 1, neiSlot: { x: 115, y: 59 } },
+          { kind: "aspect", id: "thaumcraft:aspect:ordo", amount: 8, neiSlot: { x: 75, y: 114 } },
+        ],
+        outputs: [{ kind: "item", id: "infused", amount: 1, neiSlot: { x: 75, y: 1 } }],
+        nei: {
+          slots: [
+            { side: "input", kind: "item", slotIndex: 0, x: 75, y: 58 },
+            { side: "input", kind: "item", slotIndex: 1, x: 75, y: 19 },
+            { side: "input", kind: "item", slotIndex: 2, x: 115, y: 59 },
+            { side: "input", kind: "aspect", slotIndex: 0, x: 75, y: 114 },
+            { side: "output", kind: "item", slotIndex: 0, x: 75, y: 1 },
+          ],
+          progressBars: [],
+        },
+      }),
+    );
+
+    expect(layout.id).toBe("thaumcraft-infusion");
+    expect(layout.canvas).toMatchObject({ width: 214, height: 140 });
+    expect(layout.decorations[0]).toMatchObject({
+      kind: "texture",
+      imagePath: "/nei/thaumcraft/gui/gui_researchbook_overlay.png",
+      sourceX: 0,
+      sourceY: 3,
+    });
+    expect(
+      layout.slots.map((slot) => [slot.kind, slot.side, slot.resource.id, slot.x, slot.y]),
+    ).toEqual([
+      ["item", "input", "central", 75, 58],
+      ["item", "input", "component-a", 75, 19],
+      ["item", "input", "component-b", 115, 59],
+      ["aspect", "input", "thaumcraft:aspect:ordo", 75, 114],
+      ["item", "output", "infused", 75, 1],
+    ]);
+    expect(layout.progressBars).toEqual([]);
+  });
+
+  it("uses Thaumcraft crucible NEI plugin positions for aspects and catalyst", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Thaumcraft Crucible",
+        sourceRecipeMap: "Thaumcraft Crucible",
+        inputs: [
+          { kind: "item", id: "catalyst", amount: 1, neiSlot: { x: 51, y: 30 } },
+          { kind: "aspect", id: "thaumcraft:aspect:aer", amount: 4, neiSlot: { x: 61, y: 79 } },
+          { kind: "aspect", id: "thaumcraft:aspect:ordo", amount: 8, neiSlot: { x: 81, y: 79 } },
+        ],
+        outputs: [{ kind: "item", id: "result", amount: 1, neiSlot: { x: 71, y: 8 } }],
+        nei: {
+          slots: [
+            { side: "input", kind: "item", slotIndex: 0, x: 51, y: 30 },
+            { side: "input", kind: "aspect", slotIndex: 0, x: 61, y: 79 },
+            { side: "input", kind: "aspect", slotIndex: 1, x: 81, y: 79 },
+            { side: "output", kind: "item", slotIndex: 0, x: 71, y: 8 },
+          ],
+          progressBars: [],
+        },
+      }),
+    );
+
+    expect(layout.id).toBe("thaumcraft-crucible");
+    expect(layout.canvas).toMatchObject({ width: 170, height: 140 });
+    expect(
+      layout.slots.map((slot) => [slot.kind, slot.side, slot.resource.id, slot.x, slot.y]),
+    ).toEqual([
+      ["item", "input", "catalyst", 51, 30],
+      ["aspect", "input", "thaumcraft:aspect:aer", 61, 79],
+      ["aspect", "input", "thaumcraft:aspect:ordo", 81, 79],
+      ["item", "output", "result", 71, 8],
+    ]);
+    expect(layout.progressBars).toEqual([]);
+  });
+
+  it("uses Thaumcraft arcane crafting NEI plugin positions", () => {
+    const layout = getNeiRecipeLayout(
+      recipe({
+        machineType: "Thaumcraft Arcane Crafting",
+        sourceRecipeMap: "Thaumcraft Arcane Crafting",
+        inputs: [
+          { kind: "item", id: "top-left", amount: 1, neiSlot: { x: 48, y: 33 } },
+          { kind: "item", id: "center", amount: 1, neiSlot: { x: 76, y: 60 } },
+          { kind: "aspect", id: "thaumcraft:aspect:aer", amount: 1, neiSlot: { x: 74, y: 115 } },
+        ],
+        outputs: [{ kind: "item", id: "crafted", amount: 1, neiSlot: { x: 74, y: 2 } }],
+        nei: {
+          slots: [
+            { side: "input", kind: "item", slotIndex: 0, x: 48, y: 33 },
+            { side: "input", kind: "item", slotIndex: 1, x: 76, y: 60 },
+            { side: "input", kind: "aspect", slotIndex: 0, x: 74, y: 115 },
+            { side: "output", kind: "item", slotIndex: 0, x: 74, y: 2 },
+          ],
+          progressBars: [],
+        },
+      }),
+    );
+
+    expect(layout.id).toBe("thaumcraft-arcane");
+    expect(layout.canvas).toMatchObject({ width: 170, height: 174 });
+    expect(layout.decorations).toHaveLength(3);
+    expect(
+      layout.slots.map((slot) => [slot.kind, slot.side, slot.resource.id, slot.x, slot.y]),
+    ).toEqual([
+      ["item", "input", "top-left", 48, 33],
+      ["item", "input", "center", 76, 60],
+      ["aspect", "input", "thaumcraft:aspect:aer", 74, 115],
+      ["item", "output", "crafted", 74, 2],
+    ]);
   });
 
   it("keeps empty centrifuge output slots when only some outputs are used", () => {

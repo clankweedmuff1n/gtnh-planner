@@ -71,6 +71,7 @@ const resourceCatalog = {
   resources: dataset.resources ?? [],
   resourceIndex: dataset.resourceIndex ?? [],
   recipeMaps: dataset.recipeMaps ?? [],
+  recipeMapIcons: dataset.recipeMapIcons ?? [],
   generatedAt: dataset.generatedAt,
   recipeCount: dataset.recipes.length,
   shardSize,
@@ -318,7 +319,13 @@ async function readDataset(filePath) {
 
 async function readLineDelimitedDataset(filePath) {
   const dataset = {};
-  const wantedArrays = new Set(["resources", "recipes", "recipeMaps", "resourceIndex"]);
+  const wantedArrays = new Set([
+    "resources",
+    "recipes",
+    "recipeMaps",
+    "recipeMapIcons",
+    "resourceIndex",
+  ]);
   let currentArrayKey;
   let skippingArray = false;
   let skippingObject = false;

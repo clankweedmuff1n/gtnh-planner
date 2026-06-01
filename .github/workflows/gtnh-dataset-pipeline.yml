@@ -102,12 +102,21 @@ jobs:
           GTNH_ATLAS_ICON_SIZE: "256"
           GTNH_ATLAS_MAX_SIZE: "8192"
           GTNH_EXPORT_DISABLE_CLIENT_UI_MODS: "true"
+          GTNH_SPLIT_SERVER_CLIENT_EXPORT: "true"
+          GTNH_ORACLE_STRICT: "true"
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           staging_root="$HOME/data/gtnh-factory-flow/staging/${GITHUB_RUN_ID}/datasets/gtnh"
+          previous_datasets_root="$HOME/data/gtnh-factory-flow/datasets/gtnh"
+          pipeline_cache_root="$HOME/data/gtnh-factory-flow/pipeline-cache"
+          pack_cache_root="$pipeline_cache_root/pack"
+          oracle_cache_root="$pipeline_cache_root/oracle"
+          client_runtime_cache_root="$pipeline_cache_root/client-runtime"
           icon_cache_root="$HOME/data/gtnh-factory-flow/icon-cache/${GTNH_ATLAS_ICON_SIZE}"
           rm -rf "$staging_root/${GTNH_VERSION_ID}"
           mkdir -p "$staging_root"
+          mkdir -p "$previous_datasets_root"
+          mkdir -p "$pack_cache_root" "$oracle_cache_root" "$client_runtime_cache_root"
           mkdir -p "$icon_cache_root"
           container_name="gtnh-export-${GTNH_VERSION_ID}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
@@ -137,10 +146,20 @@ jobs:
             -e GTNH_ATLAS_ICON_SIZE \
             -e GTNH_ATLAS_MAX_SIZE \
             -e NODE_OPTIONS=--max-old-space-size=8192 \
+            -e GTNH_SPLIT_SERVER_CLIENT_EXPORT \
+            -e GTNH_ORACLE_STRICT \
+            -e GTNH_PACK_CACHE_DIR=/pack-cache \
+            -e GTNH_ORACLE_BUILD_CACHE_DIR=/oracle-cache \
+            -e GTNH_CLIENT_RUNTIME_CACHE_DIR=/client-runtime-cache \
             -e GTNH_ICON_CACHE_DIR=/icon-cache \
+            -e GTNH_PREVIOUS_DATASETS_ROOT=/previous-datasets \
             -e GTNH_EXPORT_DISABLE_CLIENT_UI_MODS \
             -e GTNH_DATASETS_ROOT=/datasets \
             -v "$staging_root:/datasets" \
+            -v "$previous_datasets_root:/previous-datasets:ro" \
+            -v "$pack_cache_root:/pack-cache" \
+            -v "$oracle_cache_root:/oracle-cache" \
+            -v "$client_runtime_cache_root:/client-runtime-cache" \
             -v "$icon_cache_root:/icon-cache" \
             -v "$PWD:/workspace" \
             -w /workspace \
@@ -165,7 +184,11 @@ jobs:
           path: |
             .pipeline/raw-export/${{ matrix.id }}/*.log
             .pipeline/raw-export/${{ matrix.id }}/rendered-icons/*.json
+            .pipeline/raw-export/${{ matrix.id }}/oracle-records/*.json
+            .pipeline/raw-export/${{ matrix.id }}/oracle-records/oracle/*.json
+            .pipeline/raw-export/${{ matrix.id }}/oracle-export.json
             .pipeline/${{ matrix.id }}.pipeline.json
+            ~/data/gtnh-factory-flow/staging/${{ github.run_id }}/datasets/gtnh/${{ matrix.id }}/oracle/*.json
           if-no-files-found: warn
 
   publish:
@@ -205,8 +228,22 @@ jobs:
             incoming_dir="$dataset_root/.incoming-$version_id"
             if [ ! -d "$source_dir" ]; then
               echo "::warning::Skipping $channel dataset $version_id because no staged output exists at $source_dir"
+              rm -rf "$incoming_dir"
               continue
             fi
+
+            missing_files=()
+            for required_file in recipes.json.gz resource-index.json.gz recipe-index.json.gz recipe-lookup-index.json.gz; do
+              if [ ! -s "$source_dir/$required_file" ]; then
+                missing_files+=("$required_file")
+              fi
+            done
+            if [ "${#missing_files[@]}" -gt 0 ]; then
+              echo "::warning::Skipping $channel dataset $version_id because staged output is incomplete; missing or empty: ${missing_files[*]}"
+              rm -rf "$incoming_dir"
+              continue
+            fi
+
             if [ "$channel" = "daily" ]; then
               has_daily=true
             fi

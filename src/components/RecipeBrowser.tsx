@@ -77,10 +77,7 @@ export function RecipeBrowser() {
   const resourceQueryCacheRef = useRef<Map<string, ResourceQueryCacheEntry>>(new Map());
   const pendingRecipePrefetchesRef = useRef<Set<string>>(new Set());
   const debouncedRecipeSearch = useDebouncedValue(recipeSearch, RESOURCE_SEARCH_DEBOUNCE_MS);
-  const debouncedRecipeBookSearch = useDebouncedValue(
-    recipeBookSearch,
-    RECIPE_SEARCH_DEBOUNCE_MS,
-  );
+  const debouncedRecipeBookSearch = useDebouncedValue(recipeBookSearch, RECIPE_SEARCH_DEBOUNCE_MS);
 
   const activeResource = useMemo(() => {
     if (!browserResource) {

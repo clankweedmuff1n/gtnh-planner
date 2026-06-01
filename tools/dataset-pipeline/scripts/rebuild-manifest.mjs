@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { createReadStream, existsSync } from "node:fs";
+import { createReadStream, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import readline from "node:readline";
@@ -16,19 +16,17 @@ for (const entry of entries) {
 
   await removeIfExists(path.join(rootDir, entry.name, ".pipeline-status.json"));
 
-  const recipesPath = getRecipeDatasetPath(entry.name);
-  if (!recipesPath) {
+  const datasetFiles = getCompleteDatasetFiles(entry.name);
+  if (!datasetFiles) {
+    console.warn(`Skipping incomplete dataset ${entry.name}; required compressed dataset indexes are missing.`);
     continue;
   }
 
+  const { recipeIndexPath, recipeLookupIndexPath, recipesPath, resourceIndexPath } = datasetFiles;
   const dataset = await readRecipeDatasetMetadata(recipesPath);
-  const recipeIndexPath = getRecipeIndexPath(entry.name);
-  const recipeLookupIndexPath = getRecipeLookupIndexPath(entry.name);
-  const resourceIndexPath = getResourceIndexPath(entry.name);
-  const checksumPath = recipeLookupIndexPath ?? resourceIndexPath ?? recipeIndexPath ?? recipesPath;
   const checksumSha256 = crypto
     .createHash("sha256")
-    .update(await fs.readFile(checksumPath))
+    .update(await fs.readFile(recipeLookupIndexPath))
     .digest("hex");
 
   discoveredVersions.push({
@@ -38,21 +36,9 @@ for (const entry of entries) {
     publishedAt: dataset.generatedAt,
     manifestPath: "/datasets/gtnh/datasets.manifest.json",
     recipeDatasetPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(recipesPath)}`,
-    ...(resourceIndexPath
-      ? {
-          resourceIndexPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(resourceIndexPath)}`,
-        }
-      : {}),
-    ...(recipeIndexPath
-      ? {
-          recipeIndexPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(recipeIndexPath)}`,
-        }
-      : {}),
-    ...(recipeLookupIndexPath
-      ? {
-          recipeLookupIndexPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(recipeLookupIndexPath)}`,
-        }
-      : {}),
+    resourceIndexPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(resourceIndexPath)}`,
+    recipeIndexPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(recipeIndexPath)}`,
+    recipeLookupIndexPath: `/datasets/gtnh/${dataset.datasetVersionId}/${path.basename(recipeLookupIndexPath)}`,
     checksumSha256,
     sourceInfo: dataset.sourceInfo,
   });
@@ -102,45 +88,20 @@ async function removeIfExists(filePath) {
   }
 }
 
-function getRecipeDatasetPath(versionId) {
-  const gzipPath = path.join(rootDir, versionId, "recipes.json.gz");
-  if (existsSync(gzipPath)) {
-    return gzipPath;
+function getCompleteDatasetFiles(versionId) {
+  const datasetDir = path.join(rootDir, versionId);
+  const files = {
+    recipesPath: path.join(datasetDir, "recipes.json.gz"),
+    resourceIndexPath: path.join(datasetDir, "resource-index.json.gz"),
+    recipeIndexPath: path.join(datasetDir, "recipe-index.json.gz"),
+    recipeLookupIndexPath: path.join(datasetDir, "recipe-lookup-index.json.gz"),
+  };
+
+  if (!Object.values(files).every((filePath) => existsSync(filePath) && statSync(filePath).size > 0)) {
+    return undefined;
   }
 
-  const jsonPath = path.join(rootDir, versionId, "recipes.json");
-  if (existsSync(jsonPath)) {
-    return jsonPath;
-  }
-
-  return undefined;
-}
-
-function getResourceIndexPath(versionId) {
-  const gzipPath = path.join(rootDir, versionId, "resource-index.json.gz");
-  if (existsSync(gzipPath)) {
-    return gzipPath;
-  }
-
-  return undefined;
-}
-
-function getRecipeIndexPath(versionId) {
-  const gzipPath = path.join(rootDir, versionId, "recipe-index.json.gz");
-  if (existsSync(gzipPath)) {
-    return gzipPath;
-  }
-
-  return undefined;
-}
-
-function getRecipeLookupIndexPath(versionId) {
-  const gzipPath = path.join(rootDir, versionId, "recipe-lookup-index.json.gz");
-  if (existsSync(gzipPath)) {
-    return gzipPath;
-  }
-
-  return undefined;
+  return files;
 }
 
 async function readRecipeDatasetMetadata(filePath) {

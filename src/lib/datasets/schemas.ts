@@ -2,7 +2,7 @@ import { z } from "zod";
 import { dominantColorSchema, recipeSchema, resourceIconAtlasRefSchema } from "../model/schemas";
 
 export const datasetSourceInfoSchema = z.object({
-  sourceId: z.enum(["nesql", "recex", "nerd", "unknown"]),
+  sourceId: z.enum(["nesql", "recex", "nerd", "gtnh-oracle", "unknown"]),
   sourceVersion: z.string().optional(),
   generatedAt: z.string(),
   gitCommit: z.string().optional(),
@@ -11,7 +11,7 @@ export const datasetSourceInfoSchema = z.object({
 
 export const datasetResourceSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(["item", "fluid"]),
+  kind: z.enum(["item", "fluid", "aspect"]),
   displayName: z.string().min(1),
   iconPath: z.string().optional(),
   iconAtlas: resourceIconAtlasRefSchema.optional(),
@@ -22,7 +22,7 @@ export const datasetResourceSchema = z.object({
   alternatives: z
     .array(
       z.object({
-        kind: z.enum(["item", "fluid"]),
+        kind: z.enum(["item", "fluid", "aspect"]),
         id: z.string().min(1),
         displayName: z.string().min(1).optional(),
         iconPath: z.string().optional(),
@@ -38,7 +38,7 @@ export const datasetResourceSchema = z.object({
 
 export const datasetResourceIndexEntrySchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(["item", "fluid"]),
+  kind: z.enum(["item", "fluid", "aspect"]),
   displayName: z.string().optional(),
   iconPath: z.string().optional(),
   iconAtlas: resourceIconAtlasRefSchema.optional(),
@@ -46,6 +46,21 @@ export const datasetResourceIndexEntrySchema = z.object({
   recipeCount: z.number().int().min(0),
   oreDictionary: z.array(z.string()).optional(),
   alternatives: datasetResourceSchema.shape.alternatives,
+});
+
+export const recipeMapIconEntrySchema = z.object({
+  recipeMap: z.string().min(1),
+  resource: z.object({
+    id: z.string().min(1),
+    kind: z.enum(["item", "fluid", "aspect"]),
+    amount: z.number().positive().optional(),
+    displayName: z.string().min(1).optional(),
+    iconPath: z.string().optional(),
+    iconAtlas: resourceIconAtlasRefSchema.optional(),
+    dominantColor: dominantColorSchema,
+    modId: z.string().optional(),
+    tooltip: z.array(z.string()).optional(),
+  }),
 });
 
 export const recipeDatasetSchema = z.object({
@@ -58,6 +73,7 @@ export const recipeDatasetSchema = z.object({
   recipes: z.array(recipeSchema),
   oreDictionary: z.record(z.string(), z.array(z.string())),
   recipeMaps: z.array(z.string()),
+  recipeMapIcons: z.array(recipeMapIconEntrySchema).optional(),
   generatedAt: z.string(),
 });
 

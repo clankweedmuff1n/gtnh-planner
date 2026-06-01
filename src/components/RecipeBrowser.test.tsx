@@ -3,7 +3,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Recipe } from "@/lib/model/types";
-import type { DatasetManifest, DatasetVersion, RecipeSummary } from "@/lib/datasets/types";
+import type { DatasetManifest, DatasetVersion } from "@/lib/datasets/types";
 import { PROJECT_SCHEMA_VERSION } from "@/lib/model/types";
 import { useFactoryStore } from "@/store/factory-store";
 import { RecipeBrowser, contextualizePreviewRecipe } from "./RecipeBrowser";
@@ -20,52 +20,6 @@ const datasetVersion: DatasetVersion = {
     sourceId: "recex",
     generatedAt: "2026-05-25T00:00:00.000Z",
   },
-};
-
-const cokeOvenRecipe: Recipe = {
-  id: "coke-oven-log",
-  name: "Coke Oven: Charcoal",
-  machineType: "Coke Oven",
-  minimumTier: "MV",
-  durationTicks: 256,
-  eut: 96,
-  inputs: [
-    {
-      kind: "item",
-      id: "gregtech:gt.integrated_circuit@1",
-      amount: 0,
-      displayName: "Integrated Circuit",
-      consumed: false,
-      neiSlot: { x: 44, y: 35 },
-    },
-    {
-      kind: "item",
-      id: "oredict:logWood",
-      amount: 16,
-      displayName: "Ore Dictionary: logWood",
-      iconPath: "/items/oak-log.png",
-      tooltip: ["Ore Dictionary: logWood"],
-      neiSlot: { x: 62, y: 35 },
-    },
-  ],
-  outputs: [{ kind: "item", id: "minecraft:coal@1", amount: 20, displayName: "Charcoal" }],
-};
-
-const cokeOvenSummary: RecipeSummary = {
-  ...cokeOvenRecipe,
-  recipeMap: "Coke Oven",
-  slots: [],
-  inputs: [
-    {
-      kind: "item",
-      id: "minecraft:log@1",
-      amount: 16,
-      displayName: "Spruce Log",
-      iconPath: "/items/spruce-log.png",
-      tooltip: ["Spruce Log"],
-      neiSlot: { x: 62, y: 35 },
-    },
-  ],
 };
 
 const browserLoaderMock = vi.hoisted(() => {

@@ -3,8 +3,9 @@ export const TICKS_PER_SECOND = 20;
 
 export type ItemId = string;
 export type FluidId = string;
-export type ResourceId = ItemId | FluidId;
-export type ResourceKind = "item" | "fluid";
+export type AspectId = string;
+export type ResourceId = ItemId | FluidId | AspectId;
+export type ResourceKind = "item" | "fluid" | "aspect";
 export type ResourceKey = `${ResourceKind}:${string}`;
 
 export interface ResourceIconAtlasRef {
@@ -87,6 +88,48 @@ export interface RecipeOutput extends ResourceAmount {
   byproduct?: boolean;
 }
 
+export interface RuntimeCalculationResource {
+  kind: ResourceKind;
+  id: ResourceId;
+  amount: number;
+  chance?: number;
+}
+
+export interface RuntimeCalculationVariant {
+  id: string;
+  label?: string;
+  machineHandlerId?: string;
+  overclockTier?: MachineTier | string;
+  coilTier?: string;
+  machineConfigTiers?: Record<string, string>;
+  durationTicks: number;
+  eut: number;
+  parallel?: number;
+  inputs?: RuntimeCalculationResource[];
+  outputs?: RuntimeCalculationResource[];
+  notes?: string;
+}
+
+export interface RuntimeCalculation {
+  sourceKind:
+    | "gregtech-processing-logic"
+    | "gregtech-overclock-calculator"
+    | "gregtech-recipe-baseline"
+    | "thaumcraft-runtime"
+    | "passive-bee"
+    | "passive-crop"
+    | "synthetic-passive-bootstrap";
+  sourceClass?: string;
+  sourceVersion?: string;
+  recipeMap?: string;
+  status: "computed" | "partial" | "missing";
+  oracleEligible: boolean;
+  strict?: boolean;
+  generatedAt?: string;
+  variants: RuntimeCalculationVariant[];
+  warnings?: string[];
+}
+
 export interface MachineProfile {
   machineType: string;
   minimumTier: MachineTier | string;
@@ -137,11 +180,12 @@ export interface Recipe {
   machineProfile?: MachineProfile;
   machineHandlers?: MachineHandler[];
   machineConfigControls?: MachineConfigControl[];
+  runtimeCalculation?: RuntimeCalculation;
   isDemo?: boolean;
   source?: {
     datasetVersionId?: string;
     recipeMap?: string;
-    exporter?: "nesql" | "recex" | "nerd" | "unknown";
+    exporter?: "nesql" | "recex" | "nerd" | "gtnh-oracle" | "unknown";
     rawRecipeId?: string;
   };
   nei?: {

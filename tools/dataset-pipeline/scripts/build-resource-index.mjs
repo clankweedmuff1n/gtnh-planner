@@ -28,7 +28,7 @@ async function readDataset(filePath) {
 
 async function readLineDelimitedDataset(filePath) {
   const dataset = {};
-  const wantedArrays = new Set(["resources", "recipes", "recipeMaps"]);
+  const wantedArrays = new Set(["resources", "recipes", "recipeMaps", "recipeMapIcons"]);
   let currentArrayKey;
   let skippingArray = false;
   let skippingObject = false;
@@ -180,7 +180,9 @@ function linkAlternatives(index, cell, fluid) {
 
 function addAlternative(resource, alternative, amount) {
   const alternatives = resource.alternatives ?? [];
-  if (alternatives.some((entry) => entry.kind === alternative.kind && entry.id === alternative.id)) {
+  if (
+    alternatives.some((entry) => entry.kind === alternative.kind && entry.id === alternative.id)
+  ) {
     return;
   }
 
@@ -215,7 +217,9 @@ function isFilledCell(resource) {
 }
 
 function hasEmptyCell(resources) {
-  return resources.some((resource) => resource.kind === "item" && /^Empty Cell$/i.test(resource.displayName ?? ""));
+  return resources.some(
+    (resource) => resource.kind === "item" && /^Empty Cell$/i.test(resource.displayName ?? ""),
+  );
 }
 
 function mergeResourceIcon(target, resource, indexed) {

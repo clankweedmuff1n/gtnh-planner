@@ -7,6 +7,7 @@ import type {
   DatasetResource,
   DatasetResourceIndexEntry,
   DatasetVersion,
+  RecipeMapIconEntry,
   RecipeSummary,
 } from "@/lib/datasets/types";
 import type { MachineTier, Recipe, RecipeOutput, ResourceAmount } from "@/lib/model/types";
@@ -40,6 +41,7 @@ interface LoadedRecipeIndex {
   resources: DatasetResource[];
   resourceIndex: DatasetResourceIndexEntry[];
   recipeMaps: string[];
+  recipeMapIcons?: RecipeMapIconEntry[];
   recipeCount: number;
   recipes?: RecipeSummary[];
   recipeSearchText?: string[];
@@ -51,6 +53,7 @@ interface LoadedRecipeIndex {
   resourcesByKey?: Map<string, DatasetResource | DatasetResourceIndexEntry>;
   recipeMapIconCandidates?: RecipeMapIconCandidate[];
   recipeMapIconCache?: Map<string, DatasetResourceIndexEntry | undefined>;
+  recipeMapIconEntriesByMap?: Map<string, RecipeMapIconEntry>;
   recipesByRawRecipeId?: Map<string, Recipe[]>;
   hydratedRecipeSummaries?: Map<number, RecipeSummary>;
 }
@@ -166,6 +169,7 @@ export async function getDatasetCatalog(versionId: string) {
     recipeCount: catalog.recipeCount,
     oreDictionary: {},
     recipeMaps: catalog.recipeMaps,
+    recipeMapIcons: catalog.recipeMapIcons,
     generatedAt: catalog.version.publishedAt,
   };
 }
@@ -767,7 +771,11 @@ function buildLookupRecipeMapIdsByRecipeIndex(
   for (const [, recipesByMap] of entries) {
     for (const [recipeMapId, recipeIndexes] of recipesByMap) {
       for (const recipeIndex of recipeIndexes) {
-        if (recipeIndex >= 0 && recipeIndex < recipeCount && recipeMapIdsByRecipeIndex[recipeIndex] === -1) {
+        if (
+          recipeIndex >= 0 &&
+          recipeIndex < recipeCount &&
+          recipeMapIdsByRecipeIndex[recipeIndex] === -1
+        ) {
           recipeMapIdsByRecipeIndex[recipeIndex] = recipeMapId;
         }
       }
@@ -1167,9 +1175,7 @@ function mergeResourceAlternatives(
 ): DatasetResourceIndexEntry["alternatives"] {
   const merged = [...(left ?? [])];
   for (const alternative of right ?? []) {
-    if (
-      !merged.some((entry) => entry.kind === alternative.kind && entry.id === alternative.id)
-    ) {
+    if (!merged.some((entry) => entry.kind === alternative.kind && entry.id === alternative.id)) {
       merged.push(alternative);
     }
   }
@@ -1351,7 +1357,8 @@ function getLookupRecipesByMapForSearch(
 
   for (const recipeIndexes of recipesByMap.values()) {
     recipeIndexes.sort(
-      (left, right) => (lookup.iconScores[right] ?? 0) - (lookup.iconScores[left] ?? 0) || left - right,
+      (left, right) =>
+        (lookup.iconScores[right] ?? 0) - (lookup.iconScores[left] ?? 0) || left - right,
     );
   }
 
@@ -1515,7 +1522,7 @@ function ensureIndexes(catalog: LoadedRecipeIndex): QueryIndexes {
     recipeIndexesByResourceAndMap,
     recipeMaps,
     recipeMapsByResource,
-    recipeMapIcons: buildRecipeMapIconMap([...recipeMapSet], catalog.resourceIndex),
+    recipeMapIcons: buildRecipeMapIconMap([...recipeMapSet], catalog),
     tierIndexes,
     searchText,
     searchIndex: buildTextSearchIndex(searchText, allRecipeIndexes),
@@ -1599,8 +1606,8 @@ function recipeMapHasMatchingIndexedRecipe(
 
     return Boolean(
       (!searchCandidateSet || searchCandidateSet.has(recipeIndex)) &&
-        (!queryTokens.length ||
-          searchTokensMatch(indexes.searchIndex.tokensByEntry[recipeIndex] ?? [], queryTokens)),
+      (!queryTokens.length ||
+        searchTokensMatch(indexes.searchIndex.tokensByEntry[recipeIndex] ?? [], queryTokens)),
     );
   });
 }
@@ -1776,11 +1783,14 @@ function splitSearchTokens(value: string): string[] {
 
 function buildRecipeMapIconMap(
   recipeMaps: string[],
-  resources: DatasetResourceIndexEntry[],
+  catalog: LoadedRecipeIndex,
 ): Map<string, DatasetResourceIndexEntry | undefined> {
-  const candidates = getRecipeMapIconCandidates(resources);
+  const candidates = getRecipeMapIconCandidates(catalog.resourceIndex);
   return new Map(
-    recipeMaps.map((recipeMap) => [recipeMap, findRecipeMapIcon(recipeMap, candidates)]),
+    recipeMaps.map((recipeMap) => [
+      recipeMap,
+      getExplicitRecipeMapIcon(catalog, recipeMap) ?? findRecipeMapIcon(recipeMap, candidates),
+    ]),
   );
 }
 
@@ -1794,9 +1804,57 @@ function getRecipeMapIcon(
   }
 
   catalog.recipeMapIconCandidates ??= getRecipeMapIconCandidates(catalog.resourceIndex);
-  const icon = findRecipeMapIcon(recipeMap, catalog.recipeMapIconCandidates);
+  const icon =
+    getExplicitRecipeMapIcon(catalog, recipeMap) ??
+    findRecipeMapIcon(recipeMap, catalog.recipeMapIconCandidates);
   catalog.recipeMapIconCache.set(recipeMap, icon);
   return icon;
+}
+
+function getExplicitRecipeMapIcon(
+  catalog: LoadedRecipeIndex,
+  recipeMap: string,
+): DatasetResourceIndexEntry | undefined {
+  const entry = getRecipeMapIconEntriesByMap(catalog).get(normalizeText(recipeMap));
+  return entry
+    ? hydrateRecipeMapIconResource(entry.resource, getCatalogResourcesByKey(catalog))
+    : undefined;
+}
+
+function getRecipeMapIconEntriesByMap(catalog: LoadedRecipeIndex): Map<string, RecipeMapIconEntry> {
+  if (catalog.recipeMapIconEntriesByMap) {
+    return catalog.recipeMapIconEntriesByMap;
+  }
+  catalog.recipeMapIconEntriesByMap = new Map(
+    (catalog.recipeMapIcons ?? []).map((entry) => [normalizeText(entry.recipeMap), entry]),
+  );
+  return catalog.recipeMapIconEntriesByMap;
+}
+
+function hydrateRecipeMapIconResource(
+  resource: RecipeMapIconEntry["resource"],
+  resourcesByKey: Map<string, DatasetResource | DatasetResourceIndexEntry>,
+): DatasetResourceIndexEntry | undefined {
+  if (!resource?.kind || !resource.id) {
+    return undefined;
+  }
+  const indexed = resourcesByKey.get(`${resource.kind}:${resource.id}`);
+  return {
+    kind: resource.kind,
+    id: resource.id,
+    displayName: resource.displayName ?? indexed?.displayName,
+    iconPath: resource.iconPath ?? indexed?.iconPath,
+    iconAtlas: resource.iconAtlas ?? indexed?.iconAtlas,
+    dominantColor:
+      resource.dominantColor ??
+      resource.iconAtlas?.dominantColor ??
+      indexed?.dominantColor ??
+      indexed?.iconAtlas?.dominantColor,
+    tooltip: resource.tooltip ?? indexed?.tooltip,
+    recipeCount: indexed && "recipeCount" in indexed ? indexed.recipeCount : 0,
+    oreDictionary: indexed?.oreDictionary,
+    alternatives: indexed?.alternatives,
+  };
 }
 
 interface RecipeMapIconCandidate {

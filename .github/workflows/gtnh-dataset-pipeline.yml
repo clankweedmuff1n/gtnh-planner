@@ -228,8 +228,22 @@ jobs:
             incoming_dir="$dataset_root/.incoming-$version_id"
             if [ ! -d "$source_dir" ]; then
               echo "::warning::Skipping $channel dataset $version_id because no staged output exists at $source_dir"
+              rm -rf "$incoming_dir"
               continue
             fi
+
+            missing_files=()
+            for required_file in recipes.json.gz resource-index.json.gz recipe-index.json.gz recipe-lookup-index.json.gz; do
+              if [ ! -s "$source_dir/$required_file" ]; then
+                missing_files+=("$required_file")
+              fi
+            done
+            if [ "${#missing_files[@]}" -gt 0 ]; then
+              echo "::warning::Skipping $channel dataset $version_id because staged output is incomplete; missing or empty: ${missing_files[*]}"
+              rm -rf "$incoming_dir"
+              continue
+            fi
+
             if [ "$channel" = "daily" ]; then
               has_daily=true
             fi

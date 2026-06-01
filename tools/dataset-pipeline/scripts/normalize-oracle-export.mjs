@@ -25,6 +25,88 @@ const GT_VOLTAGE_NAMES = [
   "OpV",
   "MAX",
 ];
+const heatingCoilTiers = [
+  { heat: 1801, key: "cupronickel", label: "Cupronickel", blockId: "gregtech:gt.blockcasings5" },
+  { heat: 2701, key: "kanthal", label: "Kanthal", blockId: "gregtech:gt.blockcasings5@1" },
+  { heat: 3601, key: "nichrome", label: "Nichrome", blockId: "gregtech:gt.blockcasings5@2" },
+  { heat: 4501, key: "tpv", label: "TPV-Alloy", blockId: "gregtech:gt.blockcasings5@3" },
+  { heat: 5401, key: "hss_g", label: "HSS-G", blockId: "gregtech:gt.blockcasings5@4" },
+  { heat: 6301, key: "hss_s", label: "HSS-S", blockId: "gregtech:gt.blockcasings5@9" },
+  { heat: 7201, key: "naquadah", label: "Naquadah", blockId: "gregtech:gt.blockcasings5@5" },
+  {
+    heat: 8101,
+    key: "naquadah_alloy",
+    label: "Naquadah Alloy",
+    blockId: "gregtech:gt.blockcasings5@6",
+  },
+  { heat: 9001, key: "trinium", label: "Trinium", blockId: "gregtech:gt.blockcasings5@10" },
+  {
+    heat: 9901,
+    key: "electrum_flux",
+    label: "Electrum Flux",
+    blockId: "gregtech:gt.blockcasings5@7",
+  },
+  {
+    heat: 10801,
+    key: "awakened_draconium",
+    label: "Awakened Draconium",
+    blockId: "gregtech:gt.blockcasings5@8",
+  },
+  { heat: 11701, key: "infinity", label: "Infinity", blockId: "gregtech:gt.blockcasings5@11" },
+  { heat: 12601, key: "hypogen", label: "Hypogen", blockId: "gregtech:gt.blockcasings5@12" },
+  { heat: 13501, key: "eternal", label: "Eternal", blockId: "gregtech:gt.blockcasings5@13" },
+];
+const pipeCasingTiers = [
+  { key: "bronze", label: "Bronze", blockId: "gregtech:gt.blockcasings2@12" },
+  { key: "steel", label: "Steel", blockId: "gregtech:gt.blockcasings2@13" },
+  { key: "titanium", label: "Titanium", blockId: "gregtech:gt.blockcasings2@14" },
+  { key: "tungstensteel", label: "Tungstensteel", blockId: "gregtech:gt.blockcasings2@15" },
+  { key: "ptfe", label: "PTFE", blockId: "gregtech:gt.blockcasings8@1" },
+  { key: "pbi", label: "PBI", blockId: "gregtech:gt.blockcasings9" },
+];
+const solenoidTiers = [
+  { key: "mv", label: "MV", blockId: "gregtech:gt.blockcasings.cyclotron_coils", voltageTier: 2 },
+  { key: "hv", label: "HV", blockId: "gregtech:gt.blockcasings.cyclotron_coils@1", voltageTier: 3 },
+  { key: "ev", label: "EV", blockId: "gregtech:gt.blockcasings.cyclotron_coils@2", voltageTier: 4 },
+  { key: "iv", label: "IV", blockId: "gregtech:gt.blockcasings.cyclotron_coils@3", voltageTier: 5 },
+  {
+    key: "luv",
+    label: "LuV",
+    blockId: "gregtech:gt.blockcasings.cyclotron_coils@4",
+    voltageTier: 6,
+  },
+  {
+    key: "zpm",
+    label: "ZPM",
+    blockId: "gregtech:gt.blockcasings.cyclotron_coils@5",
+    voltageTier: 7,
+  },
+  { key: "uv", label: "UV", blockId: "gregtech:gt.blockcasings.cyclotron_coils@6", voltageTier: 8 },
+  {
+    key: "uhv",
+    label: "UHV",
+    blockId: "gregtech:gt.blockcasings.cyclotron_coils@7",
+    voltageTier: 9,
+  },
+  {
+    key: "uev",
+    label: "UEV",
+    blockId: "gregtech:gt.blockcasings.cyclotron_coils@8",
+    voltageTier: 10,
+  },
+  {
+    key: "uiv",
+    label: "UIV",
+    blockId: "gregtech:gt.blockcasings.cyclotron_coils@9",
+    voltageTier: 11,
+  },
+  {
+    key: "umv",
+    label: "UMV",
+    blockId: "gregtech:gt.blockcasings.cyclotron_coils@10",
+    voltageTier: 12,
+  },
+];
 
 if (!inputPath || !outputPath) {
   throw new Error("Usage: normalize-oracle-export.mjs <oracle.json> <recipes.json>");
@@ -43,6 +125,7 @@ const renderedIcons = await stageRenderedIcons(renderedIconDir, outDir);
 const resources = new Map();
 const recipes = [];
 const recipeMaps = new Set();
+const recipeMapIcons = new Map();
 const recipeSignatures = new Set();
 const oreDictionaryAlternativesByName = new Map();
 const oreDictionary = normalizeOreDictionary(findDomain("oreDictionary")?.entries ?? {});
@@ -68,6 +151,9 @@ const dataset = {
   recipes,
   oreDictionary,
   recipeMaps: [...recipeMaps].sort(),
+  recipeMapIcons: [...recipeMapIcons.entries()]
+    .map(([recipeMap, resource]) => ({ recipeMap, resource: compactRecipeResource(resource) }))
+    .sort((left, right) => left.recipeMap.localeCompare(right.recipeMap)),
   generatedAt,
 };
 
@@ -84,6 +170,8 @@ function normalizeGregtech(domain) {
   for (const recipeMap of domain?.recipeMaps ?? []) {
     const machineType = text(recipeMap.name, recipeMap.id ?? "GregTech");
     recipeMaps.add(machineType);
+    setRecipeMapIcon(machineType, recipeMap.icon);
+    const catalystControls = machineConfigControlsFromCatalysts(recipeMap.catalysts);
     for (const rawRecipe of recipeMap.recipes ?? []) {
       const inputs = [
         ...(rawRecipe.itemInputs ?? []).map((entry) =>
@@ -95,13 +183,20 @@ function normalizeGregtech(domain) {
         ...(rawRecipe.fluidInputs ?? []).map((entry) => resourceAmount(entry)),
       ].filter(Boolean);
       const outputs = [
-        ...(rawRecipe.itemOutputs ?? []).map((entry) => resourceAmount(entry, { chance: entry.chance })),
+        ...(rawRecipe.itemOutputs ?? []).map((entry) =>
+          resourceAmount(entry, { chance: entry.chance }),
+        ),
         ...(rawRecipe.fluidOutputs ?? []).map((entry) => resourceAmount(entry)),
       ].filter(Boolean);
 
       if (outputs.length === 0) {
         continue;
       }
+      const machineConfigControls = machineConfigControlsForOracleRecipe(
+        machineType,
+        rawRecipe.specialValue,
+        catalystControls,
+      );
 
       addRecipe({
         id: recipeId("gregtech", recipeMap.id, rawRecipe.id),
@@ -112,7 +207,12 @@ function normalizeGregtech(domain) {
         eut: Math.max(0, Number(rawRecipe.eut) || 0),
         inputs,
         outputs,
-        runtimeCalculation: normalizeRuntimeCalculation(rawRecipe.runtimeCalculation, machineType, outputs),
+        machineConfigControls,
+        runtimeCalculation: normalizeRuntimeCalculation(
+          rawRecipe.runtimeCalculation,
+          machineType,
+          outputs,
+        ),
         programmedCircuit: detectProgrammedCircuit(inputs),
         notes: "Exported by the GTNH calculation oracle from gregtech.api.recipe.RecipeMap.",
         source: {
@@ -131,12 +231,26 @@ function normalizeGregtech(domain) {
 
 function normalizeCrafting(domain) {
   for (const rawRecipe of domain?.recipes ?? []) {
-    const output = resourceAmount(rawRecipe.output);
+    const output = resourceAmount(rawRecipe.output, { neiSlot: { x: 124, y: 26 } });
     if (!output) {
       continue;
     }
     const machineType = rawRecipe.type === "shapeless" ? "Shapeless Crafting" : "Shaped Crafting";
     recipeMaps.add(machineType);
+    setRecipeMapIcon(machineType, {
+      kind: "item",
+      id: "minecraft:crafting_table",
+      amount: 1,
+      displayName: "Crafting Table",
+    });
+    const craftingInputs = (rawRecipe.inputs ?? [])
+      .map((entry, index) =>
+        resourceAmount(entry, {
+          neiSlot: craftingInputNeiSlot(rawRecipe, entry.slotIndex ?? index),
+        }),
+      )
+      .filter(Boolean);
+    const inputGrid = craftingInputGrid(rawRecipe);
     addRecipe({
       id: recipeId("crafting", rawRecipe.type, rawRecipe.id),
       name: `${machineType}: ${resourceLabel(output)}`,
@@ -144,7 +258,7 @@ function normalizeCrafting(domain) {
       minimumTier: "NONE",
       durationTicks: 1,
       eut: 0,
-      inputs: (rawRecipe.inputs ?? []).map((entry) => resourceAmount(entry)).filter(Boolean),
+      inputs: craftingInputs,
       outputs: [output],
       notes: "Exported by the GTNH calculation oracle from Minecraft/Forge crafting registries.",
       source: {
@@ -154,11 +268,10 @@ function normalizeCrafting(domain) {
         rawRecipeId: rawRecipe.id,
       },
       nei: {
-        itemInputGrid: {
-          width: positiveInt(rawRecipe.width, rawRecipe.type === "shaped" ? 3 : 1),
-          height: positiveInt(rawRecipe.height, rawRecipe.type === "shaped" ? 3 : 1),
-        },
+        itemInputGrid: inputGrid,
         itemOutputGrid: { width: 1, height: 1 },
+        slots: craftingNeiSlots(rawRecipe, craftingInputs.length),
+        progressBars: [{ x: 84, y: 26, width: 24, height: 17, direction: "right" }],
       },
     });
   }
@@ -319,13 +432,312 @@ function beeProductOutput(entry, specialty = false) {
   return output;
 }
 
+function setRecipeMapIcon(machineType, rawIcon) {
+  const icon = resourceAmount(rawIcon);
+  if (!icon) {
+    return;
+  }
+  addResource(icon);
+  if (!recipeMapIcons.has(machineType)) {
+    recipeMapIcons.set(machineType, icon);
+  }
+}
+
+function craftingInputGrid(rawRecipe) {
+  if (rawRecipe.type === "shaped") {
+    return { width: 3, height: 3 };
+  }
+  const count = Math.max(1, (rawRecipe.inputs ?? []).length);
+  if (count <= 1) return { width: 1, height: 1 };
+  if (count <= 4) return { width: 2, height: 2 };
+  return { width: 3, height: 2 };
+}
+
+function craftingInputNeiSlot(rawRecipe, slotIndex) {
+  const index = Math.max(0, Number(slotIndex) || 0);
+  if (rawRecipe.type === "shaped") {
+    const width = Math.max(1, positiveInt(rawRecipe.width, 3));
+    return {
+      x: 25 + (index % width) * 18,
+      y: 8 + Math.floor(index / width) * 18,
+    };
+  }
+  return compactCraftingInputPositions((rawRecipe.inputs ?? []).length)[index];
+}
+
+function craftingNeiSlots(rawRecipe, inputCount) {
+  const inputSlots =
+    rawRecipe.type === "shaped"
+      ? Array.from({ length: 9 }, (_, index) => ({
+          side: "input",
+          kind: "item",
+          slotIndex: index,
+          x: 25 + (index % 3) * 18,
+          y: 8 + Math.floor(index / 3) * 18,
+        }))
+      : compactCraftingInputPositions(inputCount).map((slot, index) => ({
+          side: "input",
+          kind: "item",
+          slotIndex: index,
+          x: slot.x,
+          y: slot.y,
+        }));
+  return [...inputSlots, { side: "output", kind: "item", slotIndex: 0, x: 124, y: 26 }];
+}
+
+function compactCraftingInputPositions(count) {
+  switch (Math.max(0, count)) {
+    case 0:
+      return [];
+    case 1:
+      return [{ x: 61, y: 26 }];
+    case 2:
+      return [
+        { x: 52, y: 26 },
+        { x: 70, y: 26 },
+      ];
+    case 3:
+      return [
+        { x: 43, y: 26 },
+        { x: 61, y: 26 },
+        { x: 79, y: 26 },
+      ];
+    case 4:
+      return [
+        { x: 52, y: 17 },
+        { x: 70, y: 17 },
+        { x: 52, y: 35 },
+        { x: 70, y: 35 },
+      ];
+    default:
+      return Array.from({ length: count }, (_, index) => ({
+        x: 43 + (index % 3) * 18,
+        y: 17 + Math.floor(index / 3) * 18,
+      }));
+  }
+}
+
+function machineConfigControlsForOracleRecipe(machineType, specialValue, extraControls = []) {
+  const controls = [...(extraControls ?? [])];
+  const normalized = normalizeLabel(machineType);
+
+  if (isBlastFurnaceRecipeMap(normalized)) {
+    const minimum =
+      Number.isFinite(Number(specialValue)) && Number(specialValue) > 0
+        ? coilTierForHeat(Number(specialValue))
+        : heatingCoilTiers[0];
+    controls.push(
+      heatingCoilControl({
+        minimumKey: minimum.key,
+        defaultKey: minimum.key,
+        tooltip: (tier) => [`Heat capacity: ${tier.heat} K`],
+      }),
+    );
+  }
+
+  if (normalized === "pyrolyse oven") {
+    controls.push(
+      heatingCoilControl({
+        tooltip: (tier, index) => [
+          `Duration multiplier: ${formatTooltipMultiplier(2 / (1 + index))}x`,
+          "EU/t is not affected by coil tier",
+        ],
+        effect: (_tier, index) => ({ durationMultiplier: 2 / (1 + index) }),
+      }),
+    );
+  }
+
+  if (normalized === "oil cracker") {
+    controls.push(
+      heatingCoilControl({
+        tooltip: (_tier, index) => [
+          `EU usage: ${formatTooltipPercent(1 - Math.min(0.1 * (index + 1), 0.5))}`,
+        ],
+        effect: (_tier, index) => ({ eutMultiplier: 1 - Math.min(0.1 * (index + 1), 0.5) }),
+      }),
+    );
+  }
+
+  if (normalized === "large chemical reactor") {
+    controls.push(
+      heatingCoilControl({
+        tooltip: () => ["Required structure coil", "No runtime speed or EU/t effect"],
+      }),
+    );
+  }
+
+  if (normalized === "coke oven" || normalized === "industrial coke oven") {
+    controls.push(
+      heatingCoilControl({
+        tooltip: (_tier, index) => [`EU usage: ${formatTooltipPercent(Math.pow(0.98, index + 1))}`],
+        effect: (_tier, index) => ({ eutMultiplier: Math.pow(0.98, index + 1) }),
+      }),
+    );
+    controls.push({
+      id: "cokeOvenCasing",
+      label: "Coke Oven Casing",
+      minimumKey: "heat_resistant",
+      defaultKey: "heat_resistant",
+      tiers: [
+        {
+          key: "heat_resistant",
+          label: "Heat Resistant",
+          parallelMultiplier: 16,
+          resource: machineConfigResource(
+            "factoryflow:machine_config/heat_resistant_coke_oven_casing",
+            "Heat Resistant Coke Oven Casing",
+            ["Coke Oven casing tier", "Parallels: 16"],
+          ),
+        },
+        {
+          key: "heat_proof",
+          label: "Heat Proof",
+          parallelMultiplier: 32,
+          resource: machineConfigResource(
+            "factoryflow:machine_config/heat_proof_coke_oven_casing",
+            "Heat Proof Coke Oven Casing",
+            ["Coke Oven casing tier", "Parallels: 32"],
+          ),
+        },
+      ],
+    });
+  }
+
+  return mergeMachineConfigControls(controls);
+}
+
+function machineConfigControlsFromCatalysts(catalysts) {
+  const lines = (catalysts ?? [])
+    .flatMap((catalyst) => catalyst?.resource?.tooltip ?? [])
+    .map((line) => text(line, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const controls = [];
+  for (const line of lines) {
+    const multiplicativePerTier =
+      /(?:^|\b)(\d+(?:[.,]\d+)?)x\s+Parallels?\s+per\s+(.+?)\s+Tier\b/i.exec(line);
+    if (multiplicativePerTier) {
+      const factor = parseTooltipNumber(multiplicativePerTier[1]);
+      const tierControl = tieredEffectControlFromSubject(multiplicativePerTier[2], line, {
+        effectLabel: "Parallels",
+        effect: (tier, index) => ({
+          parallelMultiplier: Math.pow(factor, tierOrdinal(tier, index)),
+        }),
+        keep: (effect) => effect.parallelMultiplier > 1,
+      });
+      if (tierControl) controls.push(tierControl);
+      continue;
+    }
+
+    const perTier = /(?:^|\b)(\d+)\s+Parallels?\s+per\s+(.+?)\s+Tier\b/i.exec(line);
+    if (perTier) {
+      const factor = Number.parseInt(perTier[1], 10);
+      const tierControl = tieredEffectControlFromSubject(perTier[2], line, {
+        effectLabel: "Parallels",
+        effect: (tier, index) => ({ parallelMultiplier: factor * tierOrdinal(tier, index) }),
+        keep: (effect) => effect.parallelMultiplier > 1,
+      });
+      if (tierControl) controls.push(tierControl);
+      continue;
+    }
+
+    const speedPerTier = /(?:^|\b)\+?(\d+(?:[.,]\d+)?%)\s+Speed\s+per\s+(.+?)\s+Tier\b/i.exec(line);
+    if (speedPerTier) {
+      const factor = parseTooltipFactor(speedPerTier[1]);
+      const tierControl = tieredEffectControlFromSubject(speedPerTier[2], line, {
+        effectLabel: "Speed",
+        effect: (tier, index) => ({
+          durationMultiplier: reciprocal(1 + factor * tierOrdinal(tier, index)),
+        }),
+        keep: (effect) => effect.durationMultiplier > 0 && effect.durationMultiplier < 1,
+      });
+      if (tierControl) controls.push(tierControl);
+      continue;
+    }
+
+    const euUsagePerTier =
+      /(?:^|\b)([+-]?\d+(?:[.,]\d+)?%)\s+EU\s+Usage\s+per\s+(.+?)\s+Tier\b/i.exec(line);
+    if (euUsagePerTier) {
+      const factor = parseTooltipFactor(euUsagePerTier[1]);
+      const tierControl = tieredEffectControlFromSubject(euUsagePerTier[2], line, {
+        effectLabel: "EU usage",
+        effect: (tier, index) => ({
+          eutMultiplier: Math.max(0.01, 1 + factor * tierOrdinal(tier, index)),
+        }),
+        keep: (effect) => effect.eutMultiplier > 0 && effect.eutMultiplier !== 1,
+      });
+      if (tierControl) controls.push(tierControl);
+      continue;
+    }
+
+    const staticParallel = /(?:^|\b)(\d+)\s+Parallels?\s*$/i.exec(line);
+    if (staticParallel) {
+      const parallels = Number.parseInt(staticParallel[1], 10);
+      if (parallels > 1) {
+        controls.push({
+          id: "machineParallel",
+          label: "Parallel",
+          minimumKey: `fixed-${parallels}`,
+          defaultKey: `fixed-${parallels}`,
+          tiers: [
+            {
+              key: `fixed-${parallels}`,
+              label: `${parallels} Parallels`,
+              parallelMultiplier: parallels,
+              resource: machineConfigResource(
+                `factoryflow:machine_config/fixed-${parallels}`,
+                `${parallels} Parallels`,
+                ["Imported from machine catalyst tooltip", line],
+              ),
+            },
+          ],
+        });
+      }
+    }
+  }
+
+  return mergeMachineConfigControls(controls) ?? [];
+}
+
+function heatingCoilControl({
+  minimumKey = "cupronickel",
+  defaultKey = minimumKey,
+  tooltip = () => [],
+  effect = () => ({}),
+} = {}) {
+  return {
+    id: "heatingCoil",
+    label: "Heating Coil",
+    minimumKey,
+    defaultKey,
+    tiers: heatingCoilTiers.map((tier, index) => ({
+      key: tier.key,
+      label: tier.label,
+      heat: tier.heat,
+      ...effect(tier, index),
+      resource: machineConfigResource(tier.blockId, `${tier.label} Coil Block`, [
+        "Heating coil tier",
+        ...tooltip(tier, index),
+      ]),
+    })),
+  };
+}
+
 function addRecipe(recipe) {
   const signature = recipeSignature(recipe);
   if (recipeSignatures.has(signature)) {
     return;
   }
   recipeSignatures.add(signature);
-  for (const resource of [...recipe.inputs, ...recipe.outputs]) {
+  for (const resource of [
+    ...recipe.inputs,
+    ...recipe.outputs,
+    ...machineConfigResources(recipe.machineConfigControls),
+    ...machineHandlerConfigResources(recipe.machineHandlers),
+  ]) {
     addResource(resource);
   }
   recipes.push({
@@ -366,6 +778,10 @@ function resourceAmount(rawResource, options = {}) {
   }
 
   const iconPath = renderedIconPath(rawResource.icon);
+  const tooltip = [
+    ...(normalizeStringArray(rawResource.tooltip) ?? []),
+    rawResource.nbt ? `NBT: ${rawResource.nbt}` : undefined,
+  ].filter(Boolean);
   const resource = removeUndefined({
     kind: rawResource.kind,
     id,
@@ -374,9 +790,10 @@ function resourceAmount(rawResource, options = {}) {
     iconPath,
     dominantColor: renderedIconColor(rawResource.icon),
     modId: rawResource.modId,
-    tooltip: rawResource.nbt ? [`NBT: ${rawResource.nbt}`] : undefined,
+    tooltip: tooltip.length > 0 ? tooltip : undefined,
     consumed: options.consumed === false || rawResource.consumed === false ? false : undefined,
     chance: normalizeChance(options.chance ?? rawResource.chance),
+    neiSlot: options.neiSlot,
   });
   return resource;
 }
@@ -486,6 +903,237 @@ function resourceAlternative(resource) {
   });
 }
 
+function machineConfigResources(controls) {
+  return (controls ?? []).flatMap((control) =>
+    (control.tiers ?? []).map((tier) => tier.resource).filter(Boolean),
+  );
+}
+
+function machineHandlerConfigResources(handlers) {
+  return (handlers ?? []).flatMap((handler) =>
+    machineConfigResources(handler.machineConfigControls),
+  );
+}
+
+function mergeMachineConfigControls(controls) {
+  const byId = new Map();
+  for (const control of (controls ?? []).filter(Boolean)) {
+    const existing = byId.get(control.id);
+    if (!existing) {
+      byId.set(control.id, control);
+      continue;
+    }
+    const tiersByKey = new Map((existing.tiers ?? []).map((tier) => [tier.key, tier]));
+    for (const tier of control.tiers ?? []) {
+      const current = tiersByKey.get(tier.key);
+      tiersByKey.set(tier.key, current ? mergeMachineConfigTierOption(current, tier) : tier);
+    }
+    byId.set(control.id, {
+      ...existing,
+      minimumKey: existing.minimumKey ?? control.minimumKey,
+      defaultKey: existing.defaultKey ?? control.defaultKey,
+      tiers: [...tiersByKey.values()],
+    });
+  }
+  const merged = [...byId.values()];
+  return merged.length > 0 ? merged : undefined;
+}
+
+function mergeMachineConfigTierOption(existing, incoming) {
+  return {
+    ...existing,
+    ...incoming,
+    label: existing.label ?? incoming.label,
+    resource: mergeMachineConfigTierResource(existing.resource, incoming.resource),
+  };
+}
+
+function mergeMachineConfigTierResource(existing, incoming) {
+  if (!existing) return incoming;
+  if (!incoming) return existing;
+  return {
+    ...existing,
+    ...incoming,
+    id: existing.id ?? incoming.id,
+    displayName: existing.displayName ?? incoming.displayName,
+    tooltip: uniqueStrings([...(existing.tooltip ?? []), ...(incoming.tooltip ?? [])]),
+  };
+}
+
+function tieredEffectControlFromSubject(subject, line, { effectLabel, effect, keep }) {
+  const definition = machineConfigTierDefinitionForSubject(subject);
+  if (!definition) {
+    return undefined;
+  }
+
+  const options = definition.tiers
+    .map((tier, index) => {
+      const effectFields = effect(tier, index);
+      if (!isValidMachineConfigEffect(effectFields) || (keep && !keep(effectFields))) {
+        return undefined;
+      }
+      return {
+        key: tier.key,
+        label: tier.label,
+        ...effectFields,
+        resource: {
+          ...tier.resource,
+          tooltip: uniqueStrings([
+            definition.tooltipPrefix,
+            line,
+            ...effectTooltipLines(effectLabel, effectFields),
+            ...(tier.resource.tooltip ?? []),
+          ]),
+        },
+      };
+    })
+    .filter(Boolean);
+
+  if (options.length === 0) {
+    return undefined;
+  }
+
+  return {
+    id: definition.id,
+    label: definition.label,
+    minimumKey: options[0].key,
+    defaultKey: options[0].key,
+    tiers: options,
+  };
+}
+
+function machineConfigTierDefinitionForSubject(subject) {
+  const normalized = normalizeLabel(subject);
+  if (normalized.includes("coil")) {
+    return {
+      id: "heatingCoil",
+      label: "Heating Coil",
+      tiers: heatingCoilTiers.map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        resource: machineConfigResource(tier.blockId, `${tier.label} Coil Block`, [
+          "Heating coil tier",
+          `Heat capacity: ${tier.heat} K`,
+        ]),
+      })),
+      tooltipPrefix: "Heating coil tier",
+    };
+  }
+  if (normalized.includes("pipe casing")) {
+    return {
+      id: "pipeCasing",
+      label: "Pipe Casing",
+      tiers: pipeCasingTiers.map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        resource: machineConfigResource(tier.blockId, `${tier.label} Pipe Casing`, [
+          "Pipe casing tier",
+        ]),
+      })),
+      tooltipPrefix: "Pipe casing tier",
+    };
+  }
+  if (normalized.includes("solenoid")) {
+    return {
+      id: "solenoidCoil",
+      label: "Solenoid",
+      tiers: solenoidTiers.map((tier) => ({
+        key: tier.key,
+        label: tier.label,
+        voltageTier: tier.voltageTier,
+        resource: machineConfigResource(
+          tier.blockId,
+          `${tier.label} Solenoid Superconductor Coil`,
+          ["Solenoid tier"],
+        ),
+      })),
+      tooltipPrefix: "Solenoid tier",
+    };
+  }
+  return undefined;
+}
+
+function isValidMachineConfigEffect(effect) {
+  return (
+    Number.isFinite(effect?.parallelMultiplier) ||
+    Number.isFinite(effect?.durationMultiplier) ||
+    Number.isFinite(effect?.eutMultiplier) ||
+    Number.isFinite(effect?.outputMultiplier) ||
+    Number.isFinite(effect?.heat)
+  );
+}
+
+function effectTooltipLines(effectLabel, effect) {
+  const lines = [];
+  if (Number.isFinite(effect.parallelMultiplier)) {
+    lines.push(`${effectLabel}: ${formatTooltipMultiplier(effect.parallelMultiplier)}x`);
+  }
+  if (Number.isFinite(effect.durationMultiplier)) {
+    lines.push(
+      `${effectLabel}: ${formatTooltipMultiplier(reciprocal(effect.durationMultiplier))}x`,
+    );
+  }
+  if (Number.isFinite(effect.eutMultiplier)) {
+    lines.push(`${effectLabel}: ${formatTooltipPercent(effect.eutMultiplier)}`);
+  }
+  if (Number.isFinite(effect.outputMultiplier)) {
+    lines.push(`${effectLabel}: ${formatTooltipMultiplier(effect.outputMultiplier)}x`);
+  }
+  return lines;
+}
+
+function machineConfigResource(id, displayName, tooltip = []) {
+  return {
+    kind: "item",
+    id,
+    amount: 1,
+    displayName,
+    tooltip,
+    consumed: false,
+  };
+}
+
+function coilTierForHeat(heat) {
+  return heatingCoilTiers.find((tier) => tier.heat >= heat) ?? heatingCoilTiers.at(-1);
+}
+
+function isBlastFurnaceRecipeMap(normalizedMachineType) {
+  return (
+    normalizedMachineType === "blast furnace" || normalizedMachineType === "electric blast furnace"
+  );
+}
+
+function parseTooltipFactor(value) {
+  const number = parseTooltipNumber(value);
+  return String(value).trim().endsWith("%") ? number / 100 : number;
+}
+
+function parseTooltipNumber(value) {
+  return Number.parseFloat(String(value).replace(",", ".").replace("%", ""));
+}
+
+function reciprocal(value) {
+  return Number.isFinite(value) && value !== 0 ? 1 / value : Number.NaN;
+}
+
+function tierOrdinal(tier, index) {
+  return Number.isFinite(tier.voltageTier) ? tier.voltageTier : index + 1;
+}
+
+function formatTooltipMultiplier(value) {
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function formatTooltipPercent(value) {
+  return `${formatTooltipMultiplier(value * 100)}%`;
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
 function normalizeRuntimeCalculation(rawRuntime, recipeMap, fallbackOutputs) {
   if (!rawRuntime || typeof rawRuntime !== "object") {
     return undefined;
@@ -516,13 +1164,61 @@ function compactRuntimeVariant(value) {
   }
   const tierIndex = Number(value[0]);
   const tier = GT_VOLTAGE_NAMES[tierIndex] ?? `tier-${tierIndex}`;
-  return {
+  const profile = text(value[3], "");
+  const configKey = text(value[4], "");
+  const coil = configKey ? heatingCoilTiers.find((entry) => entry.key === configKey) : undefined;
+  const variant = {
     id: `tier-${tier.toLowerCase()}`,
     label: tier,
     overclockTier: tier,
     durationTicks: value[1],
     eut: value[2],
     parallel: 1,
+  };
+  if (!profile) {
+    return variant;
+  }
+
+  if (profile === "ebf-heat") {
+    return {
+      ...variant,
+      id: `tier-${tier.toLowerCase()}-coil-${configKey}`,
+      label: `${tier} / ${coil?.label ?? configKey}`,
+      coilTier: configKey,
+      notes: "GTNH EBF heat overclock and heat discount profile.",
+    };
+  }
+  if (profile === "pyrolyse-coil") {
+    return {
+      ...variant,
+      id: `tier-${tier.toLowerCase()}-coil-${configKey}`,
+      label: `${tier} / ${coil?.label ?? configKey}`,
+      coilTier: configKey,
+      notes: "GTNH Pyrolyse Oven coil speed profile.",
+    };
+  }
+  if (profile === "oil-cracker-coil") {
+    return {
+      ...variant,
+      id: `tier-${tier.toLowerCase()}-coil-${configKey}`,
+      label: `${tier} / ${coil?.label ?? configKey}`,
+      coilTier: configKey,
+      notes: "GTNH Oil Cracker coil EU discount profile.",
+    };
+  }
+  if (profile === "perfect-oc") {
+    return {
+      ...variant,
+      id: `tier-${tier.toLowerCase()}-perfect-oc`,
+      label: `${tier} Perfect OC`,
+      notes: "GTNH perfect overclock profile.",
+    };
+  }
+  return {
+    ...variant,
+    id: `tier-${tier.toLowerCase()}-${slug(profile)}${configKey ? `-${slug(configKey)}` : ""}`,
+    label: `${tier} ${profile}${configKey ? ` ${configKey}` : ""}`,
+    notes: `GTNH runtime profile: ${profile}${configKey ? `/${configKey}` : ""}.`,
   };
 }
 
@@ -543,7 +1239,9 @@ function normalizeRuntimeVariant(variant, index, fallbackOutputs) {
     durationTicks,
     eut,
     parallel: positiveNumber(variant.parallel, undefined),
-    inputs: (variant.inputs ?? []).map((entry) => runtimeResource(resourceAmount(entry))).filter(Boolean),
+    inputs: (variant.inputs ?? [])
+      .map((entry) => runtimeResource(resourceAmount(entry)))
+      .filter(Boolean),
     outputs: runtimeResources(outputs.length > 0 ? outputs : fallbackOutputs),
     notes: variant.notes,
   });
@@ -566,7 +1264,9 @@ function runtimeResource(resource) {
 }
 
 async function writeOracleReport(dataset) {
-  const runtimeRecipes = dataset.recipes.filter((recipe) => recipe.runtimeCalculation?.oracleEligible);
+  const runtimeRecipes = dataset.recipes.filter(
+    (recipe) => recipe.runtimeCalculation?.oracleEligible,
+  );
   const computedRuntimeRecipes = runtimeRecipes.filter(
     (recipe) =>
       recipe.runtimeCalculation?.status === "computed" &&
@@ -605,7 +1305,10 @@ async function writeOracleReport(dataset) {
       "Strict mode fails only for recipes that are exported as oracle-eligible but lack computed runtime variants. Adapter warnings are preserved for coverage tracking.",
   };
   await fs.mkdir(path.join(outDir, "oracle"), { recursive: true });
-  await fs.writeFile(path.join(outDir, "oracle", "oracle-report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  await fs.writeFile(
+    path.join(outDir, "oracle", "oracle-report.json"),
+    `${JSON.stringify(report, null, 2)}\n`,
+  );
   if (oracleStrict && failures.length > 0) {
     throw new Error(
       `Oracle strict mode failed: ${failures.length} oracle-eligible recipe(s) have no computed runtime calculation. See oracle/oracle-report.json.`,
@@ -670,7 +1373,10 @@ function findDomain(id) {
 }
 
 function recipeId(...parts) {
-  return `oracle:${datasetVersionId}:${parts.map((part) => slug(part)).filter(Boolean).join(":")}`;
+  return `oracle:${datasetVersionId}:${parts
+    .map((part) => slug(part))
+    .filter(Boolean)
+    .join(":")}`;
 }
 
 function recipeSignature(recipe) {
@@ -686,7 +1392,9 @@ function hashRecipe(value) {
 }
 
 function detectProgrammedCircuit(inputs) {
-  const circuit = inputs.find((input) => input.kind === "item" && /circuit/i.test(`${input.id} ${input.displayName ?? ""}`));
+  const circuit = inputs.find(
+    (input) => input.kind === "item" && /circuit/i.test(`${input.id} ${input.displayName ?? ""}`),
+  );
   if (!circuit) {
     return undefined;
   }
@@ -772,6 +1480,15 @@ function slug(value) {
 function text(value, defaultText) {
   const normalized = String(value ?? "").trim();
   return normalized.length > 0 ? normalized : defaultText;
+}
+
+function normalizeLabel(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/\b(recipes?|recipe map|map)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function requiredEnv(name) {

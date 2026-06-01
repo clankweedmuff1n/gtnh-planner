@@ -48,6 +48,21 @@ export const datasetResourceIndexEntrySchema = z.object({
   alternatives: datasetResourceSchema.shape.alternatives,
 });
 
+export const recipeMapIconEntrySchema = z.object({
+  recipeMap: z.string().min(1),
+  resource: z.object({
+    id: z.string().min(1),
+    kind: z.enum(["item", "fluid", "aspect"]),
+    amount: z.number().positive().optional(),
+    displayName: z.string().min(1).optional(),
+    iconPath: z.string().optional(),
+    iconAtlas: resourceIconAtlasRefSchema.optional(),
+    dominantColor: dominantColorSchema,
+    modId: z.string().optional(),
+    tooltip: z.array(z.string()).optional(),
+  }),
+});
+
 export const recipeDatasetSchema = z.object({
   schemaVersion: z.literal(1),
   datasetVersionId: z.string().min(1),
@@ -58,6 +73,7 @@ export const recipeDatasetSchema = z.object({
   recipes: z.array(recipeSchema),
   oreDictionary: z.record(z.string(), z.array(z.string())),
   recipeMaps: z.array(z.string()),
+  recipeMapIcons: z.array(recipeMapIconEntrySchema).optional(),
   generatedAt: z.string(),
 });
 

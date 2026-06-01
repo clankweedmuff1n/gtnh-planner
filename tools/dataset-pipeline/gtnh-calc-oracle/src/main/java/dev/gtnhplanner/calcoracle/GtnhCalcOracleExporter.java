@@ -52,7 +52,24 @@ public final class GtnhCalcOracleExporter {
         8L, 32L, 128L, 512L, 2048L, 8192L, 32768L, 131072L, 524288L, 2097152L, 8388608L,
         33554432L, 134217728L, 536870912L, Long.MAX_VALUE
     };
+    private static final HeatingCoilTier[] HEATING_COIL_TIERS = new HeatingCoilTier[] {
+        new HeatingCoilTier("cupronickel", "Cupronickel", 1801, 0),
+        new HeatingCoilTier("kanthal", "Kanthal", 2701, 1),
+        new HeatingCoilTier("nichrome", "Nichrome", 3601, 2),
+        new HeatingCoilTier("tpv", "TPV-Alloy", 4501, 3),
+        new HeatingCoilTier("hss_g", "HSS-G", 5401, 4),
+        new HeatingCoilTier("hss_s", "HSS-S", 6301, 5),
+        new HeatingCoilTier("naquadah", "Naquadah", 7201, 6),
+        new HeatingCoilTier("naquadah_alloy", "Naquadah Alloy", 8101, 7),
+        new HeatingCoilTier("trinium", "Trinium", 9001, 8),
+        new HeatingCoilTier("electrum_flux", "Electrum Flux", 9901, 9),
+        new HeatingCoilTier("awakened_draconium", "Awakened Draconium", 10801, 10),
+        new HeatingCoilTier("infinity", "Infinity", 11701, 11),
+        new HeatingCoilTier("hypogen", "Hypogen", 12601, 12),
+        new HeatingCoilTier("eternal", "Eternal", 13501, 13)
+    };
     private Map<String, List<String>> oreDictionaryNamesByChoiceSignature;
+    private Map<String, List<Map<String, Object>>> recipeMapCatalystsById;
 
     public ExportResult export() throws Exception {
         String generatedAt = isoNow();
@@ -151,6 +168,11 @@ public final class GtnhCalcOracleExporter {
                 exportedMap.put("id", safeString(map.unlocalizedName));
                 exportedMap.put("name", name);
                 exportedMap.put("sourceClass", map.getClass().getName());
+                List<Map<String, Object>> catalysts = recipeMapCatalysts(map);
+                if (!catalysts.isEmpty()) {
+                    exportedMap.put("catalysts", catalysts);
+                    exportedMap.put("icon", catalysts.get(0).get("resource"));
+                }
 
                 List<Map<String, Object>> recipes = new ArrayList<Map<String, Object>>();
                 List<GTRecipe> rawRecipes = new ArrayList<GTRecipe>(map.getAllRecipes());
@@ -182,7 +204,7 @@ public final class GtnhCalcOracleExporter {
                     exportedRecipe.put("fluidInputs", fluidStacks(recipe.mFluidInputs));
                     exportedRecipe.put("fluidOutputs", fluidStacks(recipe.mFluidOutputs));
                     exportedRecipe.put("nonConsumedInputs", specialItems(recipe.mSpecialItems));
-                    exportedRecipe.put("runtimeCalculation", buildGtRuntimeCalculation(name, recipe));
+                    exportedRecipe.put("runtimeCalculation", buildGtRuntimeCalculation(map.unlocalizedName, name, recipe));
                     recipes.add(exportedRecipe);
                     index++;
                 }
@@ -460,7 +482,7 @@ public final class GtnhCalcOracleExporter {
         return exported;
     }
 
-    private Map<String, Object> buildGtRuntimeCalculation(String recipeMapName, GTRecipe recipe) {
+    private Map<String, Object> buildGtRuntimeCalculation(String recipeMapId, String recipeMapName, GTRecipe recipe) {
         Map<String, Object> out = map();
         out.put("sourceKind", "gregtech-overclock-calculator");
         out.put("sourceClass", "gregtech.api.util.OverclockCalculator");
@@ -472,14 +494,69 @@ public final class GtnhCalcOracleExporter {
 
         List<List<Object>> variants = new ArrayList<List<Object>>();
         int minimumTier = voltageTierForEu(recipe.mEUt);
+        String profile = gtRuntimeProfile(recipeMapId, recipeMapName);
         for (int tier = minimumTier; tier < GT_VOLTAGE_NAMES.length; tier++) {
-            List<Object> variant = buildGtOverclockVariant(recipe, tier);
+            if ("blast-furnace-heat".equals(profile)) {
+                for (HeatingCoilTier coil : HEATING_COIL_TIERS) {
+                    int machineHeat = coil.heat + (100 * (tier - 2));
+                    if (recipe.mSpecialValue > machineHeat) {
+                        continue;
+                    }
+                    List<Object> variant = buildGtOverclockVariant(
+                        recipe,
+                        tier,
+                        VariantProfile.ebfHeat(recipe.mSpecialValue, machineHeat)
+                    );
+                    if (variant != null) {
+                        variants.add(compactRuntimeVariant(variant, "ebf-heat", coil.key));
+                    }
+                }
+                continue;
+            }
+            if ("pyrolyse-coil".equals(profile)) {
+                for (HeatingCoilTier coil : HEATING_COIL_TIERS) {
+                    List<Object> variant = buildGtOverclockVariant(
+                        recipe,
+                        tier,
+                        VariantProfile.pyrolyse(coil.coilTier)
+                    );
+                    if (variant != null) {
+                        variants.add(compactRuntimeVariant(variant, "pyrolyse-coil", coil.key));
+                    }
+                }
+                continue;
+            }
+            if ("oil-cracker-coil".equals(profile)) {
+                for (HeatingCoilTier coil : HEATING_COIL_TIERS) {
+                    List<Object> variant = buildGtOverclockVariant(
+                        recipe,
+                        tier,
+                        VariantProfile.oilCracker(coil.coilTier)
+                    );
+                    if (variant != null) {
+                        variants.add(compactRuntimeVariant(variant, "oil-cracker-coil", coil.key));
+                    }
+                }
+                continue;
+            }
+            if ("large-chemical-reactor-perfect".equals(profile)) {
+                List<Object> variant = buildGtOverclockVariant(recipe, tier, VariantProfile.perfectOc());
+                if (variant != null) {
+                    variants.add(compactRuntimeVariant(variant, "perfect-oc", null));
+                }
+                continue;
+            }
+
+            List<Object> variant = buildGtOverclockVariant(recipe, tier, VariantProfile.standard());
             if (variant != null) {
                 variants.add(variant);
             }
         }
-        out.put("variantFormat", "tierIndex,durationTicks,eut");
+        out.put("variantFormat", "tierIndex,durationTicks,eut[,profile,configKey]");
         out.put("compactVariants", variants);
+        if (!"standard".equals(profile)) {
+            out.put("profile", profile);
+        }
         if (variants.isEmpty()) {
             out.put("status", "missing");
             out.put("warnings", Arrays.asList("OverclockCalculator runtime invocation did not return any variant."));
@@ -487,7 +564,7 @@ public final class GtnhCalcOracleExporter {
         return out;
     }
 
-    private List<Object> buildGtOverclockVariant(GTRecipe recipe, int tier) {
+    private List<Object> buildGtOverclockVariant(GTRecipe recipe, int tier, VariantProfile profile) {
         try {
             Class<?> calculatorClass = Class.forName("gregtech.api.util.OverclockCalculator");
             Object calculator = calculatorClass.getConstructor().newInstance();
@@ -495,6 +572,27 @@ public final class GtnhCalcOracleExporter {
             callFluent(calculator, "setEUt", Long.TYPE, Long.valueOf(GT_VOLTAGES[tier]));
             callFluent(calculator, "setDuration", Integer.TYPE, Integer.valueOf(Math.max(1, recipe.mDuration)));
             callFluent(calculator, "setParallel", Integer.TYPE, Integer.valueOf(1));
+            if (profile.perfectOc) {
+                callFluent(calculator, "enablePerfectOC");
+            }
+            if (profile.recipeHeat >= 0) {
+                callFluent(calculator, "setRecipeHeat", Integer.TYPE, Integer.valueOf(profile.recipeHeat));
+            }
+            if (profile.machineHeat >= 0) {
+                callFluent(calculator, "setMachineHeat", Integer.TYPE, Integer.valueOf(profile.machineHeat));
+            }
+            if (profile.heatOc) {
+                callFluent(calculator, "setHeatOC", Boolean.TYPE, Boolean.TRUE);
+            }
+            if (profile.heatDiscount) {
+                callFluent(calculator, "setHeatDiscount", Boolean.TYPE, Boolean.TRUE);
+            }
+            if (profile.durationModifier > 0.0D) {
+                callFluent(calculator, "setDurationModifier", Double.TYPE, Double.valueOf(profile.durationModifier));
+            }
+            if (profile.eutDiscount > 0.0D) {
+                callFluent(calculator, "setEUtDiscount", Double.TYPE, Double.valueOf(profile.eutDiscount));
+            }
             callFluent(calculator, "calculate");
 
             int duration = ((Number) calculatorClass.getMethod("getDuration").invoke(calculator)).intValue();
@@ -507,6 +605,33 @@ public final class GtnhCalcOracleExporter {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private List<Object> compactRuntimeVariant(List<Object> base, String profile, String configKey) {
+        List<Object> variant = new ArrayList<Object>(base);
+        variant.add(profile);
+        if (configKey != null) {
+            variant.add(configKey);
+        }
+        return variant;
+    }
+
+    private String gtRuntimeProfile(String recipeMapId, String recipeMapName) {
+        String id = safeString(recipeMapId).toLowerCase(Locale.ROOT);
+        String name = safeString(recipeMapName).toLowerCase(Locale.ROOT);
+        if (id.equals("gt.recipe.blastfurnace") || name.equals("blast furnace")) {
+            return "blast-furnace-heat";
+        }
+        if (id.equals("gt.recipe.pyro") || name.equals("pyrolyse oven")) {
+            return "pyrolyse-coil";
+        }
+        if (id.equals("gt.recipe.craker") || id.equals("gt.recipe.cracker") || name.equals("oil cracker")) {
+            return "oil-cracker-coil";
+        }
+        if (id.equals("gt.recipe.largechemicalreactor") || name.equals("large chemical reactor")) {
+            return "large-chemical-reactor-perfect";
+        }
+        return "standard";
     }
 
     private List<Map<String, Object>> gtRuntimeOutputs(GTRecipe recipe) {
@@ -530,6 +655,129 @@ public final class GtnhCalcOracleExporter {
             }
         }
         return outputs;
+    }
+
+    private List<Map<String, Object>> recipeMapCatalysts(RecipeMap<?> target) {
+        if (recipeMapCatalystsById == null) {
+            recipeMapCatalystsById = buildRecipeMapCatalystCache();
+        }
+        List<Map<String, Object>> catalysts = recipeMapCatalystsById.get(safeString(target.unlocalizedName));
+        return catalysts == null ? Collections.<Map<String, Object>>emptyList() : catalysts;
+    }
+
+    private Map<String, List<Map<String, Object>>> buildRecipeMapCatalystCache() {
+        Map<String, List<Map<String, Object>>> byRecipeMap = new LinkedHashMap<String, List<Map<String, Object>>>();
+        try {
+            Object rawMetatileEntities = readStaticField(Class.forName("gregtech.api.GregTechAPI"), "METATILEENTITIES");
+            for (Object metatileEntity : iterable(rawMetatileEntities)) {
+                if (metatileEntity == null) {
+                    continue;
+                }
+                Object stackValue = invokeBest(metatileEntity, "getStackForm", new Object[] { Long.valueOf(1L) });
+                if (!(stackValue instanceof ItemStack)) {
+                    continue;
+                }
+                Map<String, Object> resource = itemStack((ItemStack) stackValue);
+                if (resource == null) {
+                    continue;
+                }
+                List<String> tooltip = tooltipLines((ItemStack) stackValue);
+                if (!tooltip.isEmpty()) {
+                    resource.put("tooltip", tooltip);
+                }
+
+                Number priorityValue = asNumber(invokeBest(metatileEntity, "getRecipeCatalystPriority", new Object[0]));
+                int priority = priorityValue == null ? 0 : priorityValue.intValue();
+                List<RecipeMap<?>> availableMaps = availableRecipeMaps(metatileEntity);
+                for (RecipeMap<?> recipeMap : availableMaps) {
+                    if (recipeMap == null || recipeMap.unlocalizedName == null) {
+                        continue;
+                    }
+                    Map<String, Object> catalyst = map();
+                    catalyst.put("resource", resource);
+                    catalyst.put("priority", Integer.valueOf(priority));
+                    catalyst.put("sourceClass", metatileEntity.getClass().getName());
+
+                    List<Map<String, Object>> entries = byRecipeMap.get(recipeMap.unlocalizedName);
+                    if (entries == null) {
+                        entries = new ArrayList<Map<String, Object>>();
+                        byRecipeMap.put(recipeMap.unlocalizedName, entries);
+                    }
+                    if (!containsCatalystResource(entries, resource)) {
+                        entries.add(catalyst);
+                    }
+                }
+            }
+            for (List<Map<String, Object>> catalysts : byRecipeMap.values()) {
+                Collections.sort(catalysts, new java.util.Comparator<Map<String, Object>>() {
+                    @Override
+                    public int compare(Map<String, Object> left, Map<String, Object> right) {
+                        int priorityCompare = Integer.compare(catalystPriority(right), catalystPriority(left));
+                        if (priorityCompare != 0) return priorityCompare;
+                        return catalystResourceId(left).compareTo(catalystResourceId(right));
+                    }
+                });
+            }
+        } catch (Throwable ignored) {
+        }
+        return byRecipeMap;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<RecipeMap<?>> availableRecipeMaps(Object metatileEntity) {
+        List<RecipeMap<?>> maps = new ArrayList<RecipeMap<?>>();
+        Object rawMaps = invokeBest(metatileEntity, "getAvailableRecipeMaps", new Object[0]);
+        for (Object value : iterable(rawMaps)) {
+            if (value instanceof RecipeMap) {
+                maps.add((RecipeMap<?>) value);
+            }
+        }
+        if (!maps.isEmpty()) {
+            return maps;
+        }
+
+        Object rawMap = invokeBest(metatileEntity, "getRecipeMap", new Object[0]);
+        if (rawMap instanceof RecipeMap) {
+            maps.add((RecipeMap<?>) rawMap);
+        }
+        return maps;
+    }
+
+    private boolean containsCatalystResource(List<Map<String, Object>> catalysts, Map<String, Object> resource) {
+        String id = safeString(resource.get("id"));
+        for (Map<String, Object> catalyst : catalysts) {
+            Object candidate = catalyst.get("resource");
+            if (candidate instanceof Map && id.equals(safeString(((Map<?, ?>) candidate).get("id")))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int catalystPriority(Map<String, Object> catalyst) {
+        Object priority = catalyst.get("priority");
+        return priority instanceof Number ? ((Number) priority).intValue() : 0;
+    }
+
+    private String catalystResourceId(Map<String, Object> catalyst) {
+        Object resource = catalyst.get("resource");
+        return resource instanceof Map ? safeString(((Map<?, ?>) resource).get("id")) : "";
+    }
+
+    private List<String> tooltipLines(ItemStack stack) {
+        try {
+            List<?> rawTooltip = stack.getTooltip(null, false);
+            List<String> tooltip = new ArrayList<String>();
+            for (Object line : rawTooltip) {
+                String text = String.valueOf(line).replaceAll("\\u00A7[0-9A-FK-ORa-fk-or]", "").trim();
+                if (text.length() > 0) {
+                    tooltip.add(text);
+                }
+            }
+            return tooltip;
+        } catch (Throwable ignored) {
+            return Collections.emptyList();
+        }
     }
 
     private Object callFluent(Object target, String methodName) throws Exception {
@@ -652,41 +900,46 @@ public final class GtnhCalcOracleExporter {
         List<Map<String, Object>> inputs = new ArrayList<Map<String, Object>>();
         if (recipe instanceof ShapedRecipes) {
             ShapedRecipes shaped = (ShapedRecipes) recipe;
-            for (ItemStack stack : shaped.recipeItems) {
-                addUnknownInput(inputs, stack);
+            for (int index = 0; index < shaped.recipeItems.length; index++) {
+                addUnknownInput(inputs, shaped.recipeItems[index], index);
             }
             return inputs;
         }
         if (recipe instanceof ShapelessRecipes) {
             ShapelessRecipes shapeless = (ShapelessRecipes) recipe;
+            int index = 0;
             for (Object stack : shapeless.recipeItems) {
-                addUnknownInput(inputs, stack);
+                addUnknownInput(inputs, stack, index++);
             }
             return inputs;
         }
         if (recipe instanceof ShapedOreRecipe) {
-            for (Object input : ((ShapedOreRecipe) recipe).getInput()) {
-                addUnknownInput(inputs, input);
+            Object[] rawInputs = ((ShapedOreRecipe) recipe).getInput();
+            for (int index = 0; index < rawInputs.length; index++) {
+                addUnknownInput(inputs, rawInputs[index], index);
             }
             return inputs;
         }
         if (recipe instanceof ShapelessOreRecipe) {
+            int index = 0;
             for (Object input : ((ShapelessOreRecipe) recipe).getInput()) {
-                addUnknownInput(inputs, input);
+                addUnknownInput(inputs, input, index++);
             }
             return inputs;
         }
 
         Object recipeItems = firstObject(recipe, "getInput", "recipeItems", "input");
+        int index = 0;
         for (Object input : iterable(recipeItems)) {
-            addUnknownInput(inputs, input);
+            addUnknownInput(inputs, input, index++);
         }
         return inputs;
     }
 
-    private void addUnknownInput(List<Map<String, Object>> inputs, Object input) {
+    private void addUnknownInput(List<Map<String, Object>> inputs, Object input, int slotIndex) {
         Map<String, Object> resource = resourceFromUnknown(input);
         if (resource != null) {
+            resource.put("slotIndex", Integer.valueOf(slotIndex));
             inputs.add(resource);
         }
     }
@@ -1166,6 +1419,69 @@ public final class GtnhCalcOracleExporter {
 
     private Map<String, Object> map() {
         return new LinkedHashMap<String, Object>();
+    }
+
+    private static final class HeatingCoilTier {
+        final String key;
+        final String label;
+        final int heat;
+        final int coilTier;
+
+        HeatingCoilTier(String key, String label, int heat, int coilTier) {
+            this.key = key;
+            this.label = label;
+            this.heat = heat;
+            this.coilTier = coilTier;
+        }
+    }
+
+    private static final class VariantProfile {
+        final boolean perfectOc;
+        final boolean heatOc;
+        final boolean heatDiscount;
+        final int recipeHeat;
+        final int machineHeat;
+        final double durationModifier;
+        final double eutDiscount;
+
+        VariantProfile(
+            boolean perfectOc,
+            boolean heatOc,
+            boolean heatDiscount,
+            int recipeHeat,
+            int machineHeat,
+            double durationModifier,
+            double eutDiscount
+        ) {
+            this.perfectOc = perfectOc;
+            this.heatOc = heatOc;
+            this.heatDiscount = heatDiscount;
+            this.recipeHeat = recipeHeat;
+            this.machineHeat = machineHeat;
+            this.durationModifier = durationModifier;
+            this.eutDiscount = eutDiscount;
+        }
+
+        static VariantProfile standard() {
+            return new VariantProfile(false, false, false, -1, -1, 0.0D, 0.0D);
+        }
+
+        static VariantProfile perfectOc() {
+            return new VariantProfile(true, false, false, -1, -1, 0.0D, 0.0D);
+        }
+
+        static VariantProfile ebfHeat(int recipeHeat, int machineHeat) {
+            return new VariantProfile(false, true, true, recipeHeat, machineHeat, 0.0D, 0.0D);
+        }
+
+        static VariantProfile pyrolyse(int coilTier) {
+            return new VariantProfile(false, false, false, -1, -1, 2.0D / (1.0D + coilTier), 0.0D);
+        }
+
+        static VariantProfile oilCracker(int coilTier) {
+            double discount = 1.0D - Math.min(0.1D * (coilTier + 1), 0.5D);
+            return new VariantProfile(false, false, false, -1, -1, 0.0D, discount);
+        }
     }
 
     public static final class ExportResult {

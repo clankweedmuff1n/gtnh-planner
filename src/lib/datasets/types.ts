@@ -40,6 +40,15 @@ export interface DatasetResourceIndexEntry {
   alternatives?: ResourceAmount["alternatives"];
 }
 
+export interface RecipeMapIconEntry {
+  recipeMap: string;
+  resource: Pick<
+    ResourceAmount,
+    "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "modId" | "tooltip"
+  > &
+    Partial<Pick<ResourceAmount, "amount">>;
+}
+
 export interface DatasetVersion {
   id: string;
   gtnhVersion: string;
@@ -71,6 +80,7 @@ export interface RecipeDataset {
   recipes: Recipe[];
   oreDictionary: Record<string, string[]>;
   recipeMaps: string[];
+  recipeMapIcons?: RecipeMapIconEntry[];
   generatedAt: string;
 }
 

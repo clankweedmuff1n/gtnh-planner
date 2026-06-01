@@ -71,6 +71,15 @@ for (const recipe of dataset.recipes ?? []) {
     }
   }
 }
+for (const entry of dataset.recipeMapIcons ?? []) {
+  if (!entry?.resource) {
+    continue;
+  }
+  const key = resourceKey(entry.resource);
+  if (!resourcesByKey.has(key)) {
+    resourcesByKey.set(key, entry.resource);
+  }
+}
 
 const iconsByKey = new Map();
 let matched = 0;
@@ -100,6 +109,11 @@ for (const resource of dataset.resources ?? []) {
 for (const recipe of dataset.recipes ?? []) {
   for (const resource of [...(recipe.inputs ?? []), ...(recipe.outputs ?? [])]) {
     applyIcon(resource, iconsByKey);
+  }
+}
+for (const entry of dataset.recipeMapIcons ?? []) {
+  if (entry?.resource) {
+    applyIcon(entry.resource, iconsByKey);
   }
 }
 

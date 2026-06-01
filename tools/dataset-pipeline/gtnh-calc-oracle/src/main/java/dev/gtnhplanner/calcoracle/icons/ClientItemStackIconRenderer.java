@@ -31,6 +31,7 @@ import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.oredict.OreDictionary;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -67,17 +68,38 @@ public final class ClientItemStackIconRenderer {
         }
 
         try {
-            ItemStack renderStack = stack.copy();
-            renderStack.stackSize = 1;
-            String filename = safeName(renderStack) + "-" + sha1(key).substring(0, 12) + ".png";
+            ItemStack renderStack = renderableStack(stack);
+            String renderKey = stackKey(renderStack);
+            String filename = existingIconFilename(renderKey);
+            if (filename == null) {
+                filename = safeName(renderStack) + "-" + sha1(renderKey).substring(0, 12) + ".png";
+                ICONS_BY_STACK_KEY.put(renderKey, filename);
+                PENDING_STACKS_BY_KEY.put(renderKey, renderStack);
+            }
             ICONS_BY_STACK_KEY.put(key, filename);
-            PENDING_STACKS_BY_KEY.put(key, renderStack);
             return filename;
         } catch (Throwable t) {
             ICONS_BY_STACK_KEY.put(key, "");
             warnRenderFailure(stack, t);
             return null;
         }
+    }
+
+    private static ItemStack renderableStack(ItemStack stack) {
+        ItemStack renderStack = stack.copy();
+        renderStack.stackSize = 1;
+        if (renderStack.getItemDamage() == OreDictionary.WILDCARD_VALUE) {
+            renderStack.setItemDamage(0);
+        }
+        return renderStack;
+    }
+
+    private static String existingIconFilename(String key) {
+        if (!ICONS_BY_STACK_KEY.containsKey(key)) {
+            return null;
+        }
+        String value = ICONS_BY_STACK_KEY.get(key);
+        return value != null && value.length() > 0 ? value : null;
     }
 
     public static void exportRegistryIconsThen(Runnable afterExport) {

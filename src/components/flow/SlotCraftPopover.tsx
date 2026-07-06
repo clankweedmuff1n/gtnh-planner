@@ -12,7 +12,7 @@ import type { RecipeSummary } from "@/lib/datasets/types";
 import { useFactoryStore, type RecipeInputContextResource } from "@/store/factory-store";
 import { ResourceIcon } from "@/components/nei/ResourceIcon";
 
-const MAX_RESULTS = 10;
+const MAX_RESULTS_PER_MAP = 8;
 const POPOVER_WIDTH = 240;
 
 export interface SlotCraftTarget {
@@ -42,38 +42,59 @@ export function SlotCraftPopover({
   const [placingId, setPlacingId] = useState<string>();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load the recipes that produce this resource. State updates happen only in the
-  // async callbacks; the initial "loading" comes from useState and !version is handled
-  // in render, so nothing sets state synchronously in the effect body.
+  // Load every way to craft this resource. The API groups producers by recipe map and
+  // only returns the first map by default (e.g. Alloy Smelter), hiding other methods
+  // like the Bending Machine. So we read the available maps from the first response,
+  // then fetch the remaining maps and merge them. State updates happen only in the
+  // async callbacks; !version is handled in render.
   useEffect(() => {
     if (!version) {
       return;
     }
 
     const controller = new AbortController();
-    void queryRecipeDatasetRecipes(
-      manifestUrl ?? DEFAULT_DATASET_MANIFEST_URL,
-      version,
-      {
-        query: "",
-        resource: { kind: target.resource.kind, id: target.resource.id },
-        mode: "recipes",
-        maxTier,
-        offset: 0,
-        limit: MAX_RESULTS,
-      },
-      { signal: controller.signal },
-    )
-      .then((result) => {
-        setRecipes(result.recipes);
+    const resolvedManifestUrl = manifestUrl ?? DEFAULT_DATASET_MANIFEST_URL;
+    const runQuery = (recipeMap?: string) =>
+      queryRecipeDatasetRecipes(
+        resolvedManifestUrl,
+        version,
+        {
+          query: "",
+          resource: { kind: target.resource.kind, id: target.resource.id },
+          mode: "recipes",
+          maxTier,
+          offset: 0,
+          limit: MAX_RESULTS_PER_MAP,
+          recipeMap,
+        },
+        { signal: controller.signal },
+      );
+
+    void (async () => {
+      try {
+        const first = await runQuery();
+        const maps = first.recipeMaps ?? [];
+        // `first` corresponds to the alphabetically-first map; fetch the rest.
+        const rest = await Promise.all(
+          maps.slice(1).map((map) => runQuery(map).then((result) => result.recipes)),
+        );
+        const merged: RecipeSummary[] = [];
+        const seen = new Set<string>();
+        for (const recipe of [first.recipes, ...rest].flat()) {
+          if (!seen.has(recipe.id)) {
+            seen.add(recipe.id);
+            merged.push(recipe);
+          }
+        }
+        setRecipes(merged);
         setStatus("ready");
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!controller.signal.aborted) {
           setStatus("error");
           console.error("Failed to load crafts for resource.", error);
         }
-      });
+      }
+    })();
 
     return () => controller.abort();
   }, [manifestUrl, version, maxTier, target.resource.kind, target.resource.id]);

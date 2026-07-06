@@ -12,7 +12,7 @@ import { ResourceIcon } from "./nei/ResourceIcon";
 
 export function InspectorPanel() {
   return (
-    <aside className="flex h-full min-h-[360px] flex-col bg-white">
+    <aside className="flex h-full min-h-[360px] flex-col bg-white dark:bg-neutral-900">
       <SummaryPanel />
     </aside>
   );
@@ -48,7 +48,7 @@ function SummaryPanel() {
         <Metric label="Nodes" value={String(project.nodes.length)} />
       </div>
 
-      <FlowIOPanel className="min-h-0 rounded border border-neutral-200 bg-white p-3" />
+      <FlowIOPanel className="min-h-0 rounded border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3" />
     </div>
   );
 }
@@ -123,7 +123,7 @@ function FlowIOPanel({ className = "" }: { className?: string }) {
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           placeholder="Filter resources..."
-          className="h-8 w-full rounded border border-neutral-300 bg-white px-2 text-xs text-neutral-900 outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-300"
+          className="h-8 w-full rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 text-xs text-neutral-900 dark:text-neutral-100 outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-300"
         />
       </label>
 
@@ -190,8 +190,8 @@ function FlowTabButton({
           ? "border-emerald-400 bg-emerald-100 text-emerald-950"
           : "border-emerald-200 bg-emerald-50 text-emerald-900"
         : active
-          ? "border-neutral-400 bg-neutral-200 text-neutral-950"
-          : "border-neutral-200 bg-neutral-50 text-neutral-800";
+          ? "border-neutral-400 bg-neutral-200 dark:bg-neutral-700 text-neutral-950 dark:text-neutral-100"
+          : "border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200";
 
   return (
     <button
@@ -235,7 +235,7 @@ function FlowIOSection({
         <span>{items.length === totalCount ? items.length : `${items.length} / ${totalCount}`}</span>
       </div>
       {items.length === 0 ? (
-        <p className="rounded border border-neutral-200 bg-white px-2 py-2 text-xs text-neutral-500">
+        <p className="rounded border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-2 py-2 text-xs text-neutral-500">
           {empty}
         </p>
       ) : (
@@ -259,7 +259,7 @@ function FlowIOSection({
                     ? "border-cyan-500 bg-cyan-100 ring-1 ring-cyan-300"
                     : isActive
                       ? "border-cyan-300 bg-cyan-50"
-                      : "border-neutral-200 bg-white hover:border-cyan-300 hover:bg-cyan-50",
+                      : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-cyan-300 hover:bg-cyan-50",
                 ].join(" ")}
                 title="Highlight related nodes and cables"
               >
@@ -279,7 +279,7 @@ function FlowIOSection({
                   className="!h-6 !w-6"
                 />
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-neutral-900">
+                  <span className="block truncate font-medium text-neutral-900 dark:text-neutral-100">
                     {balance.displayName ?? balance.resourceId}
                   </span>
                   <span className="block truncate text-[10px] text-neutral-500">
@@ -287,7 +287,7 @@ function FlowIOSection({
                     {formatRate(balance.consumedPerSecond, 3)}/s
                   </span>
                 </span>
-                <span className="font-semibold text-neutral-950">
+                <span className="font-semibold text-neutral-950 dark:text-neutral-100">
                   {formatRate(value(balance), 3)}
                   {balance.kind === "fluid" ? "L/s" : "/s"}
                 </span>
@@ -381,7 +381,7 @@ function Metric({
     "rounded border p-2 text-left",
     active
       ? "border-cyan-500 bg-cyan-100 ring-1 ring-cyan-300"
-      : "border-neutral-200 bg-neutral-50",
+      : "border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800",
     interactive ? "cursor-pointer hover:border-cyan-300 hover:bg-cyan-50" : "",
     wide ? "col-span-2" : "",
   ].join(" ");
@@ -390,7 +390,7 @@ function Metric({
       <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
         {label}
       </div>
-      <div className="mt-0.5 truncate text-sm font-semibold text-neutral-950">{value}</div>
+      <div className="mt-0.5 truncate text-sm font-semibold text-neutral-950 dark:text-neutral-100">{value}</div>
     </>
   );
 

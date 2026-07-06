@@ -1,9 +1,22 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
+/* Enable class-based dark mode (toggled by `.dark` on <html>) instead of the
+   default prefers-color-scheme, so the in-app theme switch takes precedence. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --board-background: #f5f5f5;
+  --board-dots: #d4d4d4;
+}
+
+.dark {
+  --background: #0d0f12;
+  --foreground: #e5e7eb;
+  --board-background: #16181d;
+  --board-dots: #2b2f36;
 }
 
 @theme inline {
@@ -33,6 +46,20 @@ textarea {
 
 .react-flow__edge-textbg {
   fill: #ffffff;
+}
+
+.dark .react-flow__edge-textbg {
+  fill: #1b1e24;
+}
+
+.dark .react-flow__controls-button {
+  background: #23272e;
+  border-color: #3a3f47;
+  fill: #d1d5db;
+}
+
+.dark .react-flow__controls-button:hover {
+  background: #2d323a;
 }
 
 .factory-flow-board .react-flow__edges {

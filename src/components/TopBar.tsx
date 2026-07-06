@@ -34,6 +34,7 @@ import type {
   ResourceKind,
 } from "@/lib/model/types";
 import { CollabControls } from "./CollabControls";
+import { ThemeToggle } from "./ThemeToggle";
 import { makeResourceHandleId, parseResourceHandleId } from "./flow/resource-handles";
 import {
   FLOW_IMAGE_EXPORT_COMPLETE_EVENT,
@@ -199,17 +200,19 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   }, [redo, undo]);
 
   return (
-    <header className="flex min-h-16 flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-3">
+    <header className="flex min-h-16 flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
       <div className="flex min-w-[260px] flex-1 items-start gap-2">
         <div className="grid min-w-0 gap-1">
-          <h1 className="truncate text-lg font-semibold text-neutral-950">GTNH Planner</h1>
+          <h1 className="truncate text-lg font-semibold text-neutral-950 dark:text-neutral-100">
+            GTNH Planner
+          </h1>
           <label className="grid max-w-52 gap-0.5">
             <span className="sr-only">GTNH version</span>
             <select
               value={selectedDatasetVersionId ?? ""}
               disabled={isDatasetLoading || !manifest?.versions.length}
               onChange={(event) => onLoadDatasetVersion(event.target.value)}
-              className="h-8 rounded border border-neutral-300 bg-white px-2 text-sm normal-case tracking-normal text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400"
+              className="h-8 rounded border border-neutral-300 bg-white px-2 text-sm normal-case tracking-normal text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:disabled:bg-neutral-900 dark:disabled:text-neutral-600"
             >
               {manifest?.versions.length ? (
                 manifest.versions.map((version) => (
@@ -226,6 +229,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <ThemeToggle />
         <CollabControls />
         <ToolbarButton icon={Undo2} label="Undo" disabled={!canUndo} onClick={undo} />
         <ToolbarButton icon={Redo2} label="Redo" disabled={!canRedo} onClick={redo} />
@@ -269,7 +273,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
             aria-expanded={isExportMenuOpen}
             aria-busy={pendingExport ? true : undefined}
             disabled={Boolean(pendingExport)}
-            className="inline-flex h-9 items-center justify-center gap-1 rounded border border-neutral-300 bg-white px-2 text-neutral-800 hover:bg-neutral-50 disabled:cursor-wait disabled:bg-neutral-100 disabled:text-neutral-500"
+            className="inline-flex h-9 items-center justify-center gap-1 rounded border border-neutral-300 bg-white px-2 text-neutral-800 hover:bg-neutral-50 disabled:cursor-wait disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:disabled:bg-neutral-900"
           >
             {pendingExport ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -279,7 +283,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
           {isExportMenuOpen ? (
-            <div className="absolute right-0 top-10 z-50 min-w-44 border border-neutral-300 bg-white py-1 text-sm shadow-lg">
+            <div className="absolute right-0 top-10 z-50 min-w-44 border border-neutral-300 bg-white py-1 text-sm shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
               <ExportMenuItem
                 icon={Download}
                 label="Export plan JSON"
@@ -690,7 +694,7 @@ function ExportMenuItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2 px-3 py-2 text-left text-neutral-800 hover:bg-neutral-100"
+      className="flex w-full items-center gap-2 px-3 py-2 text-left text-neutral-800 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-700"
     >
       <Icon className="h-4 w-4" />
       <span>{label}</span>
@@ -716,7 +720,7 @@ function ToolbarButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="inline-flex h-9 w-9 items-center justify-center rounded border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400"
+      className="inline-flex h-9 w-9 items-center justify-center rounded border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:disabled:bg-neutral-900 dark:disabled:text-neutral-600"
     >
       <Icon className="h-4 w-4" />
     </button>

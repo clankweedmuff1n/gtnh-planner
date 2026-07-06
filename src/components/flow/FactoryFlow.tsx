@@ -962,7 +962,7 @@ export function FactoryFlow() {
     <div
       ref={boardRef}
       className={[
-        "factory-flow-board relative h-full min-h-[520px] overflow-hidden border-x border-neutral-200 bg-neutral-100",
+        "factory-flow-board relative h-full min-h-[520px] overflow-hidden border-x border-neutral-200 bg-[var(--board-background)] dark:border-neutral-800",
         isNodeDragging ? "factory-flow-board--dragging" : "",
       ].join(" ")}
     >
@@ -996,7 +996,7 @@ export function FactoryFlow() {
         minZoom={0.15}
         maxZoom={1.8}
       >
-        <Background gap={24} color="#d4d4d4" />
+        <Background gap={24} color="var(--board-dots)" />
         <Controls position="bottom-left" />
       </ReactFlow>
       <PaintToolbar paintMode={nodeColorPaintMode} onPaintModeChange={setNodeColorPaintMode} />

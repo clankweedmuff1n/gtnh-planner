@@ -71,8 +71,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${monocraft.variable} h-full`}>
+    <html lang="en" className={`${monocraft.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full">
+        <script
+          // Apply the persisted (or system) theme before paint to avoid a flash.
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('gtnh-factory-flow.theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();",
+          }}
+        />
         {children}
         <Analytics />
         <AnalyticsHeartbeat />

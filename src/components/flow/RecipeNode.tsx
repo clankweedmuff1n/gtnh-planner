@@ -1,8 +1,9 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { memo, useState, type CSSProperties } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ChevronDown, WandSparkles } from "lucide-react";
+import { SlotCraftPopover, type SlotCraftTarget } from "./SlotCraftPopover";
 import type {
   FactoryNode,
   MachineTier,
@@ -80,6 +81,17 @@ function RecipeNodeComponent({ data, selected }: NodeProps<RecipeFlowNode>) {
   const maxTierFilter = useFactoryStore((state) => state.maxTierFilter);
   const pendingResourceConnection = useFactoryStore((state) => state.pendingResourceConnection);
   const dataset = useFactoryStore((state) => state.dataset);
+  const [craftTarget, setCraftTarget] = useState<SlotCraftTarget>();
+  // Capture the pointer position so the craft popover can open at the clicked slot.
+  // onSlotClick does not carry the event, so we track it globally in capture phase.
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const handlePointer = (event: MouseEvent) => {
+      lastPointerRef.current = { x: event.clientX, y: event.clientY };
+    };
+    window.addEventListener("mousedown", handlePointer, true);
+    return () => window.removeEventListener("mousedown", handlePointer, true);
+  }, []);
   const utilization = result?.utilization ?? 0;
   const utilizationPercent = Number.isFinite(utilization) ? utilization * 100 : 999;
   const isSearchHighlighted = recipeContainsSearchResource(recipe, recipeSearch);
@@ -389,6 +401,30 @@ function RecipeNodeComponent({ data, selected }: NodeProps<RecipeFlowNode>) {
               };
             }}
             onSlotClick={(slot, mode) => {
+              // Left-click on an input material -> inline popover to craft it and wire a
+              // connected producer node. Everything else keeps the side-panel browser.
+              if (mode === "recipes" && slot.side === "input") {
+                setCraftTarget({
+                  resource: {
+                    kind: slot.resource.kind,
+                    id: slot.resource.id,
+                    displayName: slot.resource.displayName,
+                    iconPath: slot.resource.iconPath,
+                    iconAtlas: slot.resource.iconAtlas,
+                    dominantColor:
+                      slot.resource.dominantColor ?? slot.resource.iconAtlas?.dominantColor,
+                    tooltip: slot.resource.tooltip,
+                    modId: slot.resource.modId,
+                    mode: "recipes",
+                    inputIndex: slot.resourceIndex,
+                    neiSlot: slot.resource.neiSlot,
+                  },
+                  anchorNodeId: projectNode.id,
+                  position: { ...lastPointerRef.current },
+                });
+                return;
+              }
+
               browseResource(
                 {
                   kind: slot.resource.kind,
@@ -535,6 +571,9 @@ function RecipeNodeComponent({ data, selected }: NodeProps<RecipeFlowNode>) {
           </div>
         ) : null}
       </div>
+      {craftTarget ? (
+        <SlotCraftPopover target={craftTarget} onClose={() => setCraftTarget(undefined)} />
+      ) : null}
     </div>
   );
 }

@@ -162,7 +162,7 @@ const initialProject = createEmptyProject();
 export type RecipeBrowserMode = "recipes" | "uses";
 export type TierFilter = "all" | Exclude<MachineTier, "DEMO">;
 
-type RecipeInputContextResource = Pick<
+export type RecipeInputContextResource = Pick<
   ResourceAmount,
   "kind" | "id" | "displayName" | "iconPath" | "iconAtlas" | "dominantColor" | "tooltip" | "modId"
 > & {

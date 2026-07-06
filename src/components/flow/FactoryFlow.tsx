@@ -993,7 +993,6 @@ export function FactoryFlow() {
         onEdgesDelete={handleEdgesDelete}
         fitView
         fitViewOptions={fitViewOptions}
-        onlyRenderVisibleElements
         minZoom={0.15}
         maxZoom={1.8}
       >

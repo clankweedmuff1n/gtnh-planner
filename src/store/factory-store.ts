@@ -63,6 +63,7 @@ interface FactoryStore {
   lastResult: ThroughputResult;
   setProject: (project: FactoryProject) => void;
   markHydratedProject: (project: FactoryProject) => void;
+  applyRemoteProject: (project: FactoryProject) => void;
   undo: () => void;
   redo: () => void;
   setDatasetManifest: (manifest: DatasetManifest, manifestUrl: string) => void;
@@ -240,6 +241,11 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
       undoHistory: [],
       redoHistory: [],
     });
+  },
+  applyRemoteProject: (project) => {
+    // Merge state arriving from a collaborator. Keep the local selection and undo/redo
+    // stacks untouched so a peer's edit never rewrites this client's history.
+    set((state) => restoreProjectState(state, normalizeProjectFuelProfiles(project)));
   },
   undo: () => {
     set((state) => {

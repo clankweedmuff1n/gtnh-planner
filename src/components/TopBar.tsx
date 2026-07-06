@@ -33,6 +33,7 @@ import type {
   RecipeOutput,
   ResourceKind,
 } from "@/lib/model/types";
+import { CollabControls } from "./CollabControls";
 import { makeResourceHandleId, parseResourceHandleId } from "./flow/resource-handles";
 import {
   FLOW_IMAGE_EXPORT_COMPLETE_EVENT,
@@ -224,7 +225,8 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <CollabControls />
         <ToolbarButton icon={Undo2} label="Undo" disabled={!canUndo} onClick={undo} />
         <ToolbarButton icon={Redo2} label="Redo" disabled={!canRedo} onClick={redo} />
         <button

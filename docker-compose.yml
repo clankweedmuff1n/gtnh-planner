@@ -1,0 +1,13 @@
+# Real-time collaboration server. Bring it up with:
+#   docker compose up -d collab
+# Then set NEXT_PUBLIC_COLLAB_WS_URL for the app (ws://localhost:1234 locally,
+# or wss://your-host/collab behind a TLS reverse proxy in production).
+services:
+  collab:
+    build:
+      context: .
+      dockerfile: docker/collab/Dockerfile
+    image: gtnh-factory-flow-collab
+    ports:
+      - "1234:1234"
+    restart: unless-stopped

@@ -65,6 +65,12 @@ docker compose up -d --build
 ## Notes
 - Rooms live in memory in the collab server; a restart drops in-flight sessions and
   clients rejoin from whoever is still connected.
-- To self-host the dataset instead of proxying, drop the generated
-  `public/datasets/gtnh` tree onto the server and mount it into the app container (add
-  a `volumes:` entry), then clear `GTNH_DATASET_BACKEND_URL`.
+- To self-host the dataset instead of proxying, clone it once from a deployment and
+  serve it locally. On the server (or locally, then copy):
+  ```bash
+  npm run dataset:download https://dev-gtnh.samiracle.fr stable-2.8.4
+  ```
+  This fills `public/datasets/gtnh` (core files, shards, and ~90k icon textures —
+  several hundred MB; the script is resumable and skips existing files). Mount that
+  directory into the app container (add a `volumes:` entry) and clear
+  `GTNH_DATASET_BACKEND_URL` so recipes and icons are served by your own server.

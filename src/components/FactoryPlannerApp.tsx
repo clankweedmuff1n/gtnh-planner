@@ -11,6 +11,7 @@ import {
   initRecipeDatasetVersion,
 } from "@/lib/datasets/browser-loader";
 import { parseFactoryProjectJson } from "@/lib/import-export";
+import { preloadDatasetAtlases } from "@/lib/datasets/preload-atlases";
 import { LOCAL_STORAGE_KEY, loadResourceHistory, useFactoryStore } from "@/store/factory-store";
 import { FactoryFlow } from "./flow/FactoryFlow";
 import { InspectorPanel } from "./InspectorPanel";
@@ -23,6 +24,7 @@ export function FactoryPlannerApp() {
   const hydrateResourceHistory = useFactoryStore((state) => state.hydrateResourceHistory);
   const setDatasetManifest = useFactoryStore((state) => state.setDatasetManifest);
   const setDataset = useFactoryStore((state) => state.setDataset);
+  const dataset = useFactoryStore((state) => state.dataset);
   const refreshProjectRecipes = useFactoryStore((state) => state.refreshProjectRecipes);
   const setDatasetLoading = useFactoryStore((state) => state.setDatasetLoading);
   const setDatasetError = useFactoryStore((state) => state.setDatasetError);
@@ -124,6 +126,14 @@ export function FactoryPlannerApp() {
     };
   }, [loadDatasetVersion, setDatasetError, setDatasetLoading, setDatasetManifest]);
 
+  // Warm the browser cache with icon atlases once a dataset is loaded so board icons
+  // never fetch/decode lazily during navigation.
+  useEffect(() => {
+    if (dataset) {
+      preloadDatasetAtlases(dataset);
+    }
+  }, [dataset]);
+
   useEffect(() => {
     if (!hydratedRef.current) {
       return;
@@ -158,7 +168,7 @@ export function FactoryPlannerApp() {
   }, [project]);
 
   return (
-    <div className="flex h-screen min-h-[720px] flex-col bg-neutral-100 text-neutral-950">
+    <div className="flex h-screen min-h-[720px] flex-col bg-neutral-100 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
       <TopBar onLoadDatasetVersion={loadDatasetVersion} />
       <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)_360px]">
         <RecipeBrowser />

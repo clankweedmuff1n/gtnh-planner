@@ -6,7 +6,7 @@
 // This is the canonical y-websocket server logic (MIT) using yjs + y-protocols + ws,
 // with per-room connection logging added.
 import http from "node:http";
-import WebSocket from "ws";
+import { WebSocketServer } from "ws";
 import * as Y from "yjs";
 import * as syncProtocol from "y-protocols/sync";
 import * as awarenessProtocol from "y-protocols/awareness";
@@ -171,7 +171,7 @@ function setupWSConnection(conn, req) {
 
 const host = process.env.HOST || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "1234", 10);
-const wss = new WebSocket.Server({ noServer: true });
+const wss = new WebSocketServer({ noServer: true });
 const server = http.createServer((_req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("okay");

@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const datasetBackendUrl = process.env.GTNH_DATASET_BACKEND_URL?.replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
+  // Emit a self-contained server bundle so the Docker runtime image stays small.
+  output: "standalone",
   outputFileTracingRoot: process.cwd(),
   turbopack: {
     root: process.cwd(),

@@ -1,13 +1,32 @@
-# Real-time collaboration server. Bring it up with:
-#   docker compose up -d collab
-# Then set NEXT_PUBLIC_COLLAB_WS_URL for the app (ws://localhost:1234 locally,
-# or wss://your-host/collab behind a TLS reverse proxy in production).
+# Full self-hosted stack: the Next.js app + the realtime collaboration server.
+# A host reverse proxy (nginx) terminates TLS and forwards to these containers,
+# so ports are bound to localhost only.
+#
+# Configure via a .env file next to this one (see .env.deploy.example), then:
+#   docker compose up -d --build
 services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      args:
+        # NEXT_PUBLIC_* are baked in at build time.
+        NEXT_PUBLIC_COLLAB_WS_URL: ${NEXT_PUBLIC_COLLAB_WS_URL:-}
+        NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL: ${NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL:-/datasets/gtnh/datasets.manifest.json}
+    image: gtnh-factory-flow-app
+    environment:
+      # Runtime proxy for dataset files + /api/datasets (leave empty if you copy the
+      # dataset into public/datasets/gtnh instead).
+      - GTNH_DATASET_BACKEND_URL=${GTNH_DATASET_BACKEND_URL:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
   collab:
     build:
       context: .
       dockerfile: docker/collab/Dockerfile
     image: gtnh-factory-flow-collab
     ports:
-      - "1234:1234"
+      - "127.0.0.1:1234:1234"
     restart: unless-stopped

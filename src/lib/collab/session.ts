@@ -119,10 +119,21 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
     collections.storages,
     collections.recipes,
   ];
+  // Diagnostic: every document update arriving over the network (origin is not our
+  // local writes). If a peer edits and this never fires, the server is not delivering
+  // document updates to us (awareness can still work independently).
+  const handleRawUpdate = (update: Uint8Array, origin: unknown) => {
+    if (origin !== LOCAL_ORIGIN) {
+      log(`remote doc update received (${update.byteLength} B), nodes in doc: ${collections.nodes.size}`);
+    }
+  };
+  doc.on("update", handleRawUpdate);
+
   const handleDocChange = (_event: unknown, transaction: Y.Transaction) => {
     if (transaction.origin === LOCAL_ORIGIN) {
       return;
     }
+    log("observe fired → pulling into store");
     pullFromDocument();
   };
   for (const map of observedMaps) {
@@ -211,6 +222,7 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
     },
     destroy() {
       unsubscribeStore();
+      doc.off("update", handleRawUpdate);
       for (const map of observedMaps) {
         map.unobserve(handleDocChange);
       }

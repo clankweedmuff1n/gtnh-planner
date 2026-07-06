@@ -26,6 +26,16 @@ ENV NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL=$NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL
     NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# Fetch the dataset at build time so the image is self-contained (no proxy, no volume).
+# Cached as its own layer: rebuilds skip the download unless the args/script change.
+FROM node:22-alpine AS dataset
+WORKDIR /build
+ARG DATASET_SOURCE=https://dev-gtnh.samiracle.fr
+ARG DATASET_VERSION=stable-2.8.4
+COPY tools/dataset-pipeline/scripts/download-dataset.mjs ./download-dataset.mjs
+RUN node download-dataset.mjs "$DATASET_SOURCE" "$DATASET_VERSION"
+# Result: /build/public/datasets/gtnh
+
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -36,5 +46,7 @@ ENV NODE_ENV=production \
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
+# Bundle the dataset so recipes and icons are served locally, no GTNH_DATASET_BACKEND_URL.
+COPY --from=dataset /build/public/datasets ./public/datasets
 EXPOSE 3000
 CMD ["node", "server.js"]

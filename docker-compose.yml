@@ -13,10 +13,13 @@ services:
         # NEXT_PUBLIC_* are baked in at build time.
         NEXT_PUBLIC_COLLAB_WS_URL: ${NEXT_PUBLIC_COLLAB_WS_URL:-}
         NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL: ${NEXT_PUBLIC_GTNH_DATASET_MANIFEST_URL:-/datasets/gtnh/datasets.manifest.json}
+        # The dataset is downloaded and baked into the image at build time.
+        DATASET_SOURCE: ${DATASET_SOURCE:-https://dev-gtnh.samiracle.fr}
+        DATASET_VERSION: ${DATASET_VERSION:-stable-2.8.4}
     image: gtnh-factory-flow-app
     environment:
-      # Runtime proxy for dataset files + /api/datasets (leave empty if you copy the
-      # dataset into public/datasets/gtnh instead).
+      # Leave empty: the image already contains the dataset. Set a URL only if you want
+      # to override the baked-in data and proxy from another deployment instead.
       - GTNH_DATASET_BACKEND_URL=${GTNH_DATASET_BACKEND_URL:-}
     ports:
       - "127.0.0.1:3000:3000"

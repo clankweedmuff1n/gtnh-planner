@@ -62,7 +62,27 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
   // The last project state we know both sides agree on; diffs are computed against it.
   let lastSynced: FactoryProject | undefined;
 
+  const log = (...args: unknown[]) => console.info(`[collab:${roomId}]`, ...args);
+  const logError = (...args: unknown[]) => console.error(`[collab:${roomId}]`, ...args);
+
   awareness.setLocalStateField("user", { name: user.name, color: user.color });
+  log(`connecting to ${serverUrl}`);
+
+  // Surface websocket failures instead of failing silently. y-websocket keeps retrying,
+  // so these fire on every failed attempt/drop — the signal that the WS is not staying up.
+  const handleConnectionError = (event: unknown) => {
+    logError("websocket connection error", event);
+  };
+  const handleConnectionClose = (event: unknown) => {
+    const closeEvent = event as { code?: number; reason?: string } | undefined;
+    logError(
+      `websocket closed${closeEvent?.code ? ` (code ${closeEvent.code}` : ""}${
+        closeEvent?.reason ? `: ${closeEvent.reason})` : closeEvent?.code ? ")" : ""
+      } — retrying`,
+    );
+  };
+  provider.on("connection-error", handleConnectionError);
+  provider.on("connection-close", handleConnectionClose);
 
   function pullFromDocument(): void {
     if (!isDocumentSeeded(doc)) {
@@ -76,6 +96,7 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
     } finally {
       applyingRemote = false;
     }
+    log(`applied remote update (${project.nodes.length} nodes, ${project.edges.length} edges)`);
   }
 
   // Outgoing: local store edits -> document.
@@ -85,6 +106,7 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
     }
     applyProjectDiff(doc, lastSynced ?? previous.project, state.project, LOCAL_ORIGIN);
     lastSynced = state.project;
+    log(`sent local change (${state.project.nodes.length} nodes)`);
   });
 
   // Incoming: document edits from peers -> local store. We rewrite whole records per
@@ -115,9 +137,11 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
       return;
     }
     if (isDocumentSeeded(doc)) {
+      log("first sync: adopting existing room's plan");
       pullFromDocument();
     } else {
       const localProject = store.getState().project;
+      log(`first sync: seeding room from local plan (${localProject.nodes.length} nodes)`);
       seedDocument(doc, localProject, LOCAL_ORIGIN);
       lastSynced = localProject;
     }
@@ -135,6 +159,7 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
         : status === "connecting"
           ? "connecting"
           : "disconnected";
+    log(`status: ${currentStatus}`);
     for (const listener of statusListeners) {
       listener(currentStatus);
     }
@@ -192,6 +217,8 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
       awareness.off("change", handleAwareness);
       provider.off("sync", handleSynced);
       provider.off("status", handleStatus);
+      provider.off("connection-error", handleConnectionError);
+      provider.off("connection-close", handleConnectionClose);
       statusListeners.clear();
       peerListeners.clear();
       provider.destroy();

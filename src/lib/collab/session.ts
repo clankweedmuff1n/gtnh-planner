@@ -54,6 +54,11 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
   // Guards against the outgoing subscription re-broadcasting a project that we just
   // applied from a remote peer.
   let applyingRemote = false;
+  // Becomes true after the first sync resolves (we either seeded or adopted). Until
+  // then we must not push local edits: doing so with an empty/stale local plan would
+  // clobber a peer's state that is still arriving. This is critical for the joining
+  // window, whose store also mutates during dataset load before the first pull.
+  let ready = false;
   // The last project state we know both sides agree on; diffs are computed against it.
   let lastSynced: FactoryProject | undefined;
 
@@ -75,7 +80,7 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
 
   // Outgoing: local store edits -> document.
   const unsubscribeStore = store.subscribe((state, previous) => {
-    if (applyingRemote || state.project === previous.project) {
+    if (!ready || applyingRemote || state.project === previous.project) {
       return;
     }
     applyProjectDiff(doc, lastSynced ?? previous.project, state.project, LOCAL_ORIGIN);
@@ -105,7 +110,8 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
   // First sync decides who owns the initial state: adopt an existing room, or seed a
   // fresh one with this client's current plan.
   const handleSynced = (isSynced: boolean) => {
-    if (!isSynced) {
+    // Only the first successful sync decides ownership; later reconnects merge via Yjs.
+    if (!isSynced || ready) {
       return;
     }
     if (isDocumentSeeded(doc)) {
@@ -115,6 +121,7 @@ export function startCollabSession({ roomId, serverUrl, user }: StartCollabOptio
       seedDocument(doc, localProject, LOCAL_ORIGIN);
       lastSynced = localProject;
     }
+    ready = true;
   };
   provider.on("sync", handleSynced);
 

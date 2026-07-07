@@ -36,11 +36,24 @@ export interface BuildLineExternalInput {
   reason: "no-recipe" | "depth-limit" | "node-limit";
 }
 
+export interface BuildLineConnection {
+  /** Node whose recipe produces the resource. */
+  sourceNodeId: string;
+  /** Node that consumes it. */
+  targetNodeId: string;
+}
+
 export interface BuildLineResult {
   /** Recipes to merge into the project (may include already-present ones). */
   recipes: Recipe[];
   /** Freshly placed nodes, positioned left of the target by depth. */
   nodes: FactoryNode[];
+  /**
+   * Producer -> consumer pairs to connect. Deliberately explicit instead of
+   * an all-pairs auto-connect: shared commodities (water, oxygen, ...) would
+   * otherwise mesh every node with every other and blow up the board.
+   */
+  connections: BuildLineConnection[];
   /** Leaf resources the line will consume from outside. */
   externalInputs: BuildLineExternalInput[];
   diagnostics: string[];
@@ -54,6 +67,12 @@ const ROW_HEIGHT = 320;
 type PendingInput = {
   input: RecipeInput;
   depth: number;
+  consumerNodeId: string;
+};
+
+type LineNode = {
+  nodeId: string;
+  recipe: Recipe;
 };
 
 /**
@@ -80,47 +99,70 @@ export async function buildLine(
     return {
       recipes: [],
       nodes: [],
+      connections: [],
       externalInputs: [],
       diagnostics: ["line-builder:target-not-found"],
     };
   }
 
   // Everything the line can already make, including what we place as we go.
-  const lineRecipes: Recipe[] = project.nodes.flatMap((node) => {
+  const lineNodes: LineNode[] = project.nodes.flatMap((node) => {
     const recipe = project.recipes.find((entry) => entry.id === node.recipeId);
-    return recipe ? [recipe] : [];
+    return recipe ? [{ nodeId: node.id, recipe }] : [];
   });
 
   const newRecipes = new Map<string, Recipe>();
   const newNodes: FactoryNode[] = [];
+  const connections: BuildLineConnection[] = [];
   const externalInputs: BuildLineExternalInput[] = [];
   const nodesPerDepth = new Map<number, number>();
-  const handledResources = new Set<string>();
+  // resource token -> producing node id (or undefined once marked external)
+  const producerByResource = new Map<string, string | undefined>();
 
   const queue: PendingInput[] = consumedInputs(targetRecipe).map((input) => ({
     input,
     depth: 1,
+    consumerNodeId: targetNode.id,
   }));
 
+  const addConnection = (sourceNodeId: string, targetNodeId: string) => {
+    if (
+      sourceNodeId !== targetNodeId &&
+      !connections.some(
+        (entry) => entry.sourceNodeId === sourceNodeId && entry.targetNodeId === targetNodeId,
+      )
+    ) {
+      connections.push({ sourceNodeId, targetNodeId });
+    }
+  };
+
   while (queue.length > 0) {
-    const { input, depth } = queue.shift()!;
+    const { input, depth, consumerNodeId } = queue.shift()!;
     const resourceToken = `${input.kind}:${input.id}`;
-    if (handledResources.has(resourceToken)) {
+    if (producerByResource.has(resourceToken)) {
+      const producerNodeId = producerByResource.get(resourceToken);
+      if (producerNodeId) {
+        addConnection(producerNodeId, consumerNodeId);
+      }
       continue;
     }
-    handledResources.add(resourceToken);
 
-    if (isProducedByLine(lineRecipes, input)) {
-      // A placed node (or the target itself) already makes this — the
-      // auto-connect pass will close the loop.
+    const existingProducer = findLineProducer(lineNodes, input);
+    if (existingProducer) {
+      // A placed node (or the target itself) already makes this — connect it
+      // instead of placing another producer; this is what closes loops.
+      producerByResource.set(resourceToken, existingProducer.nodeId);
+      addConnection(existingProducer.nodeId, consumerNodeId);
       continue;
     }
 
     if (depth > maxDepth) {
+      producerByResource.set(resourceToken, undefined);
       externalInputs.push(externalInput(input, "depth-limit"));
       continue;
     }
     if (newNodes.length >= maxNewNodes) {
+      producerByResource.set(resourceToken, undefined);
       externalInputs.push(externalInput(input, "node-limit"));
       continue;
     }
@@ -132,12 +174,19 @@ export async function buildLine(
       diagnostics.push(
         `line-builder:query-failed:${resourceToken}:${error instanceof Error ? error.message : "unknown"}`,
       );
+      producerByResource.set(resourceToken, undefined);
       externalInputs.push(externalInput(input, "no-recipe"));
       continue;
     }
 
-    const best = pickBestCandidate(candidates, input, project, lineRecipes);
+    const best = pickBestCandidate(
+      candidates,
+      input,
+      project,
+      lineNodes.map((entry) => entry.recipe),
+    );
     if (!best) {
+      producerByResource.set(resourceToken, undefined);
       externalInputs.push(externalInput(input, "no-recipe"));
       continue;
     }
@@ -149,17 +198,20 @@ export async function buildLine(
       diagnostics.push(
         `line-builder:fetch-failed:${best.id}:${error instanceof Error ? error.message : "unknown"}`,
       );
+      producerByResource.set(resourceToken, undefined);
       externalInputs.push(externalInput(input, "no-recipe"));
       continue;
     }
 
-    newRecipes.set(recipe.id, recipe);
-    lineRecipes.push(recipe);
-
     const row = nodesPerDepth.get(depth) ?? 0;
     nodesPerDepth.set(depth, row + 1);
+    const nodeId = createNodeId();
+    newRecipes.set(recipe.id, recipe);
+    lineNodes.push({ nodeId, recipe });
+    producerByResource.set(resourceToken, nodeId);
+    addConnection(nodeId, consumerNodeId);
     newNodes.push({
-      id: createNodeId(),
+      id: nodeId,
       recipeId: recipe.id,
       machineCount: 1,
       parallel: 1,
@@ -172,7 +224,7 @@ export async function buildLine(
     });
 
     for (const nextInput of consumedInputs(recipe)) {
-      queue.push({ input: nextInput, depth: depth + 1 });
+      queue.push({ input: nextInput, depth: depth + 1, consumerNodeId: nodeId });
     }
   }
 
@@ -181,7 +233,13 @@ export async function buildLine(
     `line-builder:external:${externalInputs.length}`,
   );
 
-  return { recipes: [...newRecipes.values()], nodes: newNodes, externalInputs, diagnostics };
+  return {
+    recipes: [...newRecipes.values()],
+    nodes: newNodes,
+    connections,
+    externalInputs,
+    diagnostics,
+  };
 }
 
 function consumedInputs(recipe: Recipe): RecipeInput[] {
@@ -191,6 +249,12 @@ function consumedInputs(recipe: Recipe): RecipeInput[] {
 function isProducedByLine(lineRecipes: Recipe[], input: RecipeInput): boolean {
   return lineRecipes.some((recipe) =>
     recipe.outputs.some((output) => resourceMatchesInput(output, input)),
+  );
+}
+
+function findLineProducer(lineNodes: LineNode[], input: RecipeInput): LineNode | undefined {
+  return lineNodes.find((entry) =>
+    entry.recipe.outputs.some((output) => resourceMatchesInput(output, input)),
   );
 }
 

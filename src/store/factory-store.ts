@@ -1156,23 +1156,20 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
           nodes: [...current.project.nodes, ...result.nodes],
         };
 
-        // Connect the placed nodes among themselves and to the rest of the
-        // board; matching byproduct -> input pairs close the loops here.
+        // Only the producer -> consumer pairs the builder chose; an all-pairs
+        // auto-connect meshes shared commodities across the whole board and
+        // freezes the UI on real datasets.
         const newEdges: FactoryEdge[] = [];
         const existingAndPending = [...projectWithNodes.edges];
-        for (const newNode of result.nodes) {
-          for (const otherNode of projectWithNodes.nodes) {
-            if (otherNode.id === newNode.id) {
-              continue;
-            }
-            for (const edge of [
-              ...buildCompatibleEdgesBetweenNodes(projectWithNodes, otherNode.id, newNode.id),
-              ...buildCompatibleEdgesBetweenNodes(projectWithNodes, newNode.id, otherNode.id),
-            ]) {
-              if (!hasDuplicateEdge(existingAndPending, edge)) {
-                newEdges.push(edge);
-                existingAndPending.push(edge);
-              }
+        for (const connection of result.connections) {
+          for (const edge of buildCompatibleEdgesBetweenNodes(
+            projectWithNodes,
+            connection.sourceNodeId,
+            connection.targetNodeId,
+          )) {
+            if (!hasDuplicateEdge(existingAndPending, edge)) {
+              newEdges.push(edge);
+              existingAndPending.push(edge);
             }
           }
         }

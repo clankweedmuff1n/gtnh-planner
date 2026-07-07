@@ -325,4 +325,68 @@ describe("solveProcessLine", () => {
     expect(result.status).toBe("empty");
     expect(result.diagnostics).toContain("line-solver:no-solvable-nodes");
   });
+
+  it("finishes quickly on a large meshed project instead of stalling", () => {
+    // Regression for a UI freeze: dozens of machines sharing commodity
+    // fluids, with every producer wired to every consumer.
+    const producerCount = 20;
+    const consumerCount = 40;
+    const recipes: Recipe[] = [];
+    const nodes = [];
+    const edges = [];
+
+    for (let index = 0; index < producerCount; index += 1) {
+      recipes.push({
+        id: `make-fluid-${index % 4}-v${index}`,
+        name: `Make fluid ${index}`,
+        machineType: "Pump",
+        minimumTier: "LV",
+        durationTicks: TICKS,
+        eut: 2,
+        inputs: [],
+        outputs: [{ kind: "fluid", id: `commodity-${index % 4}`, amount: 100 }],
+      });
+      nodes.push(makeNode(`producer-${index}`, `make-fluid-${index % 4}-v${index}`));
+    }
+
+    for (let index = 0; index < consumerCount; index += 1) {
+      recipes.push({
+        id: `consume-${index}`,
+        name: `Consume ${index}`,
+        machineType: "ChemicalReactor",
+        minimumTier: "LV",
+        durationTicks: TICKS,
+        eut: 30,
+        inputs: [
+          { kind: "fluid", id: `commodity-${index % 4}`, amount: 50 },
+          { kind: "fluid", id: `commodity-${(index + 1) % 4}`, amount: 25 },
+        ],
+        outputs: [{ kind: "item", id: `product-${index}`, amount: 1 }],
+      });
+      const consumerId = `consumer-${index}`;
+      nodes.push(makeNode(consumerId, `consume-${index}`));
+      for (let producer = 0; producer < producerCount; producer += 1) {
+        for (const commodity of [index % 4, (index + 1) % 4]) {
+          if (producer % 4 === commodity) {
+            edges.push({
+              id: `edge-${producer}-${index}-${commodity}`,
+              source: `producer-${producer}`,
+              target: consumerId,
+              resourceKind: "fluid" as const,
+              resourceId: `commodity-${commodity}`,
+            });
+          }
+        }
+      }
+    }
+
+    const project = makeProject({ recipes, nodes, edges });
+
+    const startedAt = performance.now();
+    const result = solveProcessLine(project);
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(["optimal", "iteration-limit", "too-large"]).toContain(result.status);
+    expect(elapsedMs).toBeLessThan(4000);
+  });
 });

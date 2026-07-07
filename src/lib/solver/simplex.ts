@@ -1,4 +1,13 @@
 const TOLERANCE = 1e-9;
+/**
+ * Rough floating-point operation budget per simplex phase. A pivot plus
+ * pricing costs about 2 * rows * columns, so the pivot cap scales down as the
+ * tableau grows — a huge or degenerate problem fails fast with
+ * "iteration-limit" instead of freezing the UI thread for minutes.
+ */
+const OPS_BUDGET = 200_000_000;
+const MIN_PIVOTS = 200;
+const MAX_PIVOTS = 20000;
 
 export type LpRelation = "<=" | ">=" | "=";
 
@@ -16,7 +25,7 @@ export interface LpProblem {
   constraints: LpConstraint[];
 }
 
-export type LpStatus = "optimal" | "infeasible" | "unbounded";
+export type LpStatus = "optimal" | "infeasible" | "unbounded" | "iteration-limit";
 
 export interface LpSolution {
   status: LpStatus;
@@ -29,6 +38,7 @@ type Tableau = {
   matrix: number[][];
   rhs: number[];
   basis: number[];
+  basisSet: Set<number>;
   columnCount: number;
 };
 
@@ -98,7 +108,7 @@ export function solveLinearProgram(problem: LpProblem): LpSolution {
     matrix.push(line);
   }
 
-  const tableau: Tableau = { matrix, rhs, basis, columnCount };
+  const tableau: Tableau = { matrix, rhs, basis, basisSet: new Set(basis), columnCount };
 
   if (artificialColumns.length > 0) {
     const phaseOneCost = new Array<number>(columnCount).fill(0);
@@ -106,6 +116,9 @@ export function solveLinearProgram(problem: LpProblem): LpSolution {
       phaseOneCost[column] = 1;
     }
     const phaseOne = runSimplex(tableau, phaseOneCost, undefined);
+    if (phaseOne.status === "iteration-limit") {
+      return { status: "iteration-limit", values: [], objective: NaN };
+    }
     if (phaseOne.status === "unbounded") {
       // Phase-1 objective is bounded below by zero; this cannot happen.
       return { status: "infeasible", values: [], objective: NaN };
@@ -124,8 +137,8 @@ export function solveLinearProgram(problem: LpProblem): LpSolution {
     cost[column] += coefficient;
   }
   const phaseTwo = runSimplex(tableau, cost, new Set(artificialColumns));
-  if (phaseTwo.status === "unbounded") {
-    return { status: "unbounded", values: [], objective: NaN };
+  if (phaseTwo.status !== "optimal") {
+    return { status: phaseTwo.status, values: [], objective: NaN };
   }
 
   const values = new Array<number>(structuralCount).fill(0);
@@ -155,13 +168,20 @@ function runSimplex(
   tableau: Tableau,
   cost: number[],
   blockedColumns: Set<number> | undefined,
-): { status: "optimal" | "unbounded"; objective: number } {
-  const { matrix, rhs, basis, columnCount } = tableau;
+): { status: "optimal" | "unbounded" | "iteration-limit"; objective: number } {
+  const { matrix, rhs, basis, basisSet, columnCount } = tableau;
   const rowCount = matrix.length;
+  const pivotCap = Math.min(
+    MAX_PIVOTS,
+    Math.max(MIN_PIVOTS, Math.floor(OPS_BUDGET / (2 * Math.max(1, rowCount) * columnCount))),
+  );
 
   // Reduced costs kept implicitly: recompute the dual row each iteration.
   // O(rows * columns) per iteration is acceptable at this scale.
-  for (;;) {
+  for (let pivots = 0; ; pivots += 1) {
+    if (pivots >= pivotCap) {
+      return { status: "iteration-limit", objective: NaN };
+    }
     const duals = new Array<number>(rowCount);
     for (let row = 0; row < rowCount; row += 1) {
       duals[row] = cost[basis[row]];
@@ -170,7 +190,7 @@ function runSimplex(
     // Bland's rule: pick the lowest-index column with negative reduced cost.
     let entering = -1;
     for (let column = 0; column < columnCount; column += 1) {
-      if (blockedColumns?.has(column) || isBasic(basis, column)) {
+      if (blockedColumns?.has(column) || basisSet.has(column)) {
         continue;
       }
       let reduced = cost[column];
@@ -229,7 +249,7 @@ function driveArtificialsOutOfBasis(tableau: Tableau, artificialColumns: Set<num
 
     let pivotColumn = -1;
     for (let column = 0; column < columnCount; column += 1) {
-      if (artificialColumns.has(column) || isBasic(basis, column)) {
+      if (artificialColumns.has(column) || tableau.basisSet.has(column)) {
         continue;
       }
       if (Math.abs(matrix[row][column]) > TOLERANCE) {
@@ -272,9 +292,7 @@ function pivot(tableau: Tableau, pivotRow: number, pivotColumn: number) {
     rhs[other] -= factor * rhs[pivotRow];
   }
 
+  tableau.basisSet.delete(basis[pivotRow]);
+  tableau.basisSet.add(pivotColumn);
   basis[pivotRow] = pivotColumn;
-}
-
-function isBasic(basis: number[], column: number): boolean {
-  return basis.includes(column);
 }

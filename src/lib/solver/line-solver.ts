@@ -34,7 +34,17 @@ const BYPRODUCT_MULTIPLIER = 100;
 const MACHINE_COST = 0.000001;
 const FLOW_COST = 0.000000001;
 
-export type LineSolveStatus = "optimal" | "infeasible" | "unbounded" | "empty";
+export type LineSolveStatus =
+  | "optimal"
+  | "infeasible"
+  | "unbounded"
+  | "empty"
+  | "iteration-limit"
+  | "too-large";
+
+/** Refuse to build LP problems that would visibly stall the UI thread. */
+const MAX_LP_VARIABLES = 4000;
+const MAX_LP_CONSTRAINTS = 3000;
 
 export interface LineSolveExternalInput {
   resourceKey: ResourceKey;
@@ -246,6 +256,13 @@ export function solveProcessLine(project: FactoryProject): LineSolveResult {
       constraints,
       diagnostics,
     );
+  }
+
+  if (variableCount > MAX_LP_VARIABLES || constraints.length > MAX_LP_CONSTRAINTS) {
+    diagnostics.push(
+      `line-solver:too-large:${variableCount}-variables:${constraints.length}-constraints`,
+    );
+    return emptyResult("too-large", diagnostics);
   }
 
   const solution = solveLinearProgram({ variableCount, objective, constraints });

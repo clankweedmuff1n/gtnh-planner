@@ -114,6 +114,13 @@ describe("buildLine", () => {
       (node) => result.recipes.find((entry) => entry.id === node.recipeId)?.id === "smelt",
     );
     expect(smeltNode?.position.x).toBeLessThan(1000 - 2 * 400);
+
+    // Every placed producer is wired to its consumer: 2 into the target,
+    // smelt into draw-wire.
+    expect(result.connections).toHaveLength(3);
+    expect(
+      result.connections.filter((entry) => entry.targetNodeId === "target-node"),
+    ).toHaveLength(2);
   });
 
   it("does not place a second producer when a byproduct already covers the input", async () => {
@@ -149,6 +156,17 @@ describe("buildLine", () => {
     expect(result.externalInputs).toHaveLength(0);
     // The spent input never went to the dataset: the line already makes it.
     expect(dataSource.queries).toEqual(["fluid:acid"]);
+
+    // The loop is closed with explicit connections in both directions.
+    const recycleNodeId = result.nodes[0].id;
+    expect(result.connections).toContainEqual({
+      sourceNodeId: recycleNodeId,
+      targetNodeId: "target-node",
+    });
+    expect(result.connections).toContainEqual({
+      sourceNodeId: "target-node",
+      targetNodeId: recycleNodeId,
+    });
   });
 
   it("prefers low-tier primary-output recipes with fewer inputs", async () => {

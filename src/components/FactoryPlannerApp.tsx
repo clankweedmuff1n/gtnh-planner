@@ -15,6 +15,7 @@ import { preloadDatasetAtlases } from "@/lib/datasets/preload-atlases";
 import { LOCAL_STORAGE_KEY, loadResourceHistory, useFactoryStore } from "@/store/factory-store";
 import { FactoryFlow } from "./flow/FactoryFlow";
 import { InspectorPanel } from "./InspectorPanel";
+import { LineSolvePanel } from "./LineSolvePanel";
 import { RecipeBrowser } from "./RecipeBrowser";
 import { TopBar } from "./TopBar";
 
@@ -170,10 +171,11 @@ export function FactoryPlannerApp() {
   return (
     <div className="flex h-screen min-h-[720px] flex-col bg-neutral-100 text-neutral-950 dark:bg-neutral-950 dark:text-neutral-100">
       <TopBar onLoadDatasetVersion={loadDatasetVersion} />
-      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)_360px]">
+      <main className="relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)_360px]">
         <RecipeBrowser />
         <FactoryFlow />
         <InspectorPanel />
+        <LineSolvePanel />
       </main>
     </div>
   );

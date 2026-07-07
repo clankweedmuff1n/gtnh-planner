@@ -30,7 +30,7 @@ export interface MachineCountOptimizationResult {
 
 type EndpointId = string;
 
-type RatePlan = {
+export type RatePlan = {
   node: FactoryNode;
   recipe?: Recipe;
   effectiveRecipe?: Recipe;
@@ -80,7 +80,7 @@ type StorageContribution = {
   links: ContributionLink[];
 };
 
-type GraphContext = {
+export type GraphContext = {
   project: FactoryProject;
   nodesById: Map<string, FactoryNode>;
   recipesById: Map<string, Recipe>;
@@ -1252,7 +1252,7 @@ function hashMachineCounts(nodes: FactoryNode[], machineCounts: Map<string, numb
     .join("|");
 }
 
-function buildGraphContext(project: FactoryProject): GraphContext {
+export function buildGraphContext(project: FactoryProject): GraphContext {
   const recipesById = new Map(project.recipes.map((recipe) => [recipe.id, recipe]));
   const nodesById = new Map(project.nodes.map((node) => [node.id, node]));
   const storagesById = new Map((project.storages ?? []).map((storage) => [storage.id, storage]));
@@ -1428,7 +1428,7 @@ function edgeCanUseOutputKey(
   return getPlanOutputKeyForEdge(plan, edge) === outputKey;
 }
 
-function getPlanOutputKeyForEdge(
+export function getPlanOutputKeyForEdge(
   plan: RatePlan | undefined,
   edge: Pick<FactoryEdge, "resourceKind" | "resourceId">,
 ): ResourceKey | undefined {
@@ -1456,7 +1456,7 @@ function getPlanOutputKeyForEdge(
   return undefined;
 }
 
-function convertOutputRateForEdge(
+export function convertOutputRateForEdge(
   plan: RatePlan,
   edge: Pick<FactoryEdge, "resourceKind" | "resourceId">,
   outputKey: ResourceKey | undefined,
@@ -1495,7 +1495,7 @@ function getEdgeTargetDemandKey(context: GraphContext, edge: FactoryEdge): Resou
   return getEdgeTargetDemandKeyFromPlans(context.ratePlans, edge);
 }
 
-function getEdgeTargetDemandKeyFromPlans(
+export function getEdgeTargetDemandKeyFromPlans(
   ratePlans: Map<string, RatePlan>,
   edge: FactoryEdge,
 ): ResourceKey | undefined {
@@ -1586,7 +1586,7 @@ function compareCandidateScores(
   return (left.nodeId ?? "").localeCompare(right.nodeId ?? "");
 }
 
-function storageBusId(resourceKey: ResourceKey): EndpointId {
+export function storageBusId(resourceKey: ResourceKey): EndpointId {
   return `${STORAGE_BUS_PREFIX}${resourceKey}`;
 }
 

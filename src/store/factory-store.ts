@@ -7,6 +7,7 @@ import { normalizeProjectFuelProfiles } from "@/lib/model/fuels";
 import { calculateThroughput } from "@/lib/solver";
 import { applyRecipeInputOverrides } from "@/lib/model/recipe-input-overrides";
 import { optimizeMachineCountsForProject } from "@/lib/solver/machine-count-optimizer";
+import { solveProcessLine, type LineSolveResult } from "@/lib/solver/line-solver";
 import {
   getFilledCellFluidEquivalent,
   getResourceKey,
@@ -61,6 +62,7 @@ interface FactoryStore {
   selectedNodeId?: string;
   selectedRecipeId?: string;
   lastResult: ThroughputResult;
+  lastLineSolve?: LineSolveResult;
   setProject: (project: FactoryProject) => void;
   markHydratedProject: (project: FactoryProject) => void;
   applyRemoteProject: (project: FactoryProject) => void;
@@ -152,6 +154,8 @@ interface FactoryStore {
   autoConnectNode: (nodeId: string) => void;
   optimizeMachineCount: (nodeId: string) => void;
   optimizeMachineCounts: () => void;
+  solveLine: () => void;
+  dismissLineSolve: () => void;
   deleteEdge: (edgeId: string) => void;
   setTargetRate: (targetRate?: TargetRate) => void;
   selectFuelProfile: (fuelProfileId: string) => void;
@@ -1055,6 +1059,42 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
         lastResult: calculateThroughput(touchedProject),
       });
     });
+  },
+  solveLine: () => {
+    set((state) => {
+      if (state.project.nodes.length === 0) {
+        return state;
+      }
+
+      const result = solveProcessLine(state.project);
+      if (result.status !== "optimal") {
+        return { ...state, lastLineSolve: result };
+      }
+
+      const project = {
+        ...state.project,
+        nodes: state.project.nodes.map((node) => {
+          const machineCount = result.machineCounts.get(node.id);
+          return machineCount === undefined || machineCount === node.machineCount
+            ? node
+            : { ...node, machineCount };
+        }),
+      };
+
+      if (haveSameMachineCounts(state.project, project)) {
+        return { ...state, lastLineSolve: result };
+      }
+
+      const touchedProject = touchProject(project);
+      return withProjectHistory(state, {
+        project: touchedProject,
+        lastResult: calculateThroughput(touchedProject),
+        lastLineSolve: result,
+      });
+    });
+  },
+  dismissLineSolve: () => {
+    set({ lastLineSolve: undefined });
   },
   deleteEdge: (edgeId) => {
     set((state) => {

@@ -6,6 +6,7 @@ import {
   FileImage,
   ImageDown,
   LoaderCircle,
+  Recycle,
   Redo2,
   Trash2,
   Undo2,
@@ -65,6 +66,7 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   const setProjectImporting = useFactoryStore((state) => state.setProjectImporting);
   const cleanBoard = useFactoryStore((state) => state.cleanBoard);
   const optimizeMachineCounts = useFactoryStore((state) => state.optimizeMachineCounts);
+  const solveLine = useFactoryStore((state) => state.solveLine);
   const undo = useFactoryStore((state) => state.undo);
   const redo = useFactoryStore((state) => state.redo);
 
@@ -242,6 +244,16 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
           className="inline-flex h-9 w-9 items-center justify-center rounded border border-cyan-700 bg-cyan-600 text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-100 disabled:text-neutral-400"
         >
           <WandSparkles className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={solveLine}
+          disabled={project.nodes.length === 0}
+          title="Solve line: close recycling loops and minimize external inputs"
+          aria-label="Solve line: close recycling loops and minimize external inputs"
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-100 disabled:text-neutral-400"
+        >
+          <Recycle className="h-4 w-4" />
         </button>
         <ToolbarButton
           icon={Trash2}

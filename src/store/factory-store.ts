@@ -8,6 +8,12 @@ import { calculateThroughput } from "@/lib/solver";
 import { applyRecipeInputOverrides } from "@/lib/model/recipe-input-overrides";
 import { optimizeMachineCountsForProject } from "@/lib/solver/machine-count-optimizer";
 import { solveProcessLine, type LineSolveResult } from "@/lib/solver/line-solver";
+import { buildLine, type BuildLineResult } from "@/lib/line-builder/build-line";
+import {
+  getRecipeDatasetRecipe,
+  queryRecipeDatasetRecipes,
+} from "@/lib/datasets/browser-loader";
+import { DEFAULT_DATASET_MANIFEST_URL } from "@/lib/datasets";
 import {
   getFilledCellFluidEquivalent,
   getResourceKey,
@@ -63,6 +69,9 @@ interface FactoryStore {
   selectedRecipeId?: string;
   lastResult: ThroughputResult;
   lastLineSolve?: LineSolveResult;
+  isLineBuilding: boolean;
+  lastLineBuild?: BuildLineResult;
+  lineBuildError?: string;
   setProject: (project: FactoryProject) => void;
   markHydratedProject: (project: FactoryProject) => void;
   applyRemoteProject: (project: FactoryProject) => void;
@@ -156,6 +165,7 @@ interface FactoryStore {
   optimizeMachineCounts: () => void;
   solveLine: () => void;
   dismissLineSolve: () => void;
+  buildLineForNode: (nodeId: string) => Promise<void>;
   deleteEdge: (edgeId: string) => void;
   setTargetRate: (targetRate?: TargetRate) => void;
   selectFuelProfile: (fuelProfileId: string) => void;
@@ -202,6 +212,7 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
   project: initialProject,
   undoHistory: [],
   redoHistory: [],
+  isLineBuilding: false,
   datasetManifest: undefined,
   dataset: undefined,
   datasetManifestUrl: undefined,
@@ -1094,7 +1105,102 @@ export const useFactoryStore = create<FactoryStore>((set, get) => ({
     });
   },
   dismissLineSolve: () => {
-    set({ lastLineSolve: undefined });
+    set({ lastLineSolve: undefined, lastLineBuild: undefined, lineBuildError: undefined });
+  },
+  buildLineForNode: async (nodeId) => {
+    const state = get();
+    if (state.isLineBuilding) {
+      return;
+    }
+
+    const version = state.datasetManifest?.versions.find(
+      (entry) => entry.id === state.selectedDatasetVersionId,
+    );
+    if (!version) {
+      set({ lineBuildError: "Load a recipe dataset version first." });
+      return;
+    }
+
+    const manifestUrl = state.datasetManifestUrl ?? DEFAULT_DATASET_MANIFEST_URL;
+    const maxTier = state.maxTierFilter;
+    set({ isLineBuilding: true, lineBuildError: undefined, lastLineBuild: undefined });
+
+    try {
+      const result = await buildLine(state.project, nodeId, {
+        findRecipesProducing: async (resource) => {
+          const response = await queryRecipeDatasetRecipes(manifestUrl, version, {
+            query: "",
+            resource,
+            mode: "recipes",
+            maxTier,
+            offset: 0,
+            limit: 32,
+          });
+          return response.recipes;
+        },
+        fetchRecipe: (recipeId) => getRecipeDatasetRecipe(manifestUrl, version, recipeId),
+      });
+
+      set((current) => {
+        if (result.nodes.length === 0) {
+          return { ...current, lastLineBuild: result };
+        }
+
+        const existingRecipeIds = new Set(current.project.recipes.map((entry) => entry.id));
+        const projectWithNodes: FactoryProject = {
+          ...current.project,
+          recipes: [
+            ...current.project.recipes,
+            ...result.recipes.filter((entry) => !existingRecipeIds.has(entry.id)),
+          ],
+          nodes: [...current.project.nodes, ...result.nodes],
+        };
+
+        // Connect the placed nodes among themselves and to the rest of the
+        // board; matching byproduct -> input pairs close the loops here.
+        const newEdges: FactoryEdge[] = [];
+        const existingAndPending = [...projectWithNodes.edges];
+        for (const newNode of result.nodes) {
+          for (const otherNode of projectWithNodes.nodes) {
+            if (otherNode.id === newNode.id) {
+              continue;
+            }
+            for (const edge of [
+              ...buildCompatibleEdgesBetweenNodes(projectWithNodes, otherNode.id, newNode.id),
+              ...buildCompatibleEdgesBetweenNodes(projectWithNodes, newNode.id, otherNode.id),
+            ]) {
+              if (!hasDuplicateEdge(existingAndPending, edge)) {
+                newEdges.push(edge);
+                existingAndPending.push(edge);
+              }
+            }
+          }
+        }
+
+        const project = touchProject(
+          applyEdgeInputOverrides(
+            { ...projectWithNodes, edges: [...projectWithNodes.edges, ...newEdges] },
+            newEdges,
+          ),
+        );
+
+        return withProjectHistory(current, {
+          project,
+          lastResult: calculateThroughput(project),
+          lastLineBuild: result,
+        });
+      });
+
+      if (result.nodes.length > 0) {
+        get().solveLine();
+      }
+    } catch (error) {
+      set({
+        lineBuildError: error instanceof Error ? error.message : "Line build failed.",
+      });
+    } finally {
+      set({ isLineBuilding: false });
+    }
   },
   deleteEdge: (edgeId) => {
     set((state) => {

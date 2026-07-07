@@ -8,6 +8,8 @@ import { useFactoryStore } from "@/store/factory-store";
 
 export function LineSolvePanel() {
   const result = useFactoryStore((state) => state.lastLineSolve);
+  const buildResult = useFactoryStore((state) => state.lastLineBuild);
+  const buildError = useFactoryStore((state) => state.lineBuildError);
   const project = useFactoryStore((state) => state.project);
   const dismiss = useFactoryStore((state) => state.dismissLineSolve);
 
@@ -27,7 +29,7 @@ export function LineSolvePanel() {
     return byKey;
   }, [project.recipes, result]);
 
-  if (!result) {
+  if (!result && !buildResult && !buildError) {
     return null;
   }
 
@@ -43,7 +45,13 @@ export function LineSolvePanel() {
     <div className="pointer-events-auto absolute bottom-4 left-1/2 z-40 w-[min(480px,90%)] -translate-x-1/2 rounded-lg border border-neutral-300 bg-white/95 p-4 text-sm shadow-xl backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="font-semibold">
-          {result.status === "optimal" ? "Line solved" : `Line solve failed: ${result.status}`}
+          {buildError
+            ? "Line build failed"
+            : !result
+              ? "Line built"
+              : result.status === "optimal"
+                ? "Line solved"
+                : `Line solve failed: ${result.status}`}
         </h3>
         <button
           type="button"
@@ -55,7 +63,37 @@ export function LineSolvePanel() {
         </button>
       </div>
 
-      {result.status !== "optimal" ? (
+      {buildError ? (
+        <p className="mb-2 text-red-600 dark:text-red-400">{buildError}</p>
+      ) : null}
+
+      {buildResult ? (
+        <section className="mb-3">
+          <h4 className="mb-1 font-medium text-violet-700 dark:text-violet-400">
+            Auto-built chain
+          </h4>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Placed {buildResult.nodes.length} node{buildResult.nodes.length === 1 ? "" : "s"}.
+          </p>
+          {buildResult.externalInputs.length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {buildResult.externalInputs.map((entry) => (
+                <li
+                  key={`${entry.kind}:${entry.id}`}
+                  className="flex justify-between gap-2 text-neutral-600 dark:text-neutral-300"
+                >
+                  <span>{entry.displayName ?? entry.id}</span>
+                  <span className="text-neutral-400">
+                    {entry.reason === "no-recipe" ? "raw input" : "not expanded"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
+
+      {!result ? null : result.status !== "optimal" ? (
         <p className="text-neutral-600 dark:text-neutral-400">
           {result.status === "infeasible"
             ? "No steady state satisfies the current targets — check loop ratios and disabled nodes."
@@ -140,13 +178,15 @@ export function LineSolvePanel() {
         </div>
       )}
 
-      {result.diagnostics.length > 0 && (
+      {((result?.diagnostics.length ?? 0) > 0 || (buildResult?.diagnostics.length ?? 0) > 0) && (
         <details className="mt-2 text-xs text-neutral-500">
           <summary className="cursor-pointer">Diagnostics</summary>
           <ul>
-            {result.diagnostics.map((entry, index) => (
-              <li key={index}>{entry}</li>
-            ))}
+            {[...(buildResult?.diagnostics ?? []), ...(result?.diagnostics ?? [])].map(
+              (entry, index) => (
+                <li key={index}>{entry}</li>
+              ),
+            )}
           </ul>
         </details>
       )}

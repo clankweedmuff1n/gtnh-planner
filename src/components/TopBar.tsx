@@ -4,6 +4,7 @@ import {
   ChevronDown,
   Download,
   FileImage,
+  Hammer,
   ImageDown,
   LoaderCircle,
   Recycle,
@@ -67,6 +68,9 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
   const cleanBoard = useFactoryStore((state) => state.cleanBoard);
   const optimizeMachineCounts = useFactoryStore((state) => state.optimizeMachineCounts);
   const solveLine = useFactoryStore((state) => state.solveLine);
+  const buildLineForNode = useFactoryStore((state) => state.buildLineForNode);
+  const selectedNodeId = useFactoryStore((state) => state.selectedNodeId);
+  const isLineBuilding = useFactoryStore((state) => state.isLineBuilding);
   const undo = useFactoryStore((state) => state.undo);
   const redo = useFactoryStore((state) => state.redo);
 
@@ -254,6 +258,24 @@ export function TopBar({ onLoadDatasetVersion }: TopBarProps) {
           className="inline-flex h-9 w-9 items-center justify-center rounded border border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-100 disabled:text-neutral-400"
         >
           <Recycle className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (selectedNodeId) {
+              void buildLineForNode(selectedNodeId);
+            }
+          }}
+          disabled={!selectedNodeId || isLineBuilding}
+          title="Build line: auto-place producing recipes for the selected node's inputs"
+          aria-label="Build line: auto-place producing recipes for the selected node's inputs"
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-violet-700 bg-violet-600 text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:bg-neutral-100 disabled:text-neutral-400"
+        >
+          {isLineBuilding ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <Hammer className="h-4 w-4" />
+          )}
         </button>
         <ToolbarButton
           icon={Trash2}
